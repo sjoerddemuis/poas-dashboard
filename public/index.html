@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>POAS-dashboard · Ongediertewinkel</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js"></script>
+<style>
+:root{color-scheme:light;--green:#00C030;--greenDk:#009626;--ink:#0F1411;--paper:#FAF9F5;--card:#FFFFFF;--line:#E4E7E3;--mute:#6B726C;--orange:#F06828;--red:#E5484D;--lightg:#E8F8EC;--blue:#2D6CDF;--mono:'JetBrains Mono','SFMono-Regular',Consolas,monospace;--sans:'Inter',system-ui,-apple-system,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14px}
+.wrap{max-width:1120px;margin:0 auto;padding:22px 18px 60px}
+.hd{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;border-bottom:2px solid var(--green);padding-bottom:12px;margin-bottom:14px;flex-wrap:wrap}
+.kick{font-family:var(--mono);font-size:11px;letter-spacing:1px;color:var(--green);text-transform:uppercase;font-weight:700}
+h1{font-size:27px;margin:3px 0 0;letter-spacing:-.5px}
+.user{font-size:12px;color:var(--mute);text-align:right;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.row{display:flex;gap:8px;align-items:center}
+.btn{font-family:var(--mono);font-size:11px;font-weight:600;cursor:pointer;padding:6px 11px;border-radius:7px;background:transparent;color:var(--greenDk);border:1px solid var(--line)}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 18px}
+.tab{font-weight:700;cursor:pointer;padding:8px 18px;border-radius:9px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font-size:14px}
+.tab.on{background:var(--green);border-color:var(--green);color:#fff}
+.refresh{font-family:var(--mono);font-size:11px;color:var(--mute);display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--mute)}
+.dot.live{background:var(--green)}.dot.err{background:var(--red)}
+.now{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:6px}
+.now>div{background:var(--card);padding:14px 16px}
+.now .lab{font-family:var(--mono);font-size:10px;letter-spacing:.5px;color:var(--mute);text-transform:uppercase}
+.now .big{font-size:30px;font-weight:700;line-height:1.05;margin-top:3px}
+.now .sm{font-size:12px;color:var(--mute);margin-top:2px}
+.advice{font-size:13px;line-height:1.5;border-radius:10px;padding:11px 15px;margin:10px 0 22px}
+.sec{font-size:15px;font-weight:700;margin:26px 0 10px;display:flex;align-items:baseline;gap:8px}
+.sec .n{font-family:var(--mono);font-size:11px;color:var(--green)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.chartbox{position:relative;height:260px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.pc{border-radius:12px;border:1.5px solid var(--line);padding:14px;background:var(--card)}
+.pc .t{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+.pc .v{font-size:30px;font-weight:700;line-height:1;margin:6px 0}
+.pc .kv{display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;margin-top:6px}
+.pc .kv span{font-size:12px}.pc .kv b{font-size:13px}
+.pc .nt{font-size:11.5px;color:var(--mute);line-height:1.4;margin-top:8px}
+.presets{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
+.ps{font-family:var(--mono);font-size:12px;font-weight:700;cursor:pointer;padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.ps.on{background:var(--green);border-color:var(--green);color:#fff}
+table{width:100%;border-collapse:collapse}
+th{font-family:var(--mono);font-size:10px;letter-spacing:.5px;color:#fff;text-transform:uppercase;padding:8px 9px;text-align:right;white-space:nowrap}
+th:first-child{text-align:left}
+td{padding:7px 9px;text-align:right;font-size:13px;white-space:nowrap;border-top:1px solid var(--line)}
+td:first-child{text-align:left;font-family:var(--mono)}
+thead tr{background:var(--ink)}
+.tbl-wrap{border:1px solid var(--line);border-radius:10px;overflow:auto;background:var(--card)}
+details{margin:14px 0}
+summary{cursor:pointer;font-weight:700;font-size:14px;padding:10px 14px;background:var(--card);border:1px solid var(--line);border-radius:10px;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"▸ ";color:var(--green)}
+details[open] summary::before{content:"▾ "}
+.note{font-size:11px;color:var(--mute);line-height:1.55;margin-top:8px}
+.warn{background:#FBEEE8;border:1px solid var(--orange);border-radius:10px;padding:11px 15px;font-size:13px;line-height:1.5}
+.econ{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+.econ>div{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 12px;min-width:120px}
+.econ .lab{font-family:var(--mono);font-size:9px;letter-spacing:.4px;color:var(--mute);text-transform:uppercase}
+.econ .v{font-size:16px;font-weight:700}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:50}
+.modal.show{display:flex}
+.panel{background:#fff;border-radius:12px;padding:22px;width:420px;max-width:92vw}
+.panel h2{margin:0 0 12px;font-size:18px}
+.panel input{padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-size:14px;width:100%}
+.ulist{margin:12px 0;max-height:200px;overflow:auto}
+.ulist div{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid var(--line);font-size:13px}
+.x{color:var(--red);cursor:pointer;font-family:var(--mono);border:none;background:none;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app" style="display:none">
+  <div class="hd">
+    <div><div class="kick">Ongediertewinkel · Google Ads</div><h1>Blended POAS-dashboard</h1></div>
+    <div class="user">
+      <span id="who"></span>
+      <div class="row">
+        <button class="btn" id="adminBtn" style="display:none">Gebruikers</button>
+        <button class="btn" id="logoutBtn">Uitloggen</button>
+      </div>
+    </div>
+  </div>
+  <div class="refresh"><span class="dot" id="dot"></span><span id="status">Laden…</span><button class="btn" id="reloadBtn" style="margin-left:auto">↻ Ververs</button></div>
+  <div class="tabs" id="tabs"></div>
+  <div id="view"></div>
+  <div class="note" style="margin-top:24px">Blended POAS = winst vóór ads ÷ adspend, met winst vóór ads = omzet ex btw − product − verzend − transactie − verpakking − opex. AOV = netto-omzet ÷ orders (laatste 30 dagen) per land. Live uit Metorik. Marktplaatsen niet meegenomen (geen adspend).</div>
+</div>
+
+<div class="modal" id="adminModal">
+  <div class="panel">
+    <h2>Gebruikers uitnodigen</h2>
+    <div style="font-size:12px;color:#6B726C;margin-bottom:10px">Voeg iemand toe met e-mail + wachtwoord. Zij loggen daarmee in. Niemand kan zelf een account maken.</div>
+    <div class="row" style="gap:8px"><input id="newEmail" type="email" placeholder="naam@bedrijf.nl"><input id="newPw" type="text" placeholder="wachtwoord" style="max-width:130px"><button class="btn" id="addUser">+ Toevoegen</button></div>
+    <div class="err" id="adminErr" style="color:#E5484D;font-size:12px;min-height:16px;margin-top:6px"></div>
+    <div class="ulist" id="ulist"></div>
+    <div style="text-align:right"><button class="btn" id="closeAdmin">Sluiten</button></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const C={green:"#00C030",greenDk:"#009626",ink:"#0F1411",mute:"#6B726C",orange:"#F06828",red:"#E5484D",blue:"#2D6CDF",line:"#E4E7E3",lightg:"#E8F8EC"};
+const fmtEur=n=>isFinite(n)?"€"+Math.round(n).toLocaleString("nl-NL"):"—";
+const fmtEur2=n=>isFinite(n)?"€"+n.toLocaleString("nl-NL",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
+const fmtN=(n,d=2)=>isFinite(n)?n.toLocaleString("nl-NL",{minimumFractionDigits:d,maximumFractionDigits:d}):"—";
+const fmtX=n=>isFinite(n)?fmtN(n,2)+"×":"—";
+const fmtPct=n=>isFinite(n)?fmtN(n*100,1)+"%":"—";
+let DATA={},AOV={},ROLE="viewer";
+const state={shop:"NL",preset:{}};
+const charts={};
+function el(t,c,h){const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;}
+function destroyCharts(){Object.values(charts).forEach(c=>{try{c.destroy();}catch(e){}});}
+
+/* ---- model ---- */
+function row(r){const cogs=r[4]+r[5]+r[6]+r[7];const bw=r[1]-cogs;const wva=bw-r[8];
+  return{label:r[0],net:r[1],adv:r[2],orders:r[3],cogs,bw,opex:r[8],trans:r[6],wva,marge:r[1]?bw/r[1]:NaN,netto:wva-r[2],poas:r[2]?wva/r[2]:NaN,roas:r[2]?r[1]/r[2]:NaN,avkPct:r[1]?(r[2]+r[8]+r[6])/r[1]:NaN};}
+function rowsOf(s){return (DATA[s]&&DATA[s].m?DATA[s].m:[]).map(row);}
+function isPartial(s,i){return i===(DATA[s].m.length-1);}
+function agg(rows){const s=f=>rows.reduce((a,r)=>a+f(r),0);const net=s(r=>r.net),adv=s(r=>r.adv),bw=s(r=>r.bw),opex=s(r=>r.opex),orders=s(r=>r.orders),trans=s(r=>r.trans);const wva=bw-opex;
+  return{net,adv,bw,opex,orders,trans,wva,netto:wva-adv,marge:net?bw/net:NaN,poas:adv?wva/adv:NaN,roas:adv?net/adv:NaN,aov:orders?net/orders:NaN,avkPct:net?(adv+opex+trans)/net:NaN};}
+function fitSat(pts){pts=pts.filter(p=>p.spend>0&&p.orders>0);const n=pts.length;if(n<2)return{Vmax:NaN,k:NaN,r2:NaN,n};
+  const X=pts.map(p=>1/p.spend),Y=pts.map(p=>1/p.orders);const mx=X.reduce((a,b)=>a+b,0)/n,my=Y.reduce((a,b)=>a+b,0)/n;
+  let sxx=0,sxy=0;for(let i=0;i<n;i++){sxx+=(X[i]-mx)**2;sxy+=(X[i]-mx)*(Y[i]-my);}
+  const slope=sxy/sxx,inter=my-slope*mx,Vmax=1/inter,k=slope*Vmax;
+  const mo=pts.reduce((a,p)=>a+p.orders,0)/n;let sr=0,st=0;
+  for(const p of pts){const yh=Vmax*p.spend/(p.spend+k);sr+=(p.orders-yh)**2;st+=(p.orders-mo)**2;}
+  return{Vmax,k,r2:st?1-sr/st:1,n};}
+function econOf(s){const rows=rowsOf(s).filter((r,i)=>!isPartial(s,i));const last=rows.slice(-12);const a=agg(last);
+  const marge=a.marge;const aov=(AOV[s]&&isFinite(AOV[s]))?AOV[s]:a.aov;const m=aov*marge;
+  // opex/order & transactie/order op 30 dagen (uit /api/data); val terug op 12-mnd indien afwezig.
+  const opexPer=(DATA[s]&&isFinite(DATA[s].opexPer))?DATA[s].opexPer:(a.orders?a.opex/a.orders:0);
+  const transPer=(DATA[s]&&isFinite(DATA[s].transPer))?DATA[s].transPer:(a.orders?a.trans/a.orders:0);
+  return{aov,marge,m,opexPer,transPer,breakeven:m-opexPer};}
+function econTotaal(){const rows=rowsOf("TOT").filter((r,i)=>!isPartial("TOT",i));const last=rows.slice(-12);const a=agg(last);
+  const marge=a.marge;const aov=a.aov;const m=aov*marge;const opexPer=a.orders?a.opex/a.orders:0;const transPer=a.orders?a.trans/a.orders:0;return{aov,marge,m,opexPer,transPer,breakeven:m-opexPer};}
+function windowOpt(pts,econ,floor){const m=econ.m,x=econ.opexPer,tr=econ.transPer||0,aov=econ.aov;
+  pts=pts.filter(p=>p.spend>0&&p.orders>0);if(pts.length<2)return null;
+  const f=fitSat(pts);const{Vmax,k,r2,n}=f;if(!(Vmax>0&&k>0&&m>x))return{n,r2,Vmax,bad:true};
+  const minS=Math.min(...pts.map(p=>p.spend)),maxS=Math.max(...pts.map(p=>p.spend));
+  const ord=S=>Vmax*S/(S+k),poas=S=>Vmax*(m-x)/(S+k);
+  let best=null;for(let i=0;i<=400;i++){const S=minS+(maxS-minS)*i/400;if(poas(S)<floor)continue;const o=ord(S);const p=o*(m-x)-S;if(!best||p>best.profit)best={S,o,profit:p,poas:poas(S)};}
+  const pHigh=poas(minS),pLow=Math.max(floor,poas(maxS));const front=[];
+  if(pHigh>pLow){for(let i=0;i<13;i++){const p=pHigh-(pHigh-pLow)*i/12;const S=Math.min(Math.max(Vmax*(m-x)/p-k,minS),maxS);const o=ord(S);const profit=o*(m-x)-S;const omzet=o*aov;const avk=S+(x+tr)*o;front.push({poas:p,spend:S,orders:o,profit,cpa:S/o,ppo:(m-x)-S/o,avkPct:omzet?avk/omzet:NaN});}
+    for(let i=0;i<front.length;i++){const nx=front[i+1];front[i].dOrders=nx?nx.orders-front[i].orders:null;front[i].dppo=nx&&nx.orders>front[i].orders?(nx.profit-front[i].profit)/(nx.orders-front[i].orders):null;}}
+  return{n,r2,Vmax,k,minS,maxS,ord,front,...(best||{}),eff:{poas:poas(minS),S:minS,o:ord(minS)},vol:{poas:Math.max(floor,poas(maxS)),S:maxS,o:ord(maxS)}};}
+const MMAP={jan:1,feb:2,mrt:3,apr:4,mei:5,jun:6,jul:7,aug:8,sep:9,okt:10,nov:11,dec:12};
+const monthOf=l=>MMAP[String(l).slice(0,3).toLowerCase()]||0;
+const PRESETS=[{key:"l3",short:"Laatste 3 mnd"},{key:"l6",short:"Laatste 6 mnd"},{key:"l12",short:"Laatste 12 mnd"},{key:"high",short:"Hoogseizoen"},{key:"low",short:"Laagseizoen"},{key:"all",short:"Alles"}];
+function presetIdx(s,key){const m=DATA[s].m;const comp=m.map((r,i)=>({r,i})).filter(x=>!isPartial(s,x.i));
+  if(key==="all")return comp.map(x=>x.i);
+  if(key==="l3")return comp.slice(-3).map(x=>x.i);
+  if(key==="l6")return comp.slice(-6).map(x=>x.i);
+  if(key==="l12")return comp.slice(-12).map(x=>x.i);
+  if(key==="high")return comp.filter(x=>{const mo=monthOf(x.r[0]);return mo>=6&&mo<=11;}).map(x=>x.i);
+  if(key==="low")return comp.filter(x=>{const mo=monthOf(x.r[0]);return mo===12||(mo>=1&&mo<=5);}).map(x=>x.i);
+  return[];}
+function zoneColor(poas,floor,opt){if(!isFinite(poas))return C.mute;if(poas<floor)return C.red;if(opt&&poas<opt-0.15)return C.orange;if(opt&&poas<=opt+0.3)return C.green;return C.blue;}
+function transOf(s,label){const r=DATA[s].m.find(x=>x[0]===label);return r?r[6]:0;}
+function buildTotaal(){const shops=["NL","DE","FR"].filter(s=>DATA[s]&&DATA[s].m&&DATA[s].m.length);const base=shops[0];if(!base)return{name:"Totaal",m:[]};
+  const labels=DATA[base].m.map(r=>r[0]).filter(l=>shops.every(s=>DATA[s].m.some(r=>r[0]===l)));
+  const m=labels.map(l=>{const acc=[l,0,0,0,0,0,0,0,0];for(const s of shops){const r=DATA[s].m.find(x=>x[0]===l);for(let j=1;j<9;j++)acc[j]+=r[j];}return acc;});
+  return{name:"Totaal (NL+DE+FR)",m};}
+
+/* ---- render ---- */
+function pcCard(tag,col,p,econ,note,hero){const cpa=p.S/p.o;const profit=p.o*(econ.m-econ.opexPer)-p.S;
+  const d=el("div","pc");d.style.borderColor=col;if(hero)d.style.background=C.lightg;
+  d.innerHTML=`<div class="t" style="color:${col}">${tag}</div><div class="v">${fmtX(p.poas)}</div>
+   <div class="kv"><span>Winst</span><b>${fmtEur(profit)}</b><span>Orders</span><b>${Math.round(p.o).toLocaleString("nl-NL")}</b><span>Spend</span><b>${fmtEur(p.S)}</b><span>CPA</span><b>${fmtEur2(cpa)}</b></div>
+   <div class="nt">${note}</div>`;return d;}
+
+function render(){
+  destroyCharts();
+  if(state.shop==="TOT")DATA.TOT=buildTotaal();
+  const shop=state.shop;
+  const view=document.getElementById("view");const _sy=window.scrollY;view.innerHTML="";let respBuilder=null;
+  if(!DATA[shop]||!DATA[shop].m||!DATA[shop].m.length){
+    view.appendChild(el("div","warn",`Geen data voor ${(DATA[shop]&&DATA[shop].name)||shop}. ${DATA[shop]&&DATA[shop].error?"("+DATA[shop].error+")":""}`));
+    window.scrollTo(0,_sy);return;}
+  const rows=rowsOf(shop);const complete=rows.filter((r,i)=>!isPartial(shop,i));
+  const econ=shop==="TOT"?econTotaal():econOf(shop);
+  const floor=2.25;
+  const pk=state.preset[shop]||"l12";
+  const idx=presetIdx(shop,pk);
+  const pts=idx.map(i=>({spend:rows[i].adv,orders:rows[i].orders})).filter(p=>p.spend>0&&p.orders>0);
+  const opt=windowOpt(pts,econ,floor);
+  const optPoas=(opt&&!opt.bad&&opt.profit!=null)?opt.poas:null;
+  const lastC=complete[complete.length-1];const run3=agg(complete.slice(-3));
+
+  const now=el("div","now");const curPoas=lastC?lastC.poas:NaN;
+  now.appendChild(el("div",null,`<div class="lab">Blended POAS — ${lastC?lastC.label:"—"}</div><div class="big" style="color:${zoneColor(curPoas,floor,optPoas)}">${fmtX(curPoas)}</div><div class="sm">laatste complete maand</div>`));
+  now.appendChild(el("div",null,`<div class="lab">3-mnd run-rate</div><div class="big">${fmtX(run3.poas)}</div><div class="sm">${fmtEur(run3.adv)} spend</div>`));
+  now.appendChild(el("div",null,`<div class="lab">Winst-optimum</div><div class="big" style="color:${C.greenDk}">${optPoas?fmtX(optPoas):"—"}</div><div class="sm">${opt&&opt.profit!=null?fmtEur(opt.S)+" spend":"te weinig data"}</div>`));
+  const avkPct=lastC?(lastC.adv+lastC.opex+transOf(shop,lastC.label))/lastC.net:NaN;
+  now.appendChild(el("div",null,`<div class="lab">AVK %</div><div class="big" style="color:${C.blue}">${fmtPct(avkPct)}</div><div class="sm">ad+opex+transactie</div>`));
+  view.appendChild(now);
+
+  let adv,col,bg;
+  if(!optPoas){adv=`Onvoldoende betrouwbare data in dit venster voor een optimum (n=${pts.length}). Bekijk de cijfers, maar leun nog niet op het werkpunt.`;col=C.orange;bg="#FBEEE8";}
+  else{const gap=curPoas-optPoas;
+    if(curPoas<floor){adv=`Je draait <b>onder je vloer</b> (${fmtX(curPoas)} < ${fmtX(floor)}). Hier verlies je op de marge — bieding terug of marge/COGS checken.`;col=C.red;bg="#FBEEE8";}
+    else if(gap>0.35){adv=`Je zit op <b>${fmtX(curPoas)}</b>, het winst-optimum ligt op <b>${fmtX(optPoas)}</b>. Je bent conservatief: er is ruimte om agressiever te bieden en volume te pakken tegen ~gelijke winst.`;col=C.greenDk;bg=C.lightg;}
+    else if(gap<-0.2){adv=`Je zit op <b>${fmtX(curPoas)}</b>, ónder het winst-optimum van <b>${fmtX(optPoas)}</b>. Puur volume kost hier marge — alleen zinvol als strategische marktaandeel-zet.`;col=C.orange;bg="#FBEEE8";}
+    else{adv=`Je zit op <b>${fmtX(curPoas)}</b>, vlak bij het winst-optimum van <b>${fmtX(optPoas)}</b>. Goed afgesteld.`;col=C.greenDk;bg=C.lightg;}}
+  const ad=el("div","advice",adv);ad.style.background=bg;ad.style.border="1px solid "+col;view.appendChild(ad);
+
+  // maanddetails
+  const det=el("details");det.open=true;det.innerHTML=`<summary>Maanddetails — ex btw, na opex (${shop==="TOT"?"NL+DE+FR":DATA[shop].name})</summary>`;
+  const tw=el("div","tbl-wrap");tw.style.marginTop="10px";
+  let h="<table><thead><tr><th>Maand</th><th>Omzet ex btw</th><th>COGS</th><th>Brutowinst</th><th>Opex</th><th>Winst vóór ads</th><th>Adspend</th><th>Nettowinst</th><th>Blended POAS</th><th>AVK %</th><th>Marge</th></tr></thead><tbody>";
+  rows.forEach((r,i)=>{const part=isPartial(shop,i);h+=`<tr style="opacity:${part?.5:1}"><td>${r.label}${part?" (deel)":""}</td><td>${fmtEur(r.net)}</td><td style="color:${C.mute}">${fmtEur(r.cogs)}</td><td>${fmtEur(r.bw)}</td><td style="color:${C.mute}">${fmtEur(r.opex)}</td><td><b>${fmtEur(r.wva)}</b></td><td>${fmtEur(r.adv)}</td><td>${fmtEur(r.netto)}</td><td style="font-weight:700;color:${zoneColor(r.poas,floor,optPoas)}">${fmtX(r.poas)}</td><td style="color:${C.orange}">${fmtPct(r.avkPct)}</td><td style="color:${C.blue}">${fmtPct(r.marge)}</td></tr>`;});
+  const t12=agg(complete.slice(-12));h+=`<tr style="background:${C.lightg};border-top:2px solid ${C.ink}"><td><b>Blended 12 mnd</b></td><td><b>${fmtEur(t12.net)}</b></td><td></td><td><b>${fmtEur(t12.bw)}</b></td><td><b>${fmtEur(t12.opex)}</b></td><td><b>${fmtEur(t12.wva)}</b></td><td><b>${fmtEur(t12.adv)}</b></td><td><b>${fmtEur(t12.netto)}</b></td><td style="font-weight:700;color:${C.greenDk}">${fmtX(t12.poas)}</td><td style="color:${C.orange}"><b>${fmtPct(t12.avkPct)}</b></td><td style="color:${C.blue}"><b>${fmtPct(t12.marge)}</b></td></tr>`;
+  h+="</tbody></table>";tw.innerHTML=h;det.appendChild(tw);view.appendChild(det);
+
+  // optimizer
+  const od=el("details");od.open=true;od.innerHTML=`<summary>Werkpunt-optimizer — fit-venster & afruil efficiëntie/winst/volume</summary>`;
+  const ob=el("div");ob.style.marginTop="12px";
+  ob.appendChild(el("div","econ",
+    `<div><div class="lab">AOV (30d, ex btw)</div><div class="v">${fmtEur2(econ.aov)}</div></div>`+
+    `<div><div class="lab">Marge (12m)</div><div class="v">${fmtPct(econ.marge)}</div></div>`+
+    `<div><div class="lab">Brutowinst/order</div><div class="v">${fmtEur2(econ.m)}</div></div>`+
+    `<div><div class="lab">Opex/order</div><div class="v">${fmtEur2(econ.opexPer)}</div></div>`+
+    `<div><div class="lab">Break-even CPA</div><div class="v" style="color:${C.orange}">${fmtEur2(econ.breakeven)}</div></div>`));
+  const pr=el("div","presets");PRESETS.forEach(p=>{const b=el("button","ps"+(pk===p.key?" on":""),p.short);b.onclick=()=>{state.preset[shop]=p.key;render();};pr.appendChild(b);});
+  ob.appendChild(pr);
+  if(opt&&!opt.bad&&opt.profit!=null){
+    const cards=el("div","cards");
+    cards.appendChild(pcCard("Max efficiëntie",C.blue,opt.eff,econ,"Weinig spend, vetste marge/order — laag volume."));
+    cards.appendChild(pcCard("Max winst ★",C.green,{poas:opt.poas,S:opt.S,o:opt.o},econ,"Hoogste absolute winst.",true));
+    cards.appendChild(pcCard("Max volume",C.orange,opt.vol,econ,"Meeste orders binnen vloer & bereik."));
+    ob.appendChild(cards);
+    if(opt.front&&opt.front.length){
+      ob.appendChild(el("div","sec",`<span class="n">A</span> Volledige afruil — elke stap lager in blended POAS`));
+      const peak=opt.front.reduce((a,b)=>b.profit>a.profit?b:a,opt.front[0]);
+      const twf=el("div","tbl-wrap");
+      let hf="<table><thead><tr><th>Blended POAS</th><th>Spend</th><th>Orders</th><th>Winst</th><th>AVK %</th><th>Winst/order</th><th>CPA</th><th>Extra orders</th><th>Δ winst/order</th></tr></thead><tbody>";
+      opt.front.forEach(r=>{const isP=r===peak;hf+=`<tr style="background:${isP?C.lightg:'transparent'}"><td style="font-weight:700">${fmtX(r.poas)}${isP?' ★':''}</td><td>${fmtEur(r.spend)}</td><td>${Math.round(r.orders).toLocaleString('nl-NL')}</td><td style="font-weight:700;color:${isP?C.greenDk:'inherit'}">${fmtEur(r.profit)}</td><td style="color:${C.orange};font-weight:700">${fmtPct(r.avkPct)}</td><td>${fmtEur2(r.ppo)}</td><td>${fmtEur2(r.cpa)}</td><td style="color:${C.mute}">${r.dOrders!=null?'+'+Math.round(r.dOrders).toLocaleString('nl-NL'):'—'}</td><td style="color:${r.dppo!=null?(r.dppo>=0?C.greenDk:C.orange):C.mute}">${r.dppo!=null?fmtEur2(r.dppo):'—'}</td></tr>`;});
+      hf+="</tbody></table>";twf.innerHTML=hf;ob.appendChild(twf);
+      ob.appendChild(el("div","note","Elke rij = een bied-niveau. AVK % = (ad + opex + transactie) ÷ omzet — waar je marketingpartij op stuurt. Δ winst/order &lt;0 (oranje) = extra orders kosten netto geld."));
+    }
+    ob.appendChild(el("div","sec",`<span class="n">B</span> Responscurve — punten = maanden, lijn = model, ▲ = nu`));
+    const rc=el("div","card");const rb=el("div","chartbox");const rv=el("canvas");rb.appendChild(rv);rc.appendChild(rb);ob.appendChild(rc);
+    const curve=[];for(let i=0;i<=50;i++){const S=opt.minS+(opt.maxS-opt.minS)*i/50;curve.push({x:S,y:opt.ord(S)});}
+    const scatter=idx.map(i=>({x:rows[i].adv,y:rows[i].orders}));
+    const cur=lastC?{x:lastC.adv,y:lastC.orders}:null;
+    respBuilder=()=>{charts.resp=new Chart(rv,{type:"scatter",data:{datasets:[
+      {type:"line",label:"model",data:curve,borderColor:C.ink,borderWidth:2,pointRadius:0,tension:.3},
+      {type:"scatter",label:"maanden",data:scatter,backgroundColor:C.green,pointRadius:4},
+      ...(cur?[{type:"scatter",label:"nu",data:[cur],backgroundColor:C.orange,pointStyle:"triangle",pointRadius:9}]:[])
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtEur(c.parsed.x)+" → "+Math.round(c.parsed.y)+" orders"}}},
+      scales:{x:{type:"linear",ticks:{callback:v=>"€"+Math.round(v/1000)+"k"},grid:{color:C.line}},y:{ticks:{callback:v=>Math.round(v).toLocaleString("nl-NL")},grid:{color:C.line}}}}});};
+  } else {
+    ob.appendChild(el("div","warn",`Voor ${DATA[shop].name||"dit venster"} is er te weinig of te grillige data in dit fit-venster voor een betrouwbaar werkpunt (n=${pts.length}). ${shop==="FR"?"Frankrijk is een opstartshop met hoge opex t.o.v. omzet.":""} Bekijk de maanddetails hierboven.`));
+  }
+  od.appendChild(ob);view.appendChild(od);
+  const restore=()=>window.scrollTo(0,_sy);
+  if(respBuilder)requestAnimationFrame(()=>{respBuilder();restore();});
+  restore();
+}
+
+/* ---- tabs ---- */
+function buildTabs(){const t=document.getElementById("tabs");t.innerHTML="";
+  [["NL","NL"],["DE","DE"],["FR","FR"],["TOT","Totaal"]].forEach(([k,lab])=>{const b=el("button","tab"+(state.shop===k?" on":""),lab);b.onclick=()=>{state.shop=k;buildTabs();render();};t.appendChild(b);});}
+
+/* ---- data ---- */
+async function loadData(){
+  const dot=document.getElementById("dot"),st=document.getElementById("status");
+  st.textContent="Verversen uit Metorik…";dot.className="dot";
+  try{
+    const r=await fetch("/api/data");
+    if(r.status===401){location.href="/login.html";return;}
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||"Ophalen mislukt");
+    DATA=d;AOV={};["NL","DE","FR"].forEach(s=>{if(d[s])AOV[s]=d[s].aov;});
+    const when=d.updatedAt?new Date(d.updatedAt):new Date();
+    dot.className="dot live";st.textContent="Live uit Metorik · bijgewerkt "+when.toLocaleString("nl-NL",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
+    buildTabs();render();
+  }catch(e){dot.className="dot err";st.textContent="Ophalen mislukt: "+(e.message||e);}
+}
+
+/* ---- admin ---- */
+async function refreshUsers(){const r=await fetch("/api/admin/users");if(!r.ok)return;const d=await r.json();const ul=document.getElementById("ulist");ul.innerHTML="";(d.users||[]).forEach(em=>{const row=el("div",null,`<span>${em}</span>`);const x=el("button","x","✕");x.title="verwijderen";x.onclick=async()=>{await fetch("/api/admin/users",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:em})});refreshUsers();};row.appendChild(x);ul.appendChild(row);});}
+document.getElementById("adminBtn").onclick=()=>{document.getElementById("adminModal").classList.add("show");refreshUsers();};
+document.getElementById("closeAdmin").onclick=()=>document.getElementById("adminModal").classList.remove("show");
+document.getElementById("addUser").onclick=async()=>{const err=document.getElementById("adminErr");err.textContent="";
+  const email=document.getElementById("newEmail").value,password=document.getElementById("newPw").value;
+  const r=await fetch("/api/admin/users",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});
+  const d=await r.json();if(!r.ok){err.textContent=d.error||"Mislukt";return;}
+  document.getElementById("newEmail").value="";document.getElementById("newPw").value="";refreshUsers();};
+document.getElementById("logoutBtn").onclick=async()=>{await fetch("/api/logout",{method:"POST"});location.href="/login.html";};
+document.getElementById("reloadBtn").onclick=loadData;
+
+/* ---- boot ---- */
+(async()=>{
+  const r=await fetch("/api/me");
+  if(r.status!==200){location.href="/login.html";return;}
+  const me=await r.json();ROLE=me.role;
+  document.getElementById("who").textContent=me.email+(me.role==="admin"?" · admin":"");
+  if(me.role==="admin")document.getElementById("adminBtn").style.display="";
+  document.getElementById("app").style.display="";
+  loadData();
+})();
+</script>
+</body>
+</html>
