@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>POAS-dashboard · Ongediertewinkel</title>
+<title>Dashboard · Ongediertewinkel</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js"></script>
 <style>
 :root{color-scheme:light;--green:#00C030;--greenDk:#009626;--ink:#0F1411;--paper:#FAF9F5;--card:#FFFFFF;--line:#E4E7E3;--mute:#6B726C;--orange:#F06828;--red:#E5484D;--lightg:#E8F8EC;--blue:#2D6CDF;--mono:'JetBrains Mono','SFMono-Regular',Consolas,monospace;--sans:'Inter',system-ui,-apple-system,sans-serif}
@@ -70,12 +70,45 @@ details[open] summary::before{content:"▾ "}
 .ulist{margin:12px 0;max-height:200px;overflow:auto}
 .ulist div{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid var(--line);font-size:13px}
 .x{color:var(--red);cursor:pointer;font-family:var(--mono);border:none;background:none;font-size:14px}
+/* ---- Sectienavigatie ---- */
+.secnav{display:flex;gap:8px;margin:2px 0 20px;flex-wrap:wrap}
+.snav{font-weight:700;cursor:pointer;padding:9px 20px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--mute);font-size:14px}
+.snav.on{background:var(--ink);border-color:var(--ink);color:#fff}
+/* ---- Ronada-sectie (scoped) ---- */
+#sec-ronada .rsub{color:var(--mute);font-size:13px;margin:0 0 16px;line-height:1.5;max-width:760px}
+#sec-ronada .rcontrols{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+#sec-ronada select{font-size:14px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:9px;padding:8px 12px;cursor:pointer;font-weight:600}
+#sec-ronada .rseg{display:inline-flex;border:1.5px solid var(--line);border-radius:9px;overflow:hidden}
+#sec-ronada .rseg button{border:0;border-right:1px solid var(--line);background:var(--card);color:var(--ink);font-size:13px;font-weight:700;padding:8px 16px;cursor:pointer}
+#sec-ronada .rseg button:last-child{border-right:0}
+#sec-ronada .rseg button.on{background:var(--green);color:#fff}
+#sec-ronada .rwarn{background:#FBEEE8;border:1px solid var(--orange);border-radius:10px;padding:9px 13px;font-size:12px;line-height:1.5;color:var(--ink);margin-bottom:16px;max-width:760px}
+#sec-ronada .rcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px}
+#sec-ronada .rcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+#sec-ronada .rcard .lab{font-family:var(--mono);font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:var(--mute);margin-bottom:7px;line-height:1.3}
+#sec-ronada .rcard .big{font-size:26px;font-weight:700;line-height:1}
+#sec-ronada .rcard .small{font-size:12px;color:var(--mute);margin-top:4px}
+#sec-ronada .green{color:var(--greenDk)}#sec-ronada .grey{color:var(--mute)}
+#sec-ronada .rpanel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:18px}
+#sec-ronada .rchartbox{position:relative;height:340px}
+#sec-ronada table{width:100%;border-collapse:collapse;font-size:13px}
+#sec-ronada thead tr{background:transparent}
+#sec-ronada th{color:var(--mute);font-weight:600;font-size:11px;font-family:var(--sans);letter-spacing:0;text-transform:none;padding:7px 8px;text-align:right;white-space:nowrap}
+#sec-ronada th:first-child{text-align:left}
+#sec-ronada td{padding:7px 8px;text-align:right;border-top:1px solid var(--line);font-family:var(--sans);white-space:nowrap;font-size:13px}
+#sec-ronada td:first-child{text-align:left;font-family:var(--mono);font-size:12px}
+#sec-ronada tbody tr:hover{background:var(--paper)}
+#sec-ronada tfoot td{font-weight:700;border-top:2px solid var(--line)}
+#sec-ronada .rpill{display:inline-block;background:var(--lightg);color:var(--greenDk);border-radius:20px;padding:2px 9px;font-size:12px;font-weight:700;font-family:var(--sans)}
+#sec-ronada .rnote{font-size:12px;color:var(--mute);margin-top:10px;line-height:1.5}
+#sec-ronada .rloading,#sec-ronada .rerr{padding:40px;text-align:center;color:var(--mute)}
+#sec-ronada .rerr{color:var(--red)}
 </style>
 </head>
 <body>
 <div class="wrap" id="app" style="display:none">
   <div class="hd">
-    <div><div class="kick">Ongediertewinkel · Google Ads</div><h1>Blended POAS-dashboard</h1></div>
+    <div><div class="kick">Ongediertewinkel</div><h1>Dashboard</h1></div>
     <div class="user">
       <span id="who"></span>
       <div class="row">
@@ -84,10 +117,33 @@ details[open] summary::before{content:"▾ "}
       </div>
     </div>
   </div>
+  <div class="secnav" id="secnav">
+    <button class="snav on" data-sec="poas">Blended POAS</button>
+    <button class="snav" data-sec="ronada">Ronada-aandeel</button>
+  </div>
+  <div id="sec-poas">
   <div class="refresh"><span class="dot" id="dot"></span><span id="status">Laden…</span><button class="btn" id="reloadBtn" style="margin-left:auto">↻ Ververs</button></div>
   <div class="tabs" id="tabs"></div>
   <div id="view"></div>
   <div class="note" style="margin-top:24px">Blended POAS = winst vóór ads ÷ adspend, met winst vóór ads = omzet ex btw − product − verzend − transactie − verpakking − opex. AOV = netto-omzet ÷ orders (laatste 30 dagen) per land. Live uit Metorik. Marktplaatsen niet meegenomen (geen adspend).</div>
+  </div><!-- /sec-poas -->
+
+  <div id="sec-ronada" style="display:none">
+    <div class="rsub">Aandeel eigen huismerk (<b>Ronada + RTM</b>) t.o.v. alle overige merken — maand op maand, live uit Metorik. Omzet = excl. btw &amp; verzending.</div>
+    <div class="rcontrols">
+      <select id="rstore">
+        <option value="NL">Ongediertewinkel.nl</option>
+        <option value="DE">Ungeziefershop.de</option>
+        <option value="FR">Boutiqueantinuisibles.fr</option>
+      </select>
+      <div class="rseg" id="rmetric">
+        <button data-m="omzet" class="on">Omzet</button>
+        <button data-m="orders">Orders</button>
+      </div>
+    </div>
+    <div class="rwarn">Brutowinst per merk is hier niet beschikbaar — de publieke Metorik-API levert geen merk-winst. Voor het winst-aandeel (Ronada ±75% marge): zie het Cowork-dashboard.</div>
+    <div id="rcontent"><div class="rloading">Gegevens laden uit Metorik…</div></div>
+  </div><!-- /sec-ronada -->
 </div>
 
 <div class="modal" id="adminModal">
@@ -319,6 +375,102 @@ document.getElementById("reloadBtn").onclick=loadData;
   if(me.role==="admin")document.getElementById("adminBtn").style.display="";
   document.getElementById("app").style.display="";
   loadData();
+})();
+
+/* ===== Sectie 2: Ronada vs niet-Ronada (omzet + orders, via /api/ronada) ===== */
+(function(){
+"use strict";
+const fmtE=n=>"€ "+Math.round(n).toLocaleString("nl-NL");
+const fmtNum=n=>Math.round(n).toLocaleString("nl-NL");
+const pctR=n=>isFinite(n)?(n*100).toLocaleString("nl-NL",{maximumFractionDigits:0})+"%":"—";
+const MA=["","jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
+const mlabel=m=>{const a=String(m).split("-");return MA[+a[1]]+" '"+a[0].slice(2);};
+let metric="omzet",rows=[],rchart=null,loadedOnce=false;
+async function rload(){
+  const shop=document.getElementById("rstore").value;
+  document.getElementById("rcontent").innerHTML='<div class="rloading">Gegevens laden uit Metorik…</div>';
+  try{
+    const r=await fetch("/api/ronada?shop="+encodeURIComponent(shop));
+    if(!r.ok){let d={};try{d=await r.json();}catch(e){}throw new Error(d.error||("HTTP "+r.status));}
+    const d=await r.json();rows=d.rows||[];rrender();
+  }catch(e){
+    document.getElementById("rcontent").innerHTML='<div class="rerr">Kon gegevens niet laden.<br><small>'+(e.message||e)+'</small></div>';
+  }
+}
+function rkey(){return metric==="omzet"?"om":"or";}
+function isMoney(){return metric==="omzet";}
+function rfmt(v){return isMoney()?fmtE(v):fmtNum(v);}
+function metricLabel(){return metric==="omzet"?"Omzet":"Orders";}
+function rrender(){
+  const c=document.getElementById("rcontent");
+  if(!rows.length){c.innerHTML='<div class="rerr">Geen gegevens voor deze shop in deze periode.</div>';return;}
+  const k=rkey();
+  const sum=rows.reduce((a,r)=>{a.r+=r[k].r;a.n+=r[k].n;a.t+=r[k].t;return a;},{r:0,n:0,t:0});
+  const last=rows[rows.length-1];
+  c.innerHTML=`
+    <div class="rcards">
+      <div class="rcard"><div class="lab">${metricLabel()} — Ronada-aandeel (hele periode)</div>
+        <div class="big green">${pctR(sum.r/sum.t)}</div>
+        <div class="small">${rfmt(sum.r)} van ${rfmt(sum.t)}</div></div>
+      <div class="rcard"><div class="lab">Ronada-aandeel — ${mlabel(last.m)}</div>
+        <div class="big green">${pctR(last[k].r/last[k].t)}</div>
+        <div class="small">${rfmt(last[k].r)} van ${rfmt(last[k].t)}</div></div>
+      <div class="rcard"><div class="lab">Ronada (Ronada+RTM) — totaal</div>
+        <div class="big">${rfmt(sum.r)}</div><div class="small green">eigen huismerk</div></div>
+      <div class="rcard"><div class="lab">Niet-Ronada — totaal</div>
+        <div class="big">${rfmt(sum.n)}</div><div class="small grey">A-merken / derden</div></div>
+    </div>
+    <div class="rpanel"><div class="rchartbox"><canvas id="rch"></canvas></div>
+      ${metric==="orders"?'<div class="rnote">⚠️ Orders: een order kan zowel Ronada/RTM als andere merken bevatten. "Ronada-orders" telt elke order met ≥1 Ronada- óf RTM-artikel; door overlap tussen de twee huislijnen is dit aandeel een lichte overschatting. Omzet is wél exact opdeelbaar.</div>':''}
+    </div>
+    <div class="rpanel">
+      <table>
+        <thead><tr><th>Maand</th><th>Ronada</th><th>Niet-Ronada</th><th>Totaal</th><th>Ronada-aandeel</th></tr></thead>
+        <tbody>${rows.map(r=>`<tr><td>${mlabel(r.m)}</td><td class="green">${rfmt(r[k].r)}</td><td>${rfmt(r[k].n)}</td><td>${rfmt(r[k].t)}</td><td><span class="rpill">${pctR(r[k].r/r[k].t)}</span></td></tr>`).join("")}</tbody>
+        <tfoot><tr><td>Totaal</td><td>${rfmt(sum.r)}</td><td>${rfmt(sum.n)}</td><td>${rfmt(sum.t)}</td><td>${pctR(sum.r/sum.t)}</td></tr></tfoot>
+      </table>
+    </div>`;
+  rdraw();
+}
+function rdraw(){
+  const k=rkey();const labels=rows.map(r=>mlabel(r.m));const ctx=document.getElementById("rch");
+  if(rchart)rchart.destroy();
+  rchart=new Chart(ctx,{
+    data:{labels,datasets:[
+      {type:"bar",label:"Ronada (Ronada+RTM)",data:rows.map(r=>r[k].r),backgroundColor:"#00C030",stack:"s",order:2},
+      {type:"bar",label:"Niet-Ronada",data:rows.map(r=>r[k].n),backgroundColor:"#CFD8D2",stack:"s",order:2},
+      {type:"line",label:"Ronada-aandeel %",yAxisID:"y2",data:rows.map(r=>100*r[k].r/r[k].t),borderColor:"#F06828",backgroundColor:"#F06828",borderWidth:2,tension:.3,pointRadius:2,order:1}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
+      plugins:{legend:{labels:{boxWidth:12,font:{size:11}}},
+        tooltip:{callbacks:{label:c=>c.dataset.yAxisID==="y2"?"Aandeel: "+Math.round(c.parsed.y)+"%":c.dataset.label+": "+(isMoney()?fmtE(c.parsed.y):fmtNum(c.parsed.y))}}},
+      scales:{
+        x:{stacked:true,grid:{display:false},ticks:{font:{size:10},maxRotation:90,minRotation:90}},
+        y:{stacked:true,ticks:{font:{size:10},callback:v=>isMoney()?"€"+(v/1000)+"k":v}},
+        y2:{position:"right",min:0,max:100,grid:{display:false},ticks:{font:{size:10},callback:v=>v+"%"}}
+      }}
+  });
+}
+document.getElementById("rmetric").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  metric=b.dataset.m;
+  [...document.querySelectorAll("#rmetric button")].forEach(x=>x.classList.toggle("on",x===b));
+  if(rows.length)rrender();
+});
+document.getElementById("rstore").addEventListener("change",rload);
+window.__ronadaLoad=function(){if(!loadedOnce){loadedOnce=true;rload();}};
+})();
+/* ===== Sectienavigatie ===== */
+(function(){
+  const nav=document.getElementById("secnav");
+  nav.addEventListener("click",e=>{
+    const b=e.target.closest(".snav");if(!b)return;
+    const sec=b.dataset.sec;
+    [...nav.querySelectorAll(".snav")].forEach(x=>x.classList.toggle("on",x===b));
+    document.getElementById("sec-poas").style.display=sec==="poas"?"":"none";
+    document.getElementById("sec-ronada").style.display=sec==="ronada"?"":"none";
+    if(sec==="ronada"&&window.__ronadaLoad)window.__ronadaLoad();
+  });
 })();
 </script>
 </body>
