@@ -266,6 +266,7 @@ details[open] summary::before{content:"▾ "}
     <div class="svsub">Hoeveel dagen voorraad er nog is per <b>Ronada/RTM</b>-product — huidige voorraad ÷ gemiddelde dagverkoop. Gesorteerd op urgentie (eerst leeg bovenaan).</div>
     <div class="svcontrols">
       <select id="svstore">
+        <option value="ALL">Alle shops (totaal)</option>
         <option value="NL">Ongediertewinkel.nl</option>
         <option value="DE">Ungeziefershop.de</option>
         <option value="FR">Boutiqueantinuisibles.fr</option>
@@ -764,7 +765,8 @@ function srender(){
   if(!rows.length){c.innerHTML='<div class="svempty">Geen producten.</div>';return;}
   const urgent=rows.filter(r=>r.days!=null&&r.days<=30&&r.stock>0).length;
   const out=rows.filter(r=>r.stock<=0).length;
-  c.innerHTML=`<div class="svsum">${rows.length} Ronada/RTM-producten · <b style="color:var(--red)">${urgent}</b> binnen 30 dagen leeg · ${out} uitverkocht. Runway o.b.v. verkoop laatste ${sP} mnd.</div>
+  const isAll=document.getElementById("svstore").value==="ALL";
+  c.innerHTML=`<div class="svsum">${rows.length} Ronada/RTM-producten · <b style="color:var(--red)">${urgent}</b> binnen 30 dagen leeg · ${out} uitverkocht. Runway o.b.v. verkoop laatste ${sP} mnd${isAll?" — verkoop van alle shops samen, gedeelde voorraad":""}.</div>
   <div class="svtbl"><table>
     <thead><tr><th>Product</th><th>Voorraad</th><th>Verkocht (${sP}m)</th><th>/dag</th><th>Dagen voorraad</th><th>Leeg rond</th></tr></thead>
     <tbody>${rows.map(r=>`<tr>
