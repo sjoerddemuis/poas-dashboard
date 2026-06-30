@@ -60,6 +60,8 @@ details[open] summary::before{content:"▾ "}
 .econ>div{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 12px;min-width:120px}
 .econ .lab{font-family:var(--mono);font-size:9px;letter-spacing:.4px;color:var(--mute);text-transform:uppercase}
 .econ .v{font-size:16px;font-weight:700}
+.econ input.ev{font-size:16px;font-weight:700;border:1px solid var(--line);border-radius:6px;padding:2px 7px;width:104px;background:#fff;color:var(--ink);outline:none}
+.econ input.ev:focus{border-color:var(--green)}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:50}
 .modal.show{display:flex}
 .panel{background:#fff;border-radius:12px;padding:22px;width:420px;max-width:92vw}
@@ -108,7 +110,8 @@ const fmtN=(n,d=2)=>isFinite(n)?n.toLocaleString("nl-NL",{minimumFractionDigits:
 const fmtX=n=>isFinite(n)?fmtN(n,2)+"×":"—";
 const fmtPct=n=>isFinite(n)?fmtN(n*100,1)+"%":"—";
 let DATA={},AOV={},ROLE="viewer";
-const state={shop:"NL",preset:{},lock:true};
+const state={shop:"NL",preset:{},lock:true,over:{}};
+function parseNum(s){if(typeof s==="number")return s;if(s==null)return NaN;let t=String(s).replace(/[€%\s]/g,"").replace(/\.(?=\d{3}(\D|$))/g,"").replace(",",".");const v=parseFloat(t);return isFinite(v)?v:NaN;}
 const charts={};
 function el(t,c,h){const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;}
 function destroyCharts(){Object.values(charts).forEach(c=>{try{c.destroy();}catch(e){}});}
@@ -127,14 +130,15 @@ function fitSat(pts){pts=pts.filter(p=>p.spend>0&&p.orders>0);const n=pts.length
   const mo=pts.reduce((a,p)=>a+p.orders,0)/n;let sr=0,st=0;
   for(const p of pts){const yh=Vmax*p.spend/(p.spend+k);sr+=(p.orders-yh)**2;st+=(p.orders-mo)**2;}
   return{Vmax,k,r2:st?1-sr/st:1,n};}
-function econOf(s){const rows=rowsOf(s).filter((r,i)=>!isPartial(s,i));const last=rows.slice(-12);const a=agg(last);
-  const marge=a.marge;const aov=(AOV[s]&&isFinite(AOV[s]))?AOV[s]:a.aov;const m=aov*marge;
-  // opex/order & transactie/order op 30 dagen (uit /api/data); val terug op 12-mnd indien afwezig.
-  const opexPer=(DATA[s]&&isFinite(DATA[s].opexPer))?DATA[s].opexPer:(a.orders?a.opex/a.orders:0);
+function econOf(s){const rows=rowsOf(s).filter((r,i)=>!isPartial(s,i));const last=rows.slice(-12);const a=agg(last);const ov=state.over[s]||{};
+  const marge=ov.marge!=null?ov.marge:a.marge;
+  const aov=ov.aov!=null?ov.aov:((AOV[s]&&isFinite(AOV[s]))?AOV[s]:a.aov);
+  const m=aov*marge;
+  const opexPer=ov.opexPer!=null?ov.opexPer:((DATA[s]&&isFinite(DATA[s].opexPer))?DATA[s].opexPer:(a.orders?a.opex/a.orders:0));
   const transPer=(DATA[s]&&isFinite(DATA[s].transPer))?DATA[s].transPer:(a.orders?a.trans/a.orders:0);
   return{aov,marge,m,opexPer,transPer,breakeven:m-opexPer};}
-function econTotaal(){const rows=rowsOf("TOT").filter((r,i)=>!isPartial("TOT",i));const last=rows.slice(-12);const a=agg(last);
-  const marge=a.marge;const aov=a.aov;const m=aov*marge;const opexPer=a.orders?a.opex/a.orders:0;const transPer=a.orders?a.trans/a.orders:0;return{aov,marge,m,opexPer,transPer,breakeven:m-opexPer};}
+function econTotaal(){const rows=rowsOf("TOT").filter((r,i)=>!isPartial("TOT",i));const last=rows.slice(-12);const a=agg(last);const ov=state.over["TOT"]||{};
+  const marge=ov.marge!=null?ov.marge:a.marge;const aov=ov.aov!=null?ov.aov:a.aov;const m=aov*marge;const opexPer=ov.opexPer!=null?ov.opexPer:(a.orders?a.opex/a.orders:0);const transPer=a.orders?a.trans/a.orders:0;return{aov,marge,m,opexPer,transPer,breakeven:m-opexPer};}
 function windowOpt(pts,econ,floor,lock){const m=econ.m,x=econ.opexPer,tr=econ.transPer||0,aov=econ.aov;
   pts=pts.filter(p=>p.spend>0&&p.orders>0);if(pts.length<2)return null;
   const f=fitSat(pts);const{Vmax,k,r2,n}=f;if(!(Vmax>0&&k>0&&m>x))return{n,r2,Vmax,bad:true};
@@ -217,12 +221,20 @@ function render(){
   // optimizer
   const od=el("details");od.open=true;od.innerHTML=`<summary>Werkpunt-optimizer — fit-venster & afruil efficiëntie/winst/volume</summary>`;
   const ob=el("div");ob.style.marginTop="12px";
-  ob.appendChild(el("div","econ",
-    `<div><div class="lab">AOV (30d, ex btw)</div><div class="v">${fmtEur2(econ.aov)}</div></div>`+
-    `<div><div class="lab">Marge (12m)</div><div class="v">${fmtPct(econ.marge)}</div></div>`+
-    `<div><div class="lab">Brutowinst/order</div><div class="v">${fmtEur2(econ.m)}</div></div>`+
-    `<div><div class="lab">Opex/order</div><div class="v">${fmtEur2(econ.opexPer)}</div></div>`+
-    `<div><div class="lab">Break-even CPA</div><div class="v" style="color:${C.orange}">${fmtEur2(econ.breakeven)}</div></div>`));
+  const ovr=state.over[shop]||{};
+  const eb=el("div","econ");
+  const mkE=(lab,val,key,isPct)=>{const d=el("div");d.innerHTML=`<div class="lab">${lab}${ovr[key]!=null?' ·*':''}</div>`;
+    const inp=el("input","ev");inp.value=isPct?fmtN(val*100,1):fmtN(val,2);inp.setAttribute("inputmode","decimal");
+    inp.onchange=()=>{let v=parseNum(inp.value);if(isPct)v=v/100;state.over[shop]=Object.assign({},state.over[shop]);if(isFinite(v))state.over[shop][key]=v;render();};
+    d.appendChild(inp);return d;};
+  const mkR=(lab,txt,col)=>el("div",null,`<div class="lab">${lab}</div><div class="v"${col?` style="color:${col}"`:''}>${txt}</div>`);
+  eb.appendChild(mkE("AOV (30d, ex btw, €)",econ.aov,"aov",false));
+  eb.appendChild(mkE("Marge (12m, %)",econ.marge,"marge",true));
+  eb.appendChild(mkR("Brutowinst/order",fmtEur2(econ.m)));
+  eb.appendChild(mkE("Opex/order (€)",econ.opexPer,"opexPer",false));
+  eb.appendChild(mkR("Break-even CPA",fmtEur2(econ.breakeven),C.orange));
+  ob.appendChild(eb);
+  if(Object.keys(ovr).length){const rw=el("div","presets");const rb=el("button","ps on","↺ Herstel naar live data");rb.style.background=C.blue;rb.style.borderColor=C.blue;rb.style.color="#fff";rb.onclick=()=>{delete state.over[shop];render();};rw.appendChild(rb);ob.appendChild(rw);ob.appendChild(el("div","note","·* = handmatig overschreven waarde. De optimizer rekent met deze aangepaste cijfers (what-if). Herstel zet alles terug op je live Metorik-data."));}
   const pr=el("div","presets");PRESETS.forEach(p=>{const b=el("button","ps"+(pk===p.key?" on":""),p.short);b.onclick=()=>{state.preset[shop]=p.key;render();};pr.appendChild(b);});
   ob.appendChild(pr);
   const lr=el("div","presets");
