@@ -211,12 +211,12 @@ function render(){
   const ad=el("div","advice",adv);ad.style.background=bg;ad.style.border="1px solid "+col;view.appendChild(ad);
 
   // maanddetails
-  const det=el("details");det.open=true;det.innerHTML=`<summary>Maanddetails — ex btw, na opex (${shop==="TOT"?"NL+DE+FR":DATA[shop].name})</summary>`;
+  const det=el("details");det.innerHTML=`<summary>Maanddetails — ex btw, na opex (${shop==="TOT"?"NL+DE+FR":DATA[shop].name})</summary>`;
   const tw=el("div","tbl-wrap");tw.style.marginTop="10px";
   let h="<table><thead><tr><th>Maand</th><th>Omzet ex btw</th><th>COGS</th><th>Brutowinst</th><th>Opex</th><th>Winst vóór ads</th><th>Adspend</th><th>Nettowinst</th><th>Blended POAS</th><th>AVK %</th><th>Marge</th></tr></thead><tbody>";
   rows.forEach((r,i)=>{const part=isPartial(shop,i);h+=`<tr style="opacity:${part?.5:1}"><td>${r.label}${part?" (deel)":""}</td><td>${fmtEur(r.net)}</td><td style="color:${C.mute}">${fmtEur(r.cogs)}</td><td>${fmtEur(r.bw)}</td><td style="color:${C.mute}">${fmtEur(r.opex)}</td><td><b>${fmtEur(r.wva)}</b></td><td>${fmtEur(r.adv)}</td><td>${fmtEur(r.netto)}</td><td style="font-weight:700;color:${zoneColor(r.poas,floor,optPoas)}">${fmtX(r.poas)}</td><td style="color:${C.orange}">${fmtPct(r.avkPct)}</td><td style="color:${C.blue}">${fmtPct(r.marge)}</td></tr>`;});
   const t12=agg(complete.slice(-12));h+=`<tr style="background:${C.lightg};border-top:2px solid ${C.ink}"><td><b>Blended 12 mnd</b></td><td><b>${fmtEur(t12.net)}</b></td><td></td><td><b>${fmtEur(t12.bw)}</b></td><td><b>${fmtEur(t12.opex)}</b></td><td><b>${fmtEur(t12.wva)}</b></td><td><b>${fmtEur(t12.adv)}</b></td><td><b>${fmtEur(t12.netto)}</b></td><td style="font-weight:700;color:${C.greenDk}">${fmtX(t12.poas)}</td><td style="color:${C.orange}"><b>${fmtPct(t12.avkPct)}</b></td><td style="color:${C.blue}"><b>${fmtPct(t12.marge)}</b></td></tr>`;
-  h+="</tbody></table>";tw.innerHTML=h;det.appendChild(tw);view.appendChild(det);
+  h+="</tbody></table>";tw.innerHTML=h;det.appendChild(tw);
 
   // optimizer
   const od=el("details");od.open=true;od.innerHTML=`<summary>Werkpunt-optimizer — fit-venster & afruil efficiëntie/winst/volume</summary>`;
@@ -272,7 +272,7 @@ function render(){
   } else {
     ob.appendChild(el("div","warn",`Voor ${DATA[shop].name||"dit venster"} is er te weinig of te grillige data in dit fit-venster voor een betrouwbaar werkpunt (n=${pts.length}). ${shop==="FR"?"Frankrijk is een opstartshop met hoge opex t.o.v. omzet.":""} Bekijk de maanddetails hierboven.`));
   }
-  od.appendChild(ob);view.appendChild(od);
+  od.appendChild(ob);view.appendChild(od);view.appendChild(det);
   const restore=()=>window.scrollTo(0,_sy);
   if(respBuilder)requestAnimationFrame(()=>{respBuilder();restore();});
   restore();
