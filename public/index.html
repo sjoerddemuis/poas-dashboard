@@ -157,6 +157,21 @@ details[open] summary::before{content:"▾ "}
 #sec-prijs .ptodo{font-size:12px;color:var(--mute);margin-top:10px;border-top:1px dashed var(--line);padding-top:10px}
 #sec-prijs .pdelta-up{color:var(--red);font-weight:700}
 #sec-prijs .pdelta-down{color:var(--greenDk);font-weight:700}
+#sec-prijs .prun{border:none;border-radius:9px;background:var(--green);color:#fff;font-size:13px;font-weight:700;padding:9px 16px;cursor:pointer}
+#sec-prijs .prun:hover{background:var(--greenDk)}
+#sec-prijs .prun:disabled{opacity:.6;cursor:default}
+#sec-prijs .pchip a{color:var(--blue);text-decoration:none;font-weight:700}
+#sec-prijs .pchip a:hover{text-decoration:underline}
+#sec-prijs .pdel{border:none;background:none;color:var(--red);cursor:pointer;font-size:11px;padding:0 0 0 2px;line-height:1}
+#sec-prijs .paddrow{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px;border-top:1px dashed var(--line);padding-top:10px}
+#sec-prijs .paddrow input{font-size:12px;border:1px solid var(--line);border-radius:7px;padding:6px 9px;outline:none}
+#sec-prijs .paddrow input:focus{border-color:var(--green)}
+#sec-prijs .paddurl{flex:1;min-width:180px}
+#sec-prijs .paddshop{width:130px}
+#sec-prijs .paddprice{width:90px}
+#sec-prijs .paddbtn{border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--greenDk);font-size:12px;font-weight:700;padding:6px 11px;cursor:pointer}
+#sec-prijs .paddbtn:hover{background:var(--lightg)}
+#sec-prijs .pempty{padding:30px;text-align:center;color:var(--mute)}
 </style>
 </head>
 <body>
@@ -208,6 +223,7 @@ details[open] summary::before{content:"▾ "}
         <button data-f="done">Met concurrent</button>
         <button data-f="todo">Nog te doen</button>
       </div>
+      <button id="prun" class="prun" style="margin-left:auto">Vergelijking uitvoeren</button>
     </div>
     <div id="pcontent"></div>
   </div><!-- /sec-prijs -->
@@ -561,73 +577,114 @@ window.__ronadaLoad=function(){if(!loadedOnce){loadedOnce=true;rload();}};
 /* ===== Sectie 3: Prijsmonitor (eigen producten vs concurrenten) ===== */
 (function(){
 "use strict";
-const IMG="https://ongediertewinkel.nl/content/uploads/";
-const PRICEDATA={updated:"30 jun 2026",items:[
- {sku:"1260",title:"Muizen lijmplanken Trapper RTM (10 st)",mine:9.95,units:11958,margin:76.0,stock:18124,img:IMG+"2024/12/1260-Muizen-lijmplanken-Trapper-RTM.jpg",url:"https://ongediertewinkel.nl/products/muizen-bestrijden/muizen-lijmplanken/muizen-lijmplanken-trapper-rtm-10-stuks/",comp:[{shop:"Ongedierteproducten",title:"Bell Trapper Max pinda 10 st",price:8.50,url:"https://ongedierteproducten.nl/trapper-max-10st/"},{shop:"Bestrijdingsland",title:"Trapper LTD 10 st",price:9.50,url:"https://www.bestrijdingsland.nl/product/trapper-ltd-muizen-lijmplanken-10-stuks/"},{shop:"Budgetongediertebestrijden",title:"PestiNext Pro 200 10 st",price:14.95,url:"https://budgetongediertebestrijden.nl/product/lijmplank-lijmval-pestinext-pro-10/"}]},
- {sku:"1333",title:"Purschuim tegen muizen en ratten 750 ml",mine:27.95,units:6878,margin:88.1,stock:1289,img:IMG+"2025/07/1333-2-Purschuim-tegen-muizen-en-ratten.jpg",url:"https://ongediertewinkel.nl/products/muizen-bestrijden/muizenwering/purschuim-tegen-muizen-en-ratten/",comp:[{shop:"Allestegenongedierte",title:"Hagopur IPF schuim",price:29.95,url:"https://www.allestegenongedierte.nl/ipf-schuim-or-purschuim-tegen-ratten-en-muizen.html"}]},
- {sku:"1223",title:"Muizen lijmplanken Trapper RTM Zwart (10 st)",mine:9.95,units:6106,margin:75.7,stock:5978,img:IMG+"2024/12/1223-2-Muizen-lijmplanken-Trapper-Zwart-RTM.jpg",comp:[{shop:"Bestrijdingsland",title:"Trapper LTD 10 st (soortgelijk)",price:9.50,url:"https://www.bestrijdingsland.nl/product/trapper-ltd-muizen-lijmplanken-10-stuks/"},{shop:"Budgetongediertebestrijden",title:"PestiNext Pro 200 10 st",price:14.95,url:"https://budgetongediertebestrijden.nl/product/lijmplank-lijmval-pestinext-pro-10/"}]},
- {sku:"1330",title:"Ronada Muizen en Ratten Barrière Spray 500 ml",mine:17.95,units:4208,margin:86.3,stock:233,img:IMG+"2025/05/1330-4-Spray-tegen-ratten-en-muizen.jpg",comp:[]},
- {sku:"3760",title:"Elektromagnetische muizen en rattenverjager",mine:39.95,units:2828,margin:74.4,stock:509,img:IMG+"2024/03/3760-Elektromagnetische-muizen-en-rattenverjager.jpg",comp:[]},
- {sku:"1268",title:"Staalwol tegen muizen en ratten",mine:14.95,units:2335,margin:82.0,stock:299,img:IMG+"2024/12/1268-6-Staalwol-tegen-muizen-en-ratten.jpg",comp:[]},
- {sku:"1218",title:"Ronada ratten en muizen lokstof",mine:17.95,units:2307,margin:72.7,stock:874,img:IMG+"2024/11/1218-2-Ronada-rattten-en-muizenlokstof.jpg",comp:[]},
- {sku:"1211",title:"Muizen lijmplanken Trapper RTM Max (10 st)",mine:9.95,units:2298,margin:71.3,stock:4328,img:IMG+"2025/05/1211-Trapper-RTM-Max-muizen-lijmplanken.jpg",comp:[]},
- {sku:"R01260",title:"Muizen lijmplanken Trapper RTM (45 st)",mine:34.95,units:1944,margin:68.8,stock:495,img:IMG+"2025/05/R01260-3-Muizen-lijmplanken-Trapper-RTM.jpg",comp:[]},
- {sku:"1212",title:"Muizen en ratten lijmplank Trapper Rat",mine:39.95,units:1849,margin:78.9,stock:2533,img:IMG+"2025/11/1212-Muizen-en-ratten-lijmplank-Trapper-Rat.jpg",comp:[]},
- {sku:"1016",title:"Ronada Bedwants Barrière Spray",mine:19.95,units:1769,margin:88.2,stock:543,img:IMG+"2025/08/1016-Ronada-Spray-tegen-Bedwants.jpg",comp:[]},
- {sku:"1311",title:"Ronada muizen lijmplank zwart (10 st)",mine:24.95,units:1741,margin:85.1,stock:1654,img:IMG+"2026/04/1311-Ronada-muizen-lijmplank-zwart.jpg",comp:[]},
- {sku:"1334",title:"Muizen en ratten weringsgaas (1 meter)",mine:14.95,units:1705,margin:87.6,stock:267,img:IMG+"2025/02/1334-2-Muizen-en-ratten-weringsgaas.jpg",comp:[]},
- {sku:"1310",title:"Ronada ratten en muizen lijmplank zwart (10 st)",mine:34.95,units:1476,margin:83.2,stock:2285,img:IMG+"2026/04/1310-Ronada-ratten-en-muizen-lijmplank-zwart.jpg",comp:[]},
- {sku:"1328",title:"Muizen lijmplanken Trapper RTM pinda (10 st)",mine:14.95,units:1368,margin:84.0,stock:2920,img:IMG+"2024/12/1328-3-Muizen-lijmplanken-Trapper-RTM-pinda.jpg",comp:[]}
-]};
-const eur2=n=>"€"+n.toLocaleString("nl-NL",{minimumFractionDigits:2,maximumFractionDigits:2});
+let PD={products:[],updated:""};
+let inited=false,busy=false;
 const st={f:"all",q:""};
-let inited=false;
+const eur2=n=>"€"+Number(n).toLocaleString("nl-NL",{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+const isAdmin=()=>typeof ROLE!=="undefined"&&ROLE==="admin";
+const hostOf=u=>{try{return new URL(u).hostname.replace(/^www\./,"");}catch(e){return "Concurrent";}};
+function setUpd(extra){
+  const n=PD.products.length,withP=PD.products.filter(p=>(p.comp||[]).some(c=>c.price!=null)).length;
+  document.getElementById("pupd").textContent=`Bijgewerkt ${PD.updated||"—"} · ${n} producten · ${withP} met concurrentprijs.`+(extra?" "+extra:"");
+}
 function position(it){
-  if(!it.comp.length)return{cls:"pos-none",txt:"Nog geen vergelijking"};
-  const prices=it.comp.map(c=>c.price),minC=Math.min(...prices),maxC=Math.max(...prices);
+  const priced=(it.comp||[]).filter(c=>c.price!=null);
+  if(!priced.length)return{cls:"pos-none",txt:"Nog geen vergelijking"};
+  const prices=priced.map(c=>c.price),minC=Math.min(...prices),maxC=Math.max(...prices);
   if(it.mine<=minC)return{cls:"pos-best",txt:it.mine<minC?"Goedkoopste in de markt ✓":"Gedeeld goedkoopste"};
   const rank=prices.filter(p=>p<it.mine).length+1,total=prices.length+1;
   const dAbs=it.mine-minC,dPct=dAbs/minC*100;
   return{cls:it.mine>maxC?"pos-high":"pos-mid",txt:`${rank}e van ${total} · ${eur2(dAbs)} duurder dan goedkoopste (+${dPct.toLocaleString("nl-NL",{maximumFractionDigits:0})}%)`};
 }
-function chips(it){
-  const minC=Math.min(...it.comp.map(c=>c.price));
-  return it.comp.slice().sort((a,b)=>a.price-b.price).map(c=>{
-    const d=c.price-it.mine,sign=d>0?"+":"−",dcls=d>0?"pdelta-down":d<0?"pdelta-up":"";
-    return `<span class="pchip"><b>${c.shop}</b>${c.title?` <span style="color:var(--mute)">${c.title}</span>`:""} <span class="${c.price===minC?"cheap":""}">${eur2(c.price)}</span> <span class="${dcls}" title="concurrent t.o.v. jouw prijs">${d===0?"=":sign+eur2(Math.abs(d))}</span>${c.url?` <a href="${c.url}" target="_blank" rel="noopener">↗</a>`:""}</span>`;
+function chips(it,pi){
+  const comp=it.comp||[];
+  const priced=comp.filter(c=>c.price!=null).map(c=>c.price);
+  const minC=priced.length?Math.min(...priced):null;
+  return comp.map((c,ci)=>{
+    const has=c.price!=null;
+    const d=has?c.price-it.mine:0,sign=d>0?"+":"−",dcls=d>0?"pdelta-down":d<0?"pdelta-up":"";
+    const priceHtml=has?`<span class="${c.price===minC?"cheap":""}">${eur2(c.price)}</span> <span class="${dcls}" title="concurrent t.o.v. jouw prijs">${d===0?"=":sign+eur2(Math.abs(d))}</span>`:`<span style="color:var(--orange)">${c.err?esc(c.err):"nog niet opgehaald"}</span>`;
+    return `<span class="pchip"><b>${esc(c.shop||hostOf(c.url))}</b>${c.title?` <span style="color:var(--mute)">${esc(c.title)}</span>`:""} ${priceHtml}${c.url?` <a href="${esc(c.url)}" target="_blank" rel="noopener" title="open concurrent-pagina">↗</a>`:""}${isAdmin()?` <button class="pdel" data-pi="${pi}" data-ci="${ci}" title="verwijderen">✕</button>`:""}</span>`;
   }).join("");
 }
 function render(){
   const q=st.q.trim().toLowerCase();
-  const items=PRICEDATA.items.filter(it=>{
-    if(st.f==="done"&&!it.comp.length)return false;
-    if(st.f==="todo"&&it.comp.length)return false;
-    if(q&&!(it.title.toLowerCase().includes(q)||String(it.sku).toLowerCase().includes(q)))return false;
-    return true;
-  });
   const c=document.getElementById("pcontent");
-  if(!items.length){c.innerHTML='<div style="padding:30px;text-align:center;color:var(--mute)">Geen producten gevonden.</div>';return;}
-  c.innerHTML=items.map(it=>{
-    const pos=position(it);
-    return `<div class="pcard"><div class="phead">
-      <img class="pimg" src="${it.img}" loading="lazy" onerror="this.style.visibility='hidden'">
-      <div style="min-width:0">
-        <div class="ptitle">${it.url?`<a href="${it.url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${it.title}</a>`:it.title}</div>
-        <div class="pmeta">SKU ${it.sku} · ${it.units.toLocaleString("nl-NL")} verkocht · marge ${it.margin.toLocaleString("nl-NL",{maximumFractionDigits:1})}% · voorraad ${it.stock.toLocaleString("nl-NL")}</div>
-        <div class="ppos ${pos.cls}">${pos.txt}</div>
+  if(!PD.products.length){c.innerHTML='<div class="pempty">Nog geen producten.</div>';setUpd();return;}
+  let shown=0;
+  const html=PD.products.map((it,pi)=>{
+    const hasPrice=(it.comp||[]).some(x=>x.price!=null);
+    if(st.f==="done"&&!hasPrice)return "";
+    if(st.f==="todo"&&hasPrice)return "";
+    if(q&&!((it.title||"").toLowerCase().includes(q)||String(it.sku).toLowerCase().includes(q)))return "";
+    shown++;
+    const pos=position(it),comp=it.comp||[];
+    return `<div class="pcard">
+      <div class="phead">
+        <img class="pimg" src="${esc(it.img)}" loading="lazy" onerror="this.style.display='none'">
+        <div style="min-width:0">
+          <div class="ptitle">${it.url?`<a href="${esc(it.url)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${esc(it.title)}</a>`:esc(it.title)}</div>
+          <div class="pmeta">SKU ${esc(it.sku)}${it.units!=null?` · ${Number(it.units).toLocaleString("nl-NL")} verkocht`:""}${it.margin!=null?` · marge ${Number(it.margin).toLocaleString("nl-NL",{maximumFractionDigits:1})}%`:""}${it.stock!=null?` · voorraad ${Number(it.stock).toLocaleString("nl-NL")}`:""}</div>
+          <div class="ppos ${pos.cls}">${pos.txt}</div>
+        </div>
+        <div class="pmine"><div class="l">Jouw prijs</div><div class="v">${eur2(it.mine)}</div></div>
       </div>
-      <div class="pmine"><div class="l">Jouw prijs</div><div class="v">${eur2(it.mine)}</div></div>
-    </div>${it.comp.length?`<div class="pcomp">${chips(it)}</div>`:`<div class="ptodo">Nog geen concurrent gekoppeld — plak een link of vraag me de prijzen op te halen.</div>`}</div>`;
+      ${comp.length?`<div class="pcomp">${chips(it,pi)}</div>`:`<div class="ptodo">Nog geen concurrent gekoppeld${isAdmin()?" — voeg hieronder een link toe.":"."}</div>`}
+      ${isAdmin()?`<div class="paddrow"><input class="paddurl" placeholder="Concurrent-URL (https://…)"><input class="paddshop" placeholder="Shopnaam (optie)"><input class="paddprice" placeholder="Prijs (optie)" inputmode="decimal"><button class="paddbtn" data-pi="${pi}">+ Link toevoegen</button></div>`:""}
+    </div>`;
   }).join("");
+  c.innerHTML=shown?html:'<div class="pempty">Geen producten gevonden.</div>';
+  setUpd();
+}
+async function save(){
+  if(!isAdmin())return;
+  try{await fetch("/api/pricing",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({products:PD.products,updated:PD.updated})});}catch(e){}
+}
+async function addComp(pi,card){
+  const url=card.querySelector(".paddurl").value.trim();
+  const shop=card.querySelector(".paddshop").value.trim();
+  const priceRaw=card.querySelector(".paddprice").value.trim();
+  if(!url&&!priceRaw)return;
+  const c={shop:shop||(url?hostOf(url):"Concurrent"),url:url,title:""};
+  if(priceRaw){const v=parseFloat(priceRaw.replace(/[^0-9.,]/g,"").replace(",","."));if(isFinite(v))c.price=v;}
+  PD.products[pi].comp=PD.products[pi].comp||[];PD.products[pi].comp.push(c);
+  render();await save();
+}
+async function delComp(pi,ci){PD.products[pi].comp.splice(ci,1);render();await save();}
+async function run(){
+  if(busy)return;busy=true;
+  const btn=document.getElementById("prun");if(btn){btn.disabled=true;btn.textContent="Bezig met ophalen…";}
+  setUpd("— prijzen worden opgehaald…");
+  try{
+    const r=await fetch("/api/pricing-run",{method:"POST"});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
+    PD={products:d.products||[],updated:d.updated||""};render();
+    setUpd(`✓ ${d.scraped||0} concurrentprijzen opgehaald${d.failed?`, ${d.failed} niet gelukt (handmatig invullen)`:""}.`);
+  }catch(e){setUpd("✕ Vergelijking mislukt: "+(e.message||e));}
+  if(btn){btn.disabled=false;btn.textContent="Vergelijking uitvoeren";}
+  busy=false;
+}
+async function reload(){
+  setUpd("— laden…");
+  try{const r=await fetch("/api/pricing");const d=await r.json();PD={products:d.products||[],updated:d.updated||""};}
+  catch(e){PD={products:[],updated:""};}
+  render();
 }
 window.__prijsLoad=function(){
   if(!inited){inited=true;
-    const n=PRICEDATA.items.length,withC=PRICEDATA.items.filter(i=>i.comp.length).length;
-    document.getElementById("pupd").textContent=`Bijgewerkt ${PRICEDATA.updated} · ${n} producten · ${withC} met concurrentdata.`;
+    const rb=document.getElementById("prun");
+    if(rb){ if(!isAdmin())rb.style.display="none"; else rb.addEventListener("click",run); }
     document.getElementById("psearch").addEventListener("input",e=>{st.q=e.target.value;render();});
     document.getElementById("pfilter").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;st.f=b.dataset.f;[...document.querySelectorAll("#pfilter button")].forEach(x=>x.classList.toggle("on",x===b));render();});
+    document.getElementById("pcontent").addEventListener("click",async e=>{
+      const del=e.target.closest(".pdel");if(del){await delComp(+del.dataset.pi,+del.dataset.ci);return;}
+      const add=e.target.closest(".paddbtn");if(add){await addComp(+add.dataset.pi,add.closest(".pcard"));return;}
+    });
+    reload();return;
   }
-  render();
+  if(!PD.products.length)reload();else render();
 };
 })();
 /* ===== Sectienavigatie ===== */
