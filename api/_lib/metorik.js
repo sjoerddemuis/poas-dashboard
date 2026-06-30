@@ -23,7 +23,7 @@ async function shopData(token) {
     label(d.date), d.net || 0, d.advertising_cost || 0, d.orders || 0,
     d.product_cogs || 0, d.shipping_cogs || 0, d.transaction_cogs || 0, d.extra_cogs || 0, d.operational_cost || 0,
   ]);
-  let aov = null, opexPer = null, transPer = null;
+  let aov = null, opexPer = null, transPer = null, marge = null;
   try {
     const a = await metFetch(token, { start_date: d30, end_date: end });
     const t = a.totals || {};
@@ -31,9 +31,11 @@ async function shopData(token) {
       aov = t.net / t.orders;
       opexPer = (t.operational_cost || 0) / t.orders;
       transPer = (t.transaction_cogs || 0) / t.orders;
+      const cogs30 = (t.product_cogs || 0) + (t.shipping_cogs || 0) + (t.transaction_cogs || 0) + (t.extra_cogs || 0);
+      if (t.net > 0 && cogs30 > 0) marge = (t.net - cogs30) / t.net;
     }
   } catch (e) { /* 30d optioneel */ }
-  return { m, aov, opexPer, transPer };
+  return { m, aov, opexPer, transPer, marge };
 }
 async function allData() {
   const out = {};
