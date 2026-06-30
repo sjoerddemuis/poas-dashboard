@@ -138,6 +138,42 @@ async function pricesBySku(token, skus) {
   return out;
 }
 
+// Voorraad-runway: Ronada/RTM voorraad-dagen o.b.v. verkoop over 3/6/12 maanden.
+async function stockData(token) {
+  const end = new Date().toISOString().slice(0, 10);
+  const filters = JSON.stringify([{ field: "brand", operator: "in", value: ["Ronada", "RTM"] }]);
+  const fetchP = async (months) => {
+    const d = new Date(); d.setMonth(d.getMonth() - months);
+    const start = d.toISOString().slice(0, 10);
+    const periodDays = Math.max(1, Math.round((Date.now() - d.getTime()) / 86400000));
+    const u = new URL(PRODUCTS);
+    u.searchParams.set("start_date", start);
+    u.searchParams.set("end_date", end);
+    u.searchParams.set("per_page", "100");
+    u.searchParams.set("order_by", "gross_items_sold");
+    u.searchParams.set("order_dir", "desc");
+    u.searchParams.set("filters", filters);
+    const r = await fetch(u, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+    if (!r.ok) throw new Error("Metorik API " + r.status);
+    const j = await r.json();
+    return (j.data || []).map((p) => {
+      const stock = p.stock_quantity || 0, sold = p.net_items_sold || 0;
+      const perDay = sold / periodDays;
+      let days = null;
+      if (stock <= 0) days = 0;
+      else if (perDay > 0) days = Math.round(stock / perDay);
+      return { sku: p.sku, title: p.title, img: p.image, stock, sold, perDay: Math.round(perDay * 100) / 100, days, status: p.status, price: p.current_price };
+    }).sort((a, b) => {
+      if (a.days == null && b.days == null) return b.stock - a.stock;
+      if (a.days == null) return 1;
+      if (b.days == null) return -1;
+      return a.days - b.days;
+    });
+  };
+  const [m3, m6, m12] = await Promise.all([fetchP(3), fetchP(6), fetchP(12)]);
+  return { 3: m3, 6: m6, 12: m12 };
+}
+
 async function allData() {
   const out = {};
   await Promise.all(SHOPS.map(async ([key, envName, name]) => {
@@ -149,4 +185,4 @@ async function allData() {
   out.updatedAt = Date.now();
   return out;
 }
-module.exports = { allData, SHOPS, ronadaData, topProducts, topProductsPage, pricesBySku };
+module.exports = { allData, SHOPS, ronadaData, topProducts, topProductsPage, pricesBySku, stockData };
