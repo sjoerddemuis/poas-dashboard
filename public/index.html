@@ -118,11 +118,11 @@ function destroyCharts(){Object.values(charts).forEach(c=>{try{c.destroy();}catc
 
 /* ---- model ---- */
 function row(r){const cogs=r[4]+r[5]+r[6]+r[7];const bw=r[1]-cogs;const wva=bw-r[8];
-  return{label:r[0],net:r[1],adv:r[2],orders:r[3],cogs,bw,opex:r[8],trans:r[6],wva,marge:r[1]?bw/r[1]:NaN,netto:wva-r[2],poas:r[2]?wva/r[2]:NaN,roas:r[2]?r[1]/r[2]:NaN,avkPct:r[1]?(cogs+r[8]+r[2])/r[1]:NaN};}
+  return{label:r[0],net:r[1],adv:r[2],orders:r[3],cogs,bw,opex:r[8],trans:r[6],wva,marge:r[1]?bw/r[1]:NaN,netto:wva-r[2],poas:r[2]?wva/r[2]:NaN,roas:r[2]?r[1]/r[2]:NaN,avkPct:r[1]?(r[2]+r[8]+r[6])/r[1]:NaN};}
 function rowsOf(s){return (DATA[s]&&DATA[s].m?DATA[s].m:[]).map(row);}
 function isPartial(s,i){return i===(DATA[s].m.length-1);}
 function agg(rows){const s=f=>rows.reduce((a,r)=>a+f(r),0);const net=s(r=>r.net),adv=s(r=>r.adv),bw=s(r=>r.bw),opex=s(r=>r.opex),orders=s(r=>r.orders),trans=s(r=>r.trans);const wva=bw-opex;
-  return{net,adv,bw,opex,orders,trans,wva,netto:wva-adv,marge:net?bw/net:NaN,poas:adv?wva/adv:NaN,roas:adv?net/adv:NaN,aov:orders?net/orders:NaN,avkPct:net?(net-bw+opex+adv)/net:NaN};}
+  return{net,adv,bw,opex,orders,trans,wva,netto:wva-adv,marge:net?bw/net:NaN,poas:adv?wva/adv:NaN,roas:adv?net/adv:NaN,aov:orders?net/orders:NaN,avkPct:net?(adv+opex+trans)/net:NaN};}
 function fitSat(pts){pts=pts.filter(p=>p.spend>0&&p.orders>0);const n=pts.length;if(n<2)return{Vmax:NaN,k:NaN,r2:NaN,n};
   const X=pts.map(p=>1/p.spend),Y=pts.map(p=>1/p.orders);const mx=X.reduce((a,b)=>a+b,0)/n,my=Y.reduce((a,b)=>a+b,0)/n;
   let sxx=0,sxy=0;for(let i=0;i<n;i++){sxx+=(X[i]-mx)**2;sxy+=(X[i]-mx)*(Y[i]-my);}
@@ -139,7 +139,7 @@ function econOf(s){const rows=rowsOf(s).filter((r,i)=>!isPartial(s,i));const las
   return{aov,marge,m,opexPer,transPer,breakeven:m-opexPer};}
 function econTotaal(){const rows=rowsOf("TOT").filter((r,i)=>!isPartial("TOT",i));const last=rows.slice(-12);const a=agg(last);const ov=state.over["TOT"]||{};
   const marge=ov.marge!=null?ov.marge:a.marge;const aov=ov.aov!=null?ov.aov:a.aov;const m=aov*marge;const opexPer=ov.opexPer!=null?ov.opexPer:(a.orders?a.opex/a.orders:0);const transPer=a.orders?a.trans/a.orders:0;return{aov,marge,m,opexPer,transPer,breakeven:m-opexPer};}
-function windowOpt(pts,econ,floor,lock){const m=econ.m,x=econ.opexPer,tr=econ.transPer||0,aov=econ.aov,marge=econ.marge;
+function windowOpt(pts,econ,floor,lock){const m=econ.m,x=econ.opexPer,tr=econ.transPer||0,aov=econ.aov;
   pts=pts.filter(p=>p.spend>0&&p.orders>0);if(pts.length<2)return null;
   const f=fitSat(pts);const{Vmax,k,r2,n}=f;if(!(Vmax>0&&k>0&&m>x))return{n,r2,Vmax,bad:true};
   const minS=Math.min(...pts.map(p=>p.spend)),maxS=Math.max(...pts.map(p=>p.spend));
@@ -147,7 +147,7 @@ function windowOpt(pts,econ,floor,lock){const m=econ.m,x=econ.opexPer,tr=econ.tr
   const ord=S=>Vmax*S/(S+k),poas=S=>Vmax*(m-x)/(S+k);
   let best=null;for(let i=0;i<=400;i++){const S=lo+(hi-lo)*i/400;if(poas(S)<floor)continue;const o=ord(S);const p=o*(m-x)-S;if(!best||p>best.profit)best={S,o,profit:p,poas:poas(S)};}
   const pHigh=poas(lo),pLow=Math.max(floor,poas(hi));const front=[];
-  if(pHigh>pLow){for(let i=0;i<13;i++){const p=pHigh-(pHigh-pLow)*i/12;const S=Math.min(Math.max(Vmax*(m-x)/p-k,lo),hi);const o=ord(S);const profit=o*(m-x)-S;const omzet=o*aov;front.push({poas:p,spend:S,orders:o,profit,omzet,cpa:S/o,ppo:(m-x)-S/o,avkPct:omzet?((1-marge)+(S+x*o)/omzet):NaN});}
+  if(pHigh>pLow){for(let i=0;i<13;i++){const p=pHigh-(pHigh-pLow)*i/12;const S=Math.min(Math.max(Vmax*(m-x)/p-k,lo),hi);const o=ord(S);const profit=o*(m-x)-S;const omzet=o*aov;const avk=S+(x+tr)*o;front.push({poas:p,spend:S,orders:o,profit,omzet,cpa:S/o,ppo:(m-x)-S/o,avkPct:omzet?avk/omzet:NaN});}
     for(let i=0;i<front.length;i++){const nx=front[i+1];front[i].dOrders=nx?nx.orders-front[i].orders:null;front[i].dppo=nx&&nx.orders>front[i].orders?(nx.profit-front[i].profit)/(nx.orders-front[i].orders):null;}}
   return{n,r2,Vmax,k,minS,maxS,lo,hi,lock,ord,front,...(best||{}),eff:{poas:poas(lo),S:lo,o:ord(lo)},vol:{poas:Math.max(floor,poas(hi)),S:hi,o:ord(hi)}};}
 const MMAP={jan:1,feb:2,mrt:3,apr:4,mei:5,jun:6,jul:7,aug:8,sep:9,okt:10,nov:11,dec:12};
@@ -197,8 +197,8 @@ function render(){
   now.appendChild(el("div",null,`<div class="lab">Blended POAS — ${lastC?lastC.label:"—"}</div><div class="big" style="color:${zoneColor(curPoas,floor,optPoas)}">${fmtX(curPoas)}</div><div class="sm">laatste complete maand</div>`));
   now.appendChild(el("div",null,`<div class="lab">3-mnd run-rate</div><div class="big">${fmtX(run3.poas)}</div><div class="sm">${fmtEur(run3.adv)} spend</div>`));
   now.appendChild(el("div",null,`<div class="lab">Winst-optimum</div><div class="big" style="color:${C.greenDk}">${optPoas?fmtX(optPoas):"—"}</div><div class="sm">${opt&&opt.profit!=null?fmtEur(opt.S)+" spend":"te weinig data"}</div>`));
-  const avkPct=lastC?(lastC.cogs+lastC.opex+lastC.adv)/lastC.net:NaN;
-  now.appendChild(el("div",null,`<div class="lab">AVK %</div><div class="big" style="color:${C.blue}">${fmtPct(avkPct)}</div><div class="sm">alle kosten ÷ omzet</div>`));
+  const avkPct=lastC?(lastC.adv+lastC.opex+lastC.trans)/lastC.net:NaN;
+  now.appendChild(el("div",null,`<div class="lab">AVK %</div><div class="big" style="color:${C.blue}">${fmtPct(avkPct)}</div><div class="sm">ad+opex+transactie ÷ omzet</div>`));
   view.appendChild(now);
 
   let adv,col,bg;
@@ -253,10 +253,10 @@ function render(){
       ob.appendChild(el("div","sec",`<span class="n">A</span> Volledige afruil — elke stap lager in blended POAS`));
       const peak=opt.front.reduce((a,b)=>b.profit>a.profit?b:a,opt.front[0]);
       const twf=el("div","tbl-wrap");
-      let hf="<table><thead><tr><th>Blended POAS</th><th>Spend</th><th>Orders</th><th>Omzet</th><th>Winst</th><th>AVK %</th><th>Winst/order</th><th>CPA</th><th>Extra orders</th><th>Δ winst/order</th></tr></thead><tbody>";
-      opt.front.forEach(r=>{const isP=r===peak;hf+=`<tr style="background:${isP?C.lightg:'transparent'}"><td style="font-weight:700">${fmtX(r.poas)}${isP?' ★':''}</td><td>${fmtEur(r.spend)}</td><td>${Math.round(r.orders).toLocaleString('nl-NL')}</td><td>${fmtEur(r.omzet)}</td><td style="font-weight:700;color:${isP?C.greenDk:'inherit'}">${fmtEur(r.profit)}</td><td style="color:${C.orange};font-weight:700">${fmtPct(r.avkPct)}</td><td>${fmtEur2(r.ppo)}</td><td>${fmtEur2(r.cpa)}</td><td style="color:${C.mute}">${r.dOrders!=null?'+'+Math.round(r.dOrders).toLocaleString('nl-NL'):'—'}</td><td style="color:${r.dppo!=null?(r.dppo>=0?C.greenDk:C.orange):C.mute}">${r.dppo!=null?fmtEur2(r.dppo):'—'}</td></tr>`;});
+      let hf="<table><thead><tr><th>Blended POAS</th><th>Spend</th><th>Orders</th><th>Omzet</th><th>Winst</th><th>AVK %</th><th>Net profit %</th><th>Winst/order</th><th>CPA</th><th>Extra orders</th><th>Δ winst/order</th></tr></thead><tbody>";
+      opt.front.forEach(r=>{const isP=r===peak;hf+=`<tr style="background:${isP?C.lightg:'transparent'}"><td style="font-weight:700">${fmtX(r.poas)}${isP?' ★':''}</td><td>${fmtEur(r.spend)}</td><td>${Math.round(r.orders).toLocaleString('nl-NL')}</td><td>${fmtEur(r.omzet)}</td><td style="font-weight:700;color:${isP?C.greenDk:'inherit'}">${fmtEur(r.profit)}</td><td style="color:${C.orange};font-weight:700">${fmtPct(r.avkPct)}</td><td style="color:${C.blue}">${fmtPct(r.omzet?r.profit/r.omzet:NaN)}</td><td>${fmtEur2(r.ppo)}</td><td>${fmtEur2(r.cpa)}</td><td style="color:${C.mute}">${r.dOrders!=null?'+'+Math.round(r.dOrders).toLocaleString('nl-NL'):'—'}</td><td style="color:${r.dppo!=null?(r.dppo>=0?C.greenDk:C.orange):C.mute}">${r.dppo!=null?fmtEur2(r.dppo):'—'}</td></tr>`;});
       hf+="</tbody></table>";twf.innerHTML=hf;ob.appendChild(twf);
-      ob.appendChild(el("div","note","Elke rij = een bied-niveau. AVK % = alle kosten (COGS + ad + opex) ÷ omzet = 100% − nettomarge. Δ winst/order &lt;0 (oranje) = extra orders kosten netto geld."));
+      ob.appendChild(el("div","note","Elke rij = een bied-niveau. AVK % = (ad + opex + transactie) ÷ omzet — je marketing-stuurgetal. Net profit % = nettowinst ÷ omzet. Δ winst/order &lt;0 (oranje) = extra orders kosten netto geld."));
     }
     ob.appendChild(el("div","sec",`<span class="n">B</span> Responscurve — punten = maanden, lijn = model, ▲ = nu`));
     const rc=el("div","card");const rb=el("div","chartbox");const rv=el("canvas");rb.appendChild(rv);rc.appendChild(rb);ob.appendChild(rc);
