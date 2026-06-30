@@ -103,8 +103,12 @@ details[open] summary::before{content:"▾ "}
 #sec-ronada .rnote{font-size:12px;color:var(--mute);margin-top:10px;line-height:1.5}
 #sec-ronada .rloading,#sec-ronada .rerr{padding:40px;text-align:center;color:var(--mute)}
 #sec-ronada .rerr{color:var(--red)}
-#sec-ronada .rtophead{font-weight:700;font-size:15px;margin:22px 0 4px}
+#sec-ronada .rtophead{font-weight:700;font-size:15px;margin:22px 0 8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 #sec-ronada .rtophead .rtopnote{font-weight:400;font-size:12px;color:var(--mute)}
+#sec-ronada .rtopseg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+#sec-ronada .rtopseg button{border:0;border-right:1px solid var(--line);background:var(--card);color:var(--ink);font-family:var(--mono);font-size:11px;font-weight:700;padding:5px 11px;cursor:pointer}
+#sec-ronada .rtopseg button:last-child{border-right:0}
+#sec-ronada .rtopseg button.on{background:var(--green);color:#fff}
 #sec-ronada .rtopwrap{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}
 #sec-ronada .rtopcol{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
 #sec-ronada .rtoph{font-weight:700;font-size:14px}
@@ -443,14 +447,14 @@ const fmtNum=n=>Math.round(n).toLocaleString("nl-NL");
 const pctR=n=>isFinite(n)?(n*100).toLocaleString("nl-NL",{maximumFractionDigits:0})+"%":"—";
 const MA=["","jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
 const mlabel=m=>{const a=String(m).split("-");return MA[+a[1]]+" '"+a[0].slice(2);};
-let metric="omzet",rows=[],rchart=null,loadedOnce=false,topRev=[],topOrd=[];
+let metric="omzet",rows=[],rchart=null,loadedOnce=false,topP=12,topPeriods={12:{rev:[],ord:[]},6:{rev:[],ord:[]},3:{rev:[],ord:[]}};
 async function rload(){
   const shop=document.getElementById("rstore").value;
   document.getElementById("rcontent").innerHTML='<div class="rloading">Gegevens laden uit Metorik…</div>';
   try{
     const r=await fetch("/api/ronada?shop="+encodeURIComponent(shop));
     if(!r.ok){let d={};try{d=await r.json();}catch(e){}throw new Error(d.error||("HTTP "+r.status));}
-    const d=await r.json();rows=d.rows||[];topRev=(d.top&&d.top.rev)||[];topOrd=(d.top&&d.top.ord)||[];rrender();
+    const d=await r.json();rows=d.rows||[];topPeriods=d.top||topPeriods;rrender();
   }catch(e){
     document.getElementById("rcontent").innerHTML='<div class="rerr">Kon gegevens niet laden.<br><small>'+(e.message||e)+'</small></div>';
   }
@@ -462,6 +466,11 @@ function metricLabel(){return metric==="omzet"?"Omzet":"Orders";}
 function rtopCol(title,sub,items,kind){
   const rowsH=items.length?items.map((p,i)=>`<div class="rtoprow"><span class="rtoprank">${i+1}</span><img class="rtopimg" src="${p.img}" loading="lazy" onerror="this.style.display='none'"><div class="rtopname">${p.t}<span class="sku">SKU ${p.sku} · ${(p.u||0).toLocaleString("nl-NL")} verkocht</span></div><div class="rtopval">${kind==="rev"?fmtE(p.om):(p.o||0).toLocaleString("nl-NL")}<span class="u">${kind==="rev"?"omzet":"orders"}</span></div></div>`).join(""):'<div class="rtopempty">Geen data.</div>';
   return `<div class="rtopcol"><div class="rtoph">${title}</div><div class="rtopsub">${sub}</div>${rowsH}</div>`;
+}
+function renderTopBox(){
+  const box=document.getElementById("rtopbox");
+  if(box){const d=topPeriods[topP]||{rev:[],ord:[]};box.innerHTML=rtopCol("Top 20 — Omzet","op netto-omzet (ex btw)",d.rev,"rev")+rtopCol("Top 20 — Orders","op aantal orders",d.ord,"ord");}
+  const seg=document.getElementById("rtopseg");if(seg)[...seg.querySelectorAll("button")].forEach(x=>x.classList.toggle("on",+x.dataset.p===topP));
 }
 function rrender(){
   const c=document.getElementById("rcontent");
@@ -492,9 +501,9 @@ function rrender(){
         <tfoot><tr><td>Totaal</td><td>${rfmt(sum.r)}</td><td>${rfmt(sum.n)}</td><td>${rfmt(sum.t)}</td><td>${pctR(sum.r/sum.t)}</td></tr></tfoot>
       </table>
     </div>
-    <div class="rtophead">Grootste niet-Ronada/RTM producten <span class="rtopnote">— laatste 12 maanden</span></div>
-    <div class="rtopwrap">${rtopCol("Top 20 — Omzet","op netto-omzet (ex btw)",topRev,"rev")}${rtopCol("Top 20 — Orders","op aantal orders",topOrd,"ord")}</div>`;
-  rdraw();
+    <div class="rtophead">Grootste niet-Ronada/RTM producten <span class="rtopseg" id="rtopseg"><button data-p="12">12 mnd</button><button data-p="6">6 mnd</button><button data-p="3">3 mnd</button></span></div>
+    <div class="rtopwrap" id="rtopbox"></div>`;
+  rdraw();renderTopBox();
 }
 function rdraw(){
   const k=rkey();const labels=rows.map(r=>mlabel(r.m));const ctx=document.getElementById("rch");
@@ -522,6 +531,7 @@ document.getElementById("rmetric").addEventListener("click",e=>{
   if(rows.length)rrender();
 });
 document.getElementById("rstore").addEventListener("change",rload);
+document.getElementById("sec-ronada").addEventListener("click",e=>{const b=e.target.closest("#rtopseg button");if(!b)return;topP=+b.dataset.p;renderTopBox();});
 window.__ronadaLoad=function(){if(!loadedOnce){loadedOnce=true;rload();}};
 })();
 /* ===== Sectie 3: Prijsmonitor (eigen producten vs concurrenten) ===== */
