@@ -100,6 +100,25 @@ async function topProducts(token) {
   ]);
   return { 12: { rev: r12, ord: o12 }, 6: { rev: r6, ord: o6 }, 3: { rev: r3, ord: o3 } };
 }
+// Eén pagina (20) niet-Ronada/RTM producten voor 'laad meer'.
+async function topProductsPage(token, months, sort, page) {
+  const end = new Date().toISOString().slice(0, 10);
+  const d = new Date(); d.setMonth(d.getMonth() - months); const start = d.toISOString().slice(0, 10);
+  const u = new URL(PRODUCTS);
+  u.searchParams.set("start_date", start);
+  u.searchParams.set("end_date", end);
+  u.searchParams.set("order_by", sort === "ord" ? "net_orders" : "gross_sales");
+  u.searchParams.set("order_dir", "desc");
+  u.searchParams.set("per_page", "20");
+  u.searchParams.set("page", String(page));
+  u.searchParams.set("filters", JSON.stringify([{ field: "brand", operator: "not_in", value: ["Ronada", "RTM"] }]));
+  const r = await fetch(u, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+  if (!r.ok) throw new Error("Metorik API " + r.status);
+  const j = await r.json();
+  const items = (j.data || []).map((p) => ({ t: p.title, sku: p.sku, img: p.image, u: p.net_items_sold || 0, o: p.net_orders || 0, om: p.net_sales || 0 }));
+  const more = j.pagination ? !!j.pagination.has_more_pages : items.length >= 20;
+  return { items, more };
+}
 
 async function allData() {
   const out = {};
@@ -112,4 +131,4 @@ async function allData() {
   out.updatedAt = Date.now();
   return out;
 }
-module.exports = { allData, SHOPS, ronadaData, topProducts };
+module.exports = { allData, SHOPS, ronadaData, topProducts, topProductsPage };
