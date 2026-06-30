@@ -32,4 +32,13 @@ async function listUsers() {
   return (await r.smembers("users")) || [];
 }
 
-module.exports = { kv, getUser, setUser, delUser, listUsers };
+async function getKey(key) {
+  const r = kv(); if (!r) return null;
+  return await r.get(key);
+}
+async function setKey(key, obj) {
+  const r = kv(); if (!r) throw new Error("Opslag (KV) is niet geconfigureerd");
+  await r.set(key, obj);
+}
+
+module.exports = { kv, getUser, setUser, delUser, listUsers, getKey, setKey };

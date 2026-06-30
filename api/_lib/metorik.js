@@ -120,6 +120,24 @@ async function topProductsPage(token, months, sort, page) {
   return { items, more };
 }
 
+// Mijn actuele winkelprijs (current_price) per SKU uit Metorik.
+async function pricesBySku(token, skus) {
+  if (!skus || !skus.length) return {};
+  const end = new Date().toISOString().slice(0, 10);
+  const d = new Date(); d.setMonth(d.getMonth() - 6); const start = d.toISOString().slice(0, 10);
+  const u = new URL(PRODUCTS);
+  u.searchParams.set("start_date", start);
+  u.searchParams.set("end_date", end);
+  u.searchParams.set("per_page", "100");
+  u.searchParams.set("filters", JSON.stringify([{ field: "sku", operator: "in", value: skus }]));
+  const r = await fetch(u, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+  if (!r.ok) throw new Error("Metorik API " + r.status);
+  const j = await r.json();
+  const out = {};
+  (j.data || []).forEach((p) => { if (p.sku != null) out[String(p.sku)] = p.current_price; });
+  return out;
+}
+
 async function allData() {
   const out = {};
   await Promise.all(SHOPS.map(async ([key, envName, name]) => {
@@ -131,4 +149,4 @@ async function allData() {
   out.updatedAt = Date.now();
   return out;
 }
-module.exports = { allData, SHOPS, ronadaData, topProducts, topProductsPage };
+module.exports = { allData, SHOPS, ronadaData, topProducts, topProductsPage, pricesBySku };
