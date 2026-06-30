@@ -74,6 +74,31 @@ async function ronadaData(token) {
   return rows;
 }
 
+// Top-20 niet-Ronada/RTM producten op omzet en op orders (per shop).
+const PRODUCTS = "https://app.metorik.com/api/v1/store/products";
+async function topProducts(token) {
+  const today = new Date();
+  const end = today.toISOString().slice(0, 10);
+  const cs = new Date(); cs.setFullYear(cs.getFullYear() - 1);
+  const start = cs.toISOString().slice(0, 10);
+  const filters = JSON.stringify([{ field: "brand", operator: "not_in", value: ["Ronada", "RTM"] }]);
+  const call = async (orderBy) => {
+    const u = new URL(PRODUCTS);
+    u.searchParams.set("start_date", start);
+    u.searchParams.set("end_date", end);
+    u.searchParams.set("order_by", orderBy);
+    u.searchParams.set("order_dir", "desc");
+    u.searchParams.set("per_page", "20");
+    u.searchParams.set("filters", filters);
+    const r = await fetch(u, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+    if (!r.ok) throw new Error("Metorik API " + r.status);
+    const j = await r.json();
+    return (j.data || []).map((p) => ({ t: p.title, sku: p.sku, img: p.image, u: p.net_items_sold || 0, o: p.net_orders || 0, om: p.net_sales || 0 }));
+  };
+  const [rev, ord] = await Promise.all([call("gross_sales"), call("net_orders")]);
+  return { rev, ord };
+}
+
 async function allData() {
   const out = {};
   await Promise.all(SHOPS.map(async ([key, envName, name]) => {
@@ -85,4 +110,4 @@ async function allData() {
   out.updatedAt = Date.now();
   return out;
 }
-module.exports = { allData, SHOPS, ronadaData };
+module.exports = { allData, SHOPS, ronadaData, topProducts };
