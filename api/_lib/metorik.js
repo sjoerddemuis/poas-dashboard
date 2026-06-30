@@ -77,12 +77,10 @@ async function ronadaData(token) {
 // Top-20 niet-Ronada/RTM producten op omzet en op orders (per shop).
 const PRODUCTS = "https://app.metorik.com/api/v1/store/products";
 async function topProducts(token) {
-  const today = new Date();
-  const end = today.toISOString().slice(0, 10);
-  const cs = new Date(); cs.setFullYear(cs.getFullYear() - 1);
-  const start = cs.toISOString().slice(0, 10);
+  const end = new Date().toISOString().slice(0, 10);
   const filters = JSON.stringify([{ field: "brand", operator: "not_in", value: ["Ronada", "RTM"] }]);
-  const call = async (orderBy) => {
+  const sb = (mo) => { const d = new Date(); d.setMonth(d.getMonth() - mo); return d.toISOString().slice(0, 10); };
+  const call = async (start, orderBy) => {
     const u = new URL(PRODUCTS);
     u.searchParams.set("start_date", start);
     u.searchParams.set("end_date", end);
@@ -95,8 +93,12 @@ async function topProducts(token) {
     const j = await r.json();
     return (j.data || []).map((p) => ({ t: p.title, sku: p.sku, img: p.image, u: p.net_items_sold || 0, o: p.net_orders || 0, om: p.net_sales || 0 }));
   };
-  const [rev, ord] = await Promise.all([call("gross_sales"), call("net_orders")]);
-  return { rev, ord };
+  const [r12, o12, r6, o6, r3, o3] = await Promise.all([
+    call(sb(12), "gross_sales"), call(sb(12), "net_orders"),
+    call(sb(6), "gross_sales"), call(sb(6), "net_orders"),
+    call(sb(3), "gross_sales"), call(sb(3), "net_orders"),
+  ]);
+  return { 12: { rev: r12, ord: o12 }, 6: { rev: r6, ord: o6 }, 3: { rev: r3, ord: o3 } };
 }
 
 async function allData() {
