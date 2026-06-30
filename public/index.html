@@ -190,6 +190,22 @@ details[open] summary::before{content:"▾ "}
 #sec-voorraad .svchkh{width:34px}
 #sec-voorraad .svchkc{text-align:center}
 #sec-voorraad .svchk{width:16px;height:16px;cursor:pointer;accent-color:var(--green)}
+#sec-voorraad .svcontrols2{margin-top:-4px}
+#sec-voorraad .svlbl{font-size:13px;color:var(--mute);font-weight:600}
+#sec-voorraad .svfld{display:inline-flex;align-items:center;border:1.5px solid var(--line);border-radius:9px;overflow:hidden;background:var(--card)}
+#sec-voorraad .svfld input{width:58px;border:none;padding:7px 9px;font-size:14px;outline:none;background:transparent;font-family:var(--mono)}
+#sec-voorraad .svfld span{padding-right:9px;color:var(--mute);font-size:12px}
+#sec-voorraad .svq{border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font-family:var(--mono);font-size:11px;font-weight:700;padding:6px 10px;cursor:pointer}
+#sec-voorraad .svq:hover{border-color:var(--green);color:var(--greenDk)}
+#sec-voorraad .svexport{border:none;border-radius:9px;background:var(--ink);color:#fff;font-size:12px;font-weight:700;padding:8px 13px;cursor:pointer;margin-left:auto}
+#sec-voorraad .svsuppliers{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px;max-width:460px}
+#sec-voorraad .svpnlh{font-weight:700;font-size:13px;margin-bottom:8px}
+#sec-voorraad .svpnlrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 0;border-top:1px solid var(--line);font-size:13px}
+#sec-voorraad .svsup{width:128px;border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12px;outline:none;background:var(--card)}
+#sec-voorraad .svsup:focus{border-color:var(--green)}
+#sec-voorraad .svorder{display:inline-block;font-weight:700;font-size:13px;color:var(--mute)}
+#sec-voorraad .svorder.on{background:#FFF1E5;color:#b3590a;border-radius:20px;padding:3px 10px}
+#sec-voorraad .svtbl{overflow-x:auto}
 #sec-voorraad .svsum{font-size:13px;color:var(--mute);margin-bottom:12px}
 #sec-voorraad .svtbl{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
 #sec-voorraad table{width:100%;border-collapse:collapse;font-size:13px}
@@ -290,6 +306,15 @@ details[open] summary::before{content:"▾ "}
       </div>
       <button id="svclear" class="svclear">Wis selectie</button>
     </div>
+    <div class="svcontrols svcontrols2">
+      <span class="svlbl">Gewenste dekking:</span>
+      <div class="svfld"><input id="svcov" type="number" min="0" value="60"><span>dgn</span></div>
+      <button class="svq" data-c="30">30</button><button class="svq" data-c="60">60</button><button class="svq" data-c="90">90</button>
+      <select id="svsupf"><option value="">Alle leveranciers</option></select>
+      <button id="svltbtn" class="svclear">⚙ Leadtimes</button>
+      <button id="svexport" class="svexport">Kopieer inkooplijst</button>
+    </div>
+    <div id="svsuppliers" class="svsuppliers" style="display:none"></div>
     <div id="svcontent"><div class="svloading">Voorraad laden uit Metorik…</div></div>
   </div><!-- /sec-voorraad -->
 </div>
@@ -759,8 +784,25 @@ window.__prijsLoad=function(){
 /* ===== Sectie 4: Voorraad-runway (Ronada/RTM) ===== */
 (function(){
 "use strict";
-let SP={3:[],6:[],12:[]},sP=3,sInited=false,sQ="",sFilt="all";
+let SP={3:[],6:[],12:[]},sP=3,sInited=false,sQ="",sFilt="all",sSup="",supPanel=false;
 const sSel=new Set();
+let cfg={suppliers:{},leadtimes:{},coverage:60};
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+function loadCfg(){try{const s=localStorage.getItem("ow_stockcfg");if(s)cfg=Object.assign({suppliers:{},leadtimes:{},coverage:60},JSON.parse(s));}catch(e){}}
+function saveCfg(){try{localStorage.setItem("ow_stockcfg",JSON.stringify(cfg));}catch(e){}}
+function reorder(r){const sup=cfg.suppliers[String(r.sku)]||"";const lt=cfg.leadtimes[sup]||0;return Math.max(0,Math.ceil((lt+(+cfg.coverage||0))*(r.perDay||0)-(r.stock||0)));}
+function suppliersList(){return [...new Set(Object.values(cfg.suppliers).filter(Boolean))].sort((a,b)=>a.localeCompare(b));}
+function renderSupFilter(){const sel=document.getElementById("svsupf");if(!sel)return;const sl=suppliersList();sel.innerHTML='<option value="">Alle leveranciers</option>'+sl.map(s=>`<option value="${esc(s)}"${s===sSup?" selected":""}>${esc(s)}</option>`).join("");}
+function renderSupPanel(){const p=document.getElementById("svsuppliers");if(!p)return;const sl=suppliersList();p.innerHTML=sl.length?'<div class="svpnlh">Leadtime per leverancier (dagen tot levering)</div>'+sl.map(s=>`<div class="svpnlrow"><span>${esc(s)}</span><div class="svfld"><input type="number" min="0" class="svlt" data-sup="${esc(s)}" value="${cfg.leadtimes[s]!=null?cfg.leadtimes[s]:""}" placeholder="?"><span>dgn</span></div></div>`).join(""):'<div class="svmute" style="padding:4px 0">Nog geen leveranciers. Vul ze in de kolom “Leverancier” in, dan verschijnen ze hier.</div>';}
+function exportList(){
+  const rows=(SP[sP]||[]).filter(r=>reorder(r)>0);
+  const bExp=document.getElementById("svexport");
+  if(!rows.length){if(bExp){const o=bExp.textContent;bExp.textContent="Niets bij te bestellen";setTimeout(()=>bExp.textContent=o,1600);}return;}
+  const bySup={};rows.forEach(r=>{const s=cfg.suppliers[String(r.sku)]||"(geen leverancier)";(bySup[s]=bySup[s]||[]).push(r);});
+  let txt="Inkooplijst Ronada/RTM — dekking "+(+cfg.coverage||0)+" dgn, verkoop laatste "+sP+" mnd\n";
+  Object.keys(bySup).sort().forEach(s=>{const lt=cfg.leadtimes[s];txt+="\n== "+s+(lt!=null?" (leadtime "+lt+" dgn)":"")+" ==\n";bySup[s].forEach(r=>{txt+=reorder(r)+" x  "+r.title+"  (SKU "+r.sku+" | voorraad "+r.stock+" | "+fmt1(r.perDay)+"/dag)\n";});});
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(()=>{if(bExp){const o=bExp.textContent;bExp.textContent="✓ Gekopieerd";setTimeout(()=>bExp.textContent=o,1600);}},()=>{});}
+}
 const fmtN0=n=>Math.round(Number(n)).toLocaleString("nl-NL");
 const fmt1=n=>Number(n).toLocaleString("nl-NL",{minimumFractionDigits:1,maximumFractionDigits:1});
 function daysCls(d,stock){if(stock<=0)return"sd-red";if(d==null)return"sd-grey";if(d<=14)return"sd-red";if(d<=30)return"sd-orange";if(d<=60)return"sd-amber";return"sd-green";}
@@ -777,10 +819,12 @@ async function sload(){
 function srender(){
   const rows=SP[sP]||[],c=document.getElementById("svcontent");
   const selc=document.getElementById("svselc");if(selc)selc.textContent=sSel.size;
+  renderSupFilter();
   if(!rows.length){c.innerHTML='<div class="svempty">Geen producten.</div>';return;}
   const q=sQ.trim().toLowerCase();
   const view=rows.filter(r=>{
     if(sFilt==="sel"&&!sSel.has(String(r.sku)))return false;
+    if(sSup&&(cfg.suppliers[String(r.sku)]||"")!==sSup)return false;
     if(q&&!(String(r.sku).toLowerCase().includes(q)||(r.title||"").toLowerCase().includes(q)))return false;
     return true;
   });
@@ -788,19 +832,22 @@ function srender(){
   const out=rows.filter(r=>r.stock<=0).length;
   const isAll=document.getElementById("svstore").value==="ALL";
   const shown=view.length!==rows.length?` · ${view.length} getoond`:"";
-  c.innerHTML=`<div class="svsum">${rows.length} Ronada/RTM-producten · <b style="color:var(--red)">${urgent}</b> binnen 30 dagen leeg · ${out} uitverkocht${shown}. Runway o.b.v. verkoop laatste ${sP} mnd${isAll?" — verkoop van alle shops samen, gedeelde voorraad":""}.</div>
+  const totOrder=view.reduce((a,r)=>a+reorder(r),0);
+  c.innerHTML=`<div class="svsum">${rows.length} producten · <b style="color:var(--red)">${urgent}</b> binnen 30 dagen leeg · ${out} uitverkocht${shown}. Verkoop laatste ${sP} mnd${isAll?" — alle shops samen, gedeelde voorraad":""}. <b>Bij te bestellen (getoond): ${fmtN0(totOrder)} st</b> voor ${+cfg.coverage||0} dgn dekking.</div>
   ${view.length?`<div class="svtbl"><table>
-    <thead><tr><th class="svchkh"></th><th>Product</th><th>Voorraad</th><th>Verkocht (${sP}m)</th><th>/dag</th><th>Dagen voorraad</th><th>Leeg rond</th></tr></thead>
-    <tbody>${view.map(r=>`<tr>
+    <thead><tr><th class="svchkh"></th><th>Product</th><th>Voorraad</th><th>/dag</th><th>Dagen</th><th>Leeg rond</th><th>Leverancier</th><th>Leadtime</th><th>Bijbestellen</th></tr></thead>
+    <tbody>${view.map(r=>{const sup=cfg.suppliers[String(r.sku)]||"";const lt=cfg.leadtimes[sup];const ro=reorder(r);return `<tr>
       <td class="svchkc"><input type="checkbox" class="svchk" data-sku="${r.sku}"${sSel.has(String(r.sku))?" checked":""}></td>
-      <td><div class="svp"><img src="${r.img}" loading="lazy" onerror="this.style.display='none'"><div style="min-width:0"><div class="svname">${r.title||""}</div><div class="svsku">SKU ${r.sku}${r.status==="private"?" · privé":""}</div></div></div></td>
+      <td><div class="svp"><img src="${r.img}" loading="lazy" onerror="this.style.display='none'"><div style="min-width:0"><div class="svname">${esc(r.title)}</div><div class="svsku">SKU ${esc(r.sku)}${r.status==="private"?" · privé":""}</div></div></div></td>
       <td>${fmtN0(r.stock)}</td>
-      <td>${fmtN0(r.sold)}</td>
       <td>${fmt1(r.perDay)}</td>
       <td><span class="svdays ${daysCls(r.days,r.stock)}">${daysTxt(r.days,r.stock)}</span></td>
       <td class="svmute">${emptyDate(r.days,r.stock)}</td>
-    </tr>`).join("")}</tbody>
-  </table></div>`:'<div class="svempty">Geen producten gevonden.</div>'}`;
+      <td><input class="svsup" data-sku="${esc(r.sku)}" value="${esc(sup)}" placeholder="—" list="svsuplist"></td>
+      <td class="svmute">${sup?(lt!=null?lt+" dgn":'<span style="color:var(--orange)">stel in</span>'):"—"}</td>
+      <td><span class="svorder${ro>0?" on":""}">${ro>0?fmtN0(ro):"—"}</span></td>
+    </tr>`;}).join("")}</tbody>
+  </table></div><datalist id="svsuplist">${suppliersList().map(s=>`<option value="${esc(s)}">`).join("")}</datalist>`:'<div class="svempty">Geen producten gevonden.</div>'}`;
 }
 window.__voorraadLoad=function(){
   if(!sInited){sInited=true;
@@ -810,6 +857,16 @@ window.__voorraadLoad=function(){
     document.getElementById("svfilt").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;sFilt=b.dataset.f;[...document.querySelectorAll("#svfilt button")].forEach(x=>x.classList.toggle("on",x===b));srender();});
     document.getElementById("svclear").addEventListener("click",()=>{sSel.clear();srender();});
     document.getElementById("svcontent").addEventListener("change",e=>{const chk=e.target.closest(".svchk");if(!chk)return;const sku=String(chk.dataset.sku);if(chk.checked)sSel.add(sku);else sSel.delete(sku);const selc=document.getElementById("svselc");if(selc)selc.textContent=sSel.size;if(sFilt==="sel")srender();});
+    loadCfg();
+    document.getElementById("svcov").value=cfg.coverage;
+    document.getElementById("svcov").addEventListener("input",e=>{cfg.coverage=+e.target.value||0;saveCfg();srender();});
+    [...document.querySelectorAll(".svq")].forEach(b=>b.addEventListener("click",()=>{cfg.coverage=+b.dataset.c;document.getElementById("svcov").value=cfg.coverage;saveCfg();srender();}));
+    document.getElementById("svsupf").addEventListener("change",e=>{sSup=e.target.value;srender();});
+    document.getElementById("svltbtn").addEventListener("click",()=>{supPanel=!supPanel;const p=document.getElementById("svsuppliers");p.style.display=supPanel?"":"none";if(supPanel)renderSupPanel();});
+    document.getElementById("svsuppliers").addEventListener("input",e=>{const lt=e.target.closest(".svlt");if(!lt)return;cfg.leadtimes[lt.dataset.sup]=lt.value===""?null:(+lt.value||0);saveCfg();srender();});
+    document.getElementById("svexport").addEventListener("click",exportList);
+    document.getElementById("svcontent").addEventListener("input",e=>{const sup=e.target.closest(".svsup");if(!sup)return;const sku=String(sup.dataset.sku),v=sup.value.trim();if(v)cfg.suppliers[sku]=v;else delete cfg.suppliers[sku];saveCfg();});
+    document.getElementById("svcontent").addEventListener("change",e=>{const sup=e.target.closest(".svsup");if(sup){renderSupFilter();if(supPanel)renderSupPanel();srender();}});
     sload();return;
   }
   if(!(SP[sP]||[]).length)sload();else srender();
