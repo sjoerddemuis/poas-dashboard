@@ -109,6 +109,11 @@ details[open] summary::before{content:"▾ "}
 #sec-ronada .rtopseg button{border:0;border-right:1px solid var(--line);background:var(--card);color:var(--ink);font-family:var(--mono);font-size:11px;font-weight:700;padding:5px 11px;cursor:pointer}
 #sec-ronada .rtopseg button:last-child{border-right:0}
 #sec-ronada .rtopseg button.on{background:var(--green);color:#fff}
+#sec-ronada .rtopcount{font-weight:400;font-size:12px;color:var(--mute)}
+#sec-ronada .rtopmore{display:block;width:100%;margin-top:10px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--greenDk);font-family:var(--mono);font-size:11px;font-weight:700;cursor:pointer}
+#sec-ronada .rtopmore:hover{background:var(--lightg)}
+#sec-ronada .rtopmore:disabled{opacity:.6;cursor:default}
+#sec-ronada .rtopdone{margin-top:10px;text-align:center;font-family:var(--mono);font-size:10px;color:var(--mute)}
 #sec-ronada .rtopwrap{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}
 #sec-ronada .rtopcol{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
 #sec-ronada .rtoph{font-weight:700;font-size:14px}
@@ -447,14 +452,24 @@ const fmtNum=n=>Math.round(n).toLocaleString("nl-NL");
 const pctR=n=>isFinite(n)?(n*100).toLocaleString("nl-NL",{maximumFractionDigits:0})+"%":"—";
 const MA=["","jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
 const mlabel=m=>{const a=String(m).split("-");return MA[+a[1]]+" '"+a[0].slice(2);};
-let metric="omzet",rows=[],rchart=null,loadedOnce=false,topP=12,topPeriods={12:{rev:[],ord:[]},6:{rev:[],ord:[]},3:{rev:[],ord:[]}};
+let metric="omzet",rows=[],rchart=null,loadedOnce=false,topP=12,curShop="NL";
+const mkTop=()=>({rev:{items:[],more:false,page:1},ord:{items:[],more:false,page:1}});
+let topData={12:mkTop(),6:mkTop(),3:mkTop()};
+async function catFetch(period,kind,page){
+  const r=await fetch(`/api/topproducts?shop=${encodeURIComponent(curShop)}&months=${period}&sort=${kind}&page=${page}`);
+  if(!r.ok){let e={};try{e=await r.json();}catch(x){}throw new Error(e.error||("HTTP "+r.status));}
+  return r.json();
+}
 async function rload(){
   const shop=document.getElementById("rstore").value;
   document.getElementById("rcontent").innerHTML='<div class="rloading">Gegevens laden uit Metorik…</div>';
   try{
     const r=await fetch("/api/ronada?shop="+encodeURIComponent(shop));
     if(!r.ok){let d={};try{d=await r.json();}catch(e){}throw new Error(d.error||("HTTP "+r.status));}
-    const d=await r.json();rows=d.rows||[];topPeriods=d.top||topPeriods;rrender();
+    const d=await r.json();rows=d.rows||[];curShop=shop;
+    const t=d.top||{},mk=arr=>({items:arr||[],more:(arr||[]).length>=20,page:1});
+    topData={12:{rev:mk(t["12"]&&t["12"].rev),ord:mk(t["12"]&&t["12"].ord)},6:{rev:mk(t["6"]&&t["6"].rev),ord:mk(t["6"]&&t["6"].ord)},3:{rev:mk(t["3"]&&t["3"].rev),ord:mk(t["3"]&&t["3"].ord)}};
+    rrender();
   }catch(e){
     document.getElementById("rcontent").innerHTML='<div class="rerr">Kon gegevens niet laden.<br><small>'+(e.message||e)+'</small></div>';
   }
@@ -463,13 +478,15 @@ function rkey(){return metric==="omzet"?"om":"or";}
 function isMoney(){return metric==="omzet";}
 function rfmt(v){return isMoney()?fmtE(v):fmtNum(v);}
 function metricLabel(){return metric==="omzet"?"Omzet":"Orders";}
-function rtopCol(title,sub,items,kind){
+function rtopCol(title,sub,slot,kind){
+  const items=slot.items;
   const rowsH=items.length?items.map((p,i)=>`<div class="rtoprow"><span class="rtoprank">${i+1}</span><img class="rtopimg" src="${p.img}" loading="lazy" onerror="this.style.display='none'"><div class="rtopname">${p.t}<span class="sku">SKU ${p.sku} · ${(p.u||0).toLocaleString("nl-NL")} verkocht</span></div><div class="rtopval">${kind==="rev"?fmtE(p.om):(p.o||0).toLocaleString("nl-NL")}<span class="u">${kind==="rev"?"omzet":"orders"}</span></div></div>`).join(""):'<div class="rtopempty">Geen data.</div>';
-  return `<div class="rtopcol"><div class="rtoph">${title}</div><div class="rtopsub">${sub}</div>${rowsH}</div>`;
+  const foot=slot.more?`<button class="rtopmore" data-kind="${kind}">+ Laad 20 meer</button>`:(items.length>20?'<div class="rtopdone">Hele assortiment geladen</div>':"");
+  return `<div class="rtopcol"><div class="rtoph">${title} <span class="rtopcount">(${items.length})</span></div><div class="rtopsub">${sub}</div>${rowsH}${foot}</div>`;
 }
 function renderTopBox(){
   const box=document.getElementById("rtopbox");
-  if(box){const d=topPeriods[topP]||{rev:[],ord:[]};box.innerHTML=rtopCol("Top 20 — Omzet","op netto-omzet (ex btw)",d.rev,"rev")+rtopCol("Top 20 — Orders","op aantal orders",d.ord,"ord");}
+  if(box){const d=topData[topP];box.innerHTML=rtopCol("Top — Omzet","op netto-omzet (ex btw)",d.rev,"rev")+rtopCol("Top — Orders","op aantal orders",d.ord,"ord");}
   const seg=document.getElementById("rtopseg");if(seg)[...seg.querySelectorAll("button")].forEach(x=>x.classList.toggle("on",+x.dataset.p===topP));
 }
 function rrender(){
@@ -531,7 +548,14 @@ document.getElementById("rmetric").addEventListener("click",e=>{
   if(rows.length)rrender();
 });
 document.getElementById("rstore").addEventListener("change",rload);
-document.getElementById("sec-ronada").addEventListener("click",e=>{const b=e.target.closest("#rtopseg button");if(!b)return;topP=+b.dataset.p;renderTopBox();});
+document.getElementById("sec-ronada").addEventListener("click",async e=>{
+  const mb=e.target.closest(".rtopmore");
+  if(mb){const kind=mb.dataset.kind,slot=topData[topP][kind];mb.textContent="Laden…";mb.disabled=true;
+    try{const res=await catFetch(topP,kind,slot.page+1);slot.items=slot.items.concat(res.items||[]);slot.page+=1;slot.more=!!res.more;renderTopBox();}
+    catch(err){mb.textContent="Mislukt — klik opnieuw";mb.disabled=false;}
+    return;}
+  const sb=e.target.closest("#rtopseg button");if(sb){topP=+sb.dataset.p;renderTopBox();}
+});
 window.__ronadaLoad=function(){if(!loadedOnce){loadedOnce=true;rload();}};
 })();
 /* ===== Sectie 3: Prijsmonitor (eigen producten vs concurrenten) ===== */
