@@ -37,6 +37,43 @@ async function shopData(token) {
   } catch (e) { /* 30d optioneel */ }
   return { m, aov, opexPer, transPer, marge };
 }
+// ---- Ronada-aandeel (eigen huismerk Ronada+RTM vs rest) ----
+// Publieke REST geeft per merk omzet + orders (geen winst), dus alleen die twee metrics.
+const BRANDS = "https://app.metorik.com/api/v1/store/brands/by-date";
+const REVENUE = "https://app.metorik.com/api/v1/store/reports/revenue-by-date";
+function ym(d) { const a = String(d).split("-"); return a[0] + "-" + String(a[1]).padStart(2, "0"); }
+async function metGet(url, token, params) {
+  const u = new URL(url);
+  Object.entries(params).forEach(([k, v]) => u.searchParams.set(k, v));
+  const r = await fetch(u, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+  if (!r.ok) throw new Error("Metorik API " + r.status);
+  return r.json();
+}
+async function ronadaData(token) {
+  const today = new Date();
+  const end = today.toISOString().slice(0, 10);
+  const start = "2024-03-01";
+  const [ron, rtm, rev] = await Promise.all([
+    metGet(BRANDS, token, { brand: "Ronada", group_by: "month", start_date: start, end_date: end }),
+    metGet(BRANDS, token, { brand: "RTM", group_by: "month", start_date: start, end_date: end }),
+    metGet(REVENUE, token, { group_by: "month", start_date: start, end_date: end }),
+  ]);
+  const idx = (d) => { const o = {}; (d.data || []).forEach((x) => { o[ym(x.date)] = x; }); return o; };
+  const R = idx(ron), T = idx(rtm);
+  const rows = [];
+  (rev.data || []).forEach((rv) => {
+    const k = ym(rv.date);
+    const net = rv.net || 0, ship = rv.shipping || 0, ords = rv.orders || 0;
+    const tOm = net - ship;
+    const r = R[k] || {}, t = T[k] || {};
+    const rOm = (r.net_sales || 0) + (t.net_sales || 0);
+    const rOr = (r.net_orders || 0) + (t.net_orders || 0);
+    if (tOm <= 0 && rOm <= 0) return;
+    rows.push({ m: k, om: { r: rOm, n: tOm - rOm, t: tOm }, or: { r: rOr, n: ords - rOr, t: ords } });
+  });
+  return rows;
+}
+
 async function allData() {
   const out = {};
   await Promise.all(SHOPS.map(async ([key, envName, name]) => {
@@ -48,4 +85,4 @@ async function allData() {
   out.updatedAt = Date.now();
   return out;
 }
-module.exports = { allData, SHOPS };
+module.exports = { allData, SHOPS, ronadaData };
