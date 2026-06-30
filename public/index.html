@@ -137,6 +137,9 @@ details[open] summary::before{content:"▾ "}
 #sec-prijs .pseg button:last-child{border-right:0}
 #sec-prijs .pseg button.on{background:var(--green);color:#fff}
 #sec-prijs .pcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+#sec-prijs .pcard.pclick{cursor:pointer;transition:border-color .12s,box-shadow .12s}
+#sec-prijs .pcard.pclick:hover{border-color:var(--green);box-shadow:0 2px 12px rgba(0,0,0,.05)}
+#sec-prijs .paddrow,#sec-prijs .paddrow *,#sec-prijs .pcomp,#sec-prijs .pchip{cursor:auto}
 #sec-prijs .phead{display:flex;align-items:flex-start;gap:14px}
 #sec-prijs .pimg{width:54px;height:54px;border-radius:8px;object-fit:cover;border:1px solid var(--line);background:#fff;flex:none}
 #sec-prijs .ptitle{font-weight:700;font-size:14px;line-height:1.3}
@@ -620,7 +623,8 @@ function render(){
     if(q&&!((it.title||"").toLowerCase().includes(q)||String(it.sku).toLowerCase().includes(q)))return "";
     shown++;
     const pos=position(it),comp=it.comp||[];
-    return `<div class="pcard">
+    const purl=it.url||("https://ongediertewinkel.nl/?s="+encodeURIComponent(it.sku));
+    return `<div class="pcard pclick" data-url="${esc(purl)}">
       <div class="phead">
         <img class="pimg" src="${esc(it.img)}" loading="lazy" onerror="this.style.display='none'">
         <div style="min-width:0">
@@ -681,6 +685,9 @@ window.__prijsLoad=function(){
     document.getElementById("pcontent").addEventListener("click",async e=>{
       const del=e.target.closest(".pdel");if(del){await delComp(+del.dataset.pi,+del.dataset.ci);return;}
       const add=e.target.closest(".paddbtn");if(add){await addComp(+add.dataset.pi,add.closest(".pcard"));return;}
+      if(e.target.closest("a,button,input"))return;
+      const card=e.target.closest(".pcard");
+      if(card&&card.dataset.url)window.open(card.dataset.url,"_blank","noopener");
     });
     reload();return;
   }
