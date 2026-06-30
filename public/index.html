@@ -183,6 +183,13 @@ details[open] summary::before{content:"▾ "}
 #sec-voorraad .svseg button{border:0;border-right:1px solid var(--line);background:var(--card);color:var(--ink);font-family:var(--mono);font-size:12px;font-weight:700;padding:8px 14px;cursor:pointer}
 #sec-voorraad .svseg button:last-child{border-right:0}
 #sec-voorraad .svseg button.on{background:var(--green);color:#fff}
+#sec-voorraad .svsearch{font-size:14px;border:1.5px solid var(--line);background:var(--card);border-radius:9px;padding:8px 12px;min-width:190px;outline:none}
+#sec-voorraad .svsearch:focus{border-color:var(--green)}
+#sec-voorraad .svclear{border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--mute);font-size:12px;font-weight:600;padding:8px 12px;cursor:pointer}
+#sec-voorraad .svclear:hover{color:var(--red);border-color:var(--red)}
+#sec-voorraad .svchkh{width:34px}
+#sec-voorraad .svchkc{text-align:center}
+#sec-voorraad .svchk{width:16px;height:16px;cursor:pointer;accent-color:var(--green)}
 #sec-voorraad .svsum{font-size:13px;color:var(--mute);margin-bottom:12px}
 #sec-voorraad .svtbl{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
 #sec-voorraad table{width:100%;border-collapse:collapse;font-size:13px}
@@ -276,6 +283,12 @@ details[open] summary::before{content:"▾ "}
         <button data-p="6">6 mnd</button>
         <button data-p="12">12 mnd</button>
       </div>
+      <input id="svsearch" class="svsearch" type="text" placeholder="Zoek op SKU of naam…" autocomplete="off">
+      <div class="svseg" id="svfilt">
+        <button data-f="all" class="on">Alle</button>
+        <button data-f="sel">Geselecteerd (<span id="svselc">0</span>)</button>
+      </div>
+      <button id="svclear" class="svclear">Wis selectie</button>
     </div>
     <div id="svcontent"><div class="svloading">Voorraad laden uit Metorik…</div></div>
   </div><!-- /sec-voorraad -->
@@ -746,7 +759,8 @@ window.__prijsLoad=function(){
 /* ===== Sectie 4: Voorraad-runway (Ronada/RTM) ===== */
 (function(){
 "use strict";
-let SP={3:[],6:[],12:[]},sP=3,sInited=false;
+let SP={3:[],6:[],12:[]},sP=3,sInited=false,sQ="",sFilt="all";
+const sSel=new Set();
 const fmtN0=n=>Math.round(Number(n)).toLocaleString("nl-NL");
 const fmt1=n=>Number(n).toLocaleString("nl-NL",{minimumFractionDigits:1,maximumFractionDigits:1});
 function daysCls(d,stock){if(stock<=0)return"sd-red";if(d==null)return"sd-grey";if(d<=14)return"sd-red";if(d<=30)return"sd-orange";if(d<=60)return"sd-amber";return"sd-green";}
@@ -762,14 +776,23 @@ async function sload(){
 }
 function srender(){
   const rows=SP[sP]||[],c=document.getElementById("svcontent");
+  const selc=document.getElementById("svselc");if(selc)selc.textContent=sSel.size;
   if(!rows.length){c.innerHTML='<div class="svempty">Geen producten.</div>';return;}
+  const q=sQ.trim().toLowerCase();
+  const view=rows.filter(r=>{
+    if(sFilt==="sel"&&!sSel.has(String(r.sku)))return false;
+    if(q&&!(String(r.sku).toLowerCase().includes(q)||(r.title||"").toLowerCase().includes(q)))return false;
+    return true;
+  });
   const urgent=rows.filter(r=>r.days!=null&&r.days<=30&&r.stock>0).length;
   const out=rows.filter(r=>r.stock<=0).length;
   const isAll=document.getElementById("svstore").value==="ALL";
-  c.innerHTML=`<div class="svsum">${rows.length} Ronada/RTM-producten · <b style="color:var(--red)">${urgent}</b> binnen 30 dagen leeg · ${out} uitverkocht. Runway o.b.v. verkoop laatste ${sP} mnd${isAll?" — verkoop van alle shops samen, gedeelde voorraad":""}.</div>
-  <div class="svtbl"><table>
-    <thead><tr><th>Product</th><th>Voorraad</th><th>Verkocht (${sP}m)</th><th>/dag</th><th>Dagen voorraad</th><th>Leeg rond</th></tr></thead>
-    <tbody>${rows.map(r=>`<tr>
+  const shown=view.length!==rows.length?` · ${view.length} getoond`:"";
+  c.innerHTML=`<div class="svsum">${rows.length} Ronada/RTM-producten · <b style="color:var(--red)">${urgent}</b> binnen 30 dagen leeg · ${out} uitverkocht${shown}. Runway o.b.v. verkoop laatste ${sP} mnd${isAll?" — verkoop van alle shops samen, gedeelde voorraad":""}.</div>
+  ${view.length?`<div class="svtbl"><table>
+    <thead><tr><th class="svchkh"></th><th>Product</th><th>Voorraad</th><th>Verkocht (${sP}m)</th><th>/dag</th><th>Dagen voorraad</th><th>Leeg rond</th></tr></thead>
+    <tbody>${view.map(r=>`<tr>
+      <td class="svchkc"><input type="checkbox" class="svchk" data-sku="${r.sku}"${sSel.has(String(r.sku))?" checked":""}></td>
       <td><div class="svp"><img src="${r.img}" loading="lazy" onerror="this.style.display='none'"><div style="min-width:0"><div class="svname">${r.title||""}</div><div class="svsku">SKU ${r.sku}${r.status==="private"?" · privé":""}</div></div></div></td>
       <td>${fmtN0(r.stock)}</td>
       <td>${fmtN0(r.sold)}</td>
@@ -777,12 +800,16 @@ function srender(){
       <td><span class="svdays ${daysCls(r.days,r.stock)}">${daysTxt(r.days,r.stock)}</span></td>
       <td class="svmute">${emptyDate(r.days,r.stock)}</td>
     </tr>`).join("")}</tbody>
-  </table></div>`;
+  </table></div>`:'<div class="svempty">Geen producten gevonden.</div>'}`;
 }
 window.__voorraadLoad=function(){
   if(!sInited){sInited=true;
     document.getElementById("svstore").addEventListener("change",sload);
     document.getElementById("svseg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;sP=+b.dataset.p;[...document.querySelectorAll("#svseg button")].forEach(x=>x.classList.toggle("on",x===b));srender();});
+    document.getElementById("svsearch").addEventListener("input",e=>{sQ=e.target.value;srender();});
+    document.getElementById("svfilt").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;sFilt=b.dataset.f;[...document.querySelectorAll("#svfilt button")].forEach(x=>x.classList.toggle("on",x===b));srender();});
+    document.getElementById("svclear").addEventListener("click",()=>{sSel.clear();srender();});
+    document.getElementById("svcontent").addEventListener("change",e=>{const chk=e.target.closest(".svchk");if(!chk)return;const sku=String(chk.dataset.sku);if(chk.checked)sSel.add(sku);else sSel.delete(sku);const selc=document.getElementById("svselc");if(selc)selc.textContent=sSel.size;if(sFilt==="sel")srender();});
     sload();return;
   }
   if(!(SP[sP]||[]).length)sload();else srender();
