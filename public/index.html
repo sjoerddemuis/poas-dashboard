@@ -108,7 +108,7 @@ const fmtN=(n,d=2)=>isFinite(n)?n.toLocaleString("nl-NL",{minimumFractionDigits:
 const fmtX=n=>isFinite(n)?fmtN(n,2)+"×":"—";
 const fmtPct=n=>isFinite(n)?fmtN(n*100,1)+"%":"—";
 let DATA={},AOV={},ROLE="viewer";
-const state={shop:"NL",preset:{}};
+const state={shop:"NL",preset:{},lock:true};
 const charts={};
 function el(t,c,h){const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;}
 function destroyCharts(){Object.values(charts).forEach(c=>{try{c.destroy();}catch(e){}});}
@@ -135,16 +135,17 @@ function econOf(s){const rows=rowsOf(s).filter((r,i)=>!isPartial(s,i));const las
   return{aov,marge,m,opexPer,transPer,breakeven:m-opexPer};}
 function econTotaal(){const rows=rowsOf("TOT").filter((r,i)=>!isPartial("TOT",i));const last=rows.slice(-12);const a=agg(last);
   const marge=a.marge;const aov=a.aov;const m=aov*marge;const opexPer=a.orders?a.opex/a.orders:0;const transPer=a.orders?a.trans/a.orders:0;return{aov,marge,m,opexPer,transPer,breakeven:m-opexPer};}
-function windowOpt(pts,econ,floor){const m=econ.m,x=econ.opexPer,tr=econ.transPer||0,aov=econ.aov;
+function windowOpt(pts,econ,floor,lock){const m=econ.m,x=econ.opexPer,tr=econ.transPer||0,aov=econ.aov;
   pts=pts.filter(p=>p.spend>0&&p.orders>0);if(pts.length<2)return null;
   const f=fitSat(pts);const{Vmax,k,r2,n}=f;if(!(Vmax>0&&k>0&&m>x))return{n,r2,Vmax,bad:true};
   const minS=Math.min(...pts.map(p=>p.spend)),maxS=Math.max(...pts.map(p=>p.spend));
+  const lo=lock?minS:Math.max(1000,minS*0.4),hi=lock?maxS:maxS*1.6;
   const ord=S=>Vmax*S/(S+k),poas=S=>Vmax*(m-x)/(S+k);
-  let best=null;for(let i=0;i<=400;i++){const S=minS+(maxS-minS)*i/400;if(poas(S)<floor)continue;const o=ord(S);const p=o*(m-x)-S;if(!best||p>best.profit)best={S,o,profit:p,poas:poas(S)};}
-  const pHigh=poas(minS),pLow=Math.max(floor,poas(maxS));const front=[];
-  if(pHigh>pLow){for(let i=0;i<13;i++){const p=pHigh-(pHigh-pLow)*i/12;const S=Math.min(Math.max(Vmax*(m-x)/p-k,minS),maxS);const o=ord(S);const profit=o*(m-x)-S;const omzet=o*aov;const avk=S+(x+tr)*o;front.push({poas:p,spend:S,orders:o,profit,cpa:S/o,ppo:(m-x)-S/o,avkPct:omzet?avk/omzet:NaN});}
+  let best=null;for(let i=0;i<=400;i++){const S=lo+(hi-lo)*i/400;if(poas(S)<floor)continue;const o=ord(S);const p=o*(m-x)-S;if(!best||p>best.profit)best={S,o,profit:p,poas:poas(S)};}
+  const pHigh=poas(lo),pLow=Math.max(floor,poas(hi));const front=[];
+  if(pHigh>pLow){for(let i=0;i<13;i++){const p=pHigh-(pHigh-pLow)*i/12;const S=Math.min(Math.max(Vmax*(m-x)/p-k,lo),hi);const o=ord(S);const profit=o*(m-x)-S;const omzet=o*aov;const avk=S+(x+tr)*o;front.push({poas:p,spend:S,orders:o,profit,omzet,cpa:S/o,ppo:(m-x)-S/o,avkPct:omzet?avk/omzet:NaN});}
     for(let i=0;i<front.length;i++){const nx=front[i+1];front[i].dOrders=nx?nx.orders-front[i].orders:null;front[i].dppo=nx&&nx.orders>front[i].orders?(nx.profit-front[i].profit)/(nx.orders-front[i].orders):null;}}
-  return{n,r2,Vmax,k,minS,maxS,ord,front,...(best||{}),eff:{poas:poas(minS),S:minS,o:ord(minS)},vol:{poas:Math.max(floor,poas(maxS)),S:maxS,o:ord(maxS)}};}
+  return{n,r2,Vmax,k,minS,maxS,lo,hi,lock,ord,front,...(best||{}),eff:{poas:poas(lo),S:lo,o:ord(lo)},vol:{poas:Math.max(floor,poas(hi)),S:hi,o:ord(hi)}};}
 const MMAP={jan:1,feb:2,mrt:3,apr:4,mei:5,jun:6,jul:7,aug:8,sep:9,okt:10,nov:11,dec:12};
 const monthOf=l=>MMAP[String(l).slice(0,3).toLowerCase()]||0;
 const PRESETS=[{key:"l3",short:"Laatste 3 mnd"},{key:"l6",short:"Laatste 6 mnd"},{key:"l12",short:"Laatste 12 mnd"},{key:"high",short:"Hoogseizoen"},{key:"low",short:"Laagseizoen"},{key:"all",short:"Alles"}];
@@ -184,7 +185,7 @@ function render(){
   const pk=state.preset[shop]||"l12";
   const idx=presetIdx(shop,pk);
   const pts=idx.map(i=>({spend:rows[i].adv,orders:rows[i].orders})).filter(p=>p.spend>0&&p.orders>0);
-  const opt=windowOpt(pts,econ,floor);
+  const opt=windowOpt(pts,econ,floor,state.lock!==false);
   const optPoas=(opt&&!opt.bad&&opt.profit!=null)?opt.poas:null;
   const lastC=complete[complete.length-1];const run3=agg(complete.slice(-3));
 
@@ -224,6 +225,12 @@ function render(){
     `<div><div class="lab">Break-even CPA</div><div class="v" style="color:${C.orange}">${fmtEur2(econ.breakeven)}</div></div>`));
   const pr=el("div","presets");PRESETS.forEach(p=>{const b=el("button","ps"+(pk===p.key?" on":""),p.short);b.onclick=()=>{state.preset[shop]=p.key;render();};pr.appendChild(b);});
   ob.appendChild(pr);
+  const lr=el("div","presets");
+  const lb=el("button","ps"+(state.lock===false?" on":""),state.lock===false?"↗ Extrapoleren (buiten getest bereik)":"● Binnen getest bereik");
+  if(state.lock===false){lb.style.background=C.orange;lb.style.borderColor=C.orange;lb.style.color="#fff";}
+  lb.onclick=()=>{state.lock=state.lock===false?true:false;render();};
+  lr.appendChild(lb);ob.appendChild(lr);
+  if(state.lock===false)ob.appendChild(el("div","note",`⚠︎ Je rekent nu buiten je geteste spend-bereik (${fmtEur(opt&&opt.lo)}–${fmtEur(opt&&opt.hi)}). Dit is een extrapolatie van het model — schatting, geen harde data.`));
   if(opt&&!opt.bad&&opt.profit!=null){
     const cards=el("div","cards");
     cards.appendChild(pcCard("Max efficiëntie",C.blue,opt.eff,econ,"Weinig spend, vetste marge/order — laag volume."));
@@ -234,14 +241,14 @@ function render(){
       ob.appendChild(el("div","sec",`<span class="n">A</span> Volledige afruil — elke stap lager in blended POAS`));
       const peak=opt.front.reduce((a,b)=>b.profit>a.profit?b:a,opt.front[0]);
       const twf=el("div","tbl-wrap");
-      let hf="<table><thead><tr><th>Blended POAS</th><th>Spend</th><th>Orders</th><th>Winst</th><th>AVK %</th><th>Winst/order</th><th>CPA</th><th>Extra orders</th><th>Δ winst/order</th></tr></thead><tbody>";
-      opt.front.forEach(r=>{const isP=r===peak;hf+=`<tr style="background:${isP?C.lightg:'transparent'}"><td style="font-weight:700">${fmtX(r.poas)}${isP?' ★':''}</td><td>${fmtEur(r.spend)}</td><td>${Math.round(r.orders).toLocaleString('nl-NL')}</td><td style="font-weight:700;color:${isP?C.greenDk:'inherit'}">${fmtEur(r.profit)}</td><td style="color:${C.orange};font-weight:700">${fmtPct(r.avkPct)}</td><td>${fmtEur2(r.ppo)}</td><td>${fmtEur2(r.cpa)}</td><td style="color:${C.mute}">${r.dOrders!=null?'+'+Math.round(r.dOrders).toLocaleString('nl-NL'):'—'}</td><td style="color:${r.dppo!=null?(r.dppo>=0?C.greenDk:C.orange):C.mute}">${r.dppo!=null?fmtEur2(r.dppo):'—'}</td></tr>`;});
+      let hf="<table><thead><tr><th>Blended POAS</th><th>Spend</th><th>Orders</th><th>Omzet</th><th>Winst</th><th>AVK %</th><th>Winst/order</th><th>CPA</th><th>Extra orders</th><th>Δ winst/order</th></tr></thead><tbody>";
+      opt.front.forEach(r=>{const isP=r===peak;hf+=`<tr style="background:${isP?C.lightg:'transparent'}"><td style="font-weight:700">${fmtX(r.poas)}${isP?' ★':''}</td><td>${fmtEur(r.spend)}</td><td>${Math.round(r.orders).toLocaleString('nl-NL')}</td><td>${fmtEur(r.omzet)}</td><td style="font-weight:700;color:${isP?C.greenDk:'inherit'}">${fmtEur(r.profit)}</td><td style="color:${C.orange};font-weight:700">${fmtPct(r.avkPct)}</td><td>${fmtEur2(r.ppo)}</td><td>${fmtEur2(r.cpa)}</td><td style="color:${C.mute}">${r.dOrders!=null?'+'+Math.round(r.dOrders).toLocaleString('nl-NL'):'—'}</td><td style="color:${r.dppo!=null?(r.dppo>=0?C.greenDk:C.orange):C.mute}">${r.dppo!=null?fmtEur2(r.dppo):'—'}</td></tr>`;});
       hf+="</tbody></table>";twf.innerHTML=hf;ob.appendChild(twf);
       ob.appendChild(el("div","note","Elke rij = een bied-niveau. AVK % = (ad + opex + transactie) ÷ omzet — waar je marketingpartij op stuurt. Δ winst/order &lt;0 (oranje) = extra orders kosten netto geld."));
     }
     ob.appendChild(el("div","sec",`<span class="n">B</span> Responscurve — punten = maanden, lijn = model, ▲ = nu`));
     const rc=el("div","card");const rb=el("div","chartbox");const rv=el("canvas");rb.appendChild(rv);rc.appendChild(rb);ob.appendChild(rc);
-    const curve=[];for(let i=0;i<=50;i++){const S=opt.minS+(opt.maxS-opt.minS)*i/50;curve.push({x:S,y:opt.ord(S)});}
+    const curve=[];for(let i=0;i<=50;i++){const S=opt.lo+(opt.hi-opt.lo)*i/50;curve.push({x:S,y:opt.ord(S)});}
     const scatter=idx.map(i=>({x:rows[i].adv,y:rows[i].orders}));
     const cur=lastC?{x:lastC.adv,y:lastC.orders}:null;
     respBuilder=()=>{charts.resp=new Chart(rv,{type:"scatter",data:{datasets:[
