@@ -178,7 +178,17 @@ details[open] summary::before{content:"▾ "}
 #sec-prijs .prun:disabled{opacity:.6;cursor:default}
 #sec-prijs .pchip a{color:var(--blue);text-decoration:none;font-weight:700}
 #sec-prijs .pchip a:hover{text-decoration:underline}
-#sec-prijs .pdel{border:none;background:none;color:var(--red);cursor:pointer;font-size:11px;padding:0 0 0 2px;line-height:1}
+#sec-prijs .pdel{flex:none;width:16px;text-align:center;border:none;background:none;color:var(--red);cursor:pointer;font-size:12px;padding:0;line-height:1}
+#sec-prijs .pdelspace{flex:none;width:16px}
+#sec-prijs .ptogh{border:1.5px solid var(--line);border-radius:9px;background:var(--card);color:var(--mute);font-size:13px;font-weight:600;padding:8px 12px;cursor:pointer}
+#sec-prijs .ptogh:hover{border-color:var(--ink);color:var(--ink)}
+#sec-prijs .ptogh.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+#sec-prijs .pcard.phidden{opacity:.65;background:repeating-linear-gradient(45deg,var(--card),var(--card) 10px,var(--paper) 10px,var(--paper) 20px)}
+#sec-prijs .pfoot{display:flex;justify-content:flex-end;margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
+#sec-prijs .pprod{border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--mute);font-size:11px;font-weight:700;padding:5px 11px;cursor:pointer}
+#sec-prijs .pprod.phide:hover{border-color:var(--red);color:var(--red)}
+#sec-prijs .pprod.prestore{border-color:var(--green);color:var(--greenDk)}
+#sec-prijs .pprod.prestore:hover{background:var(--lightg)}
 #sec-prijs .paddrow{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px;border-top:1px dashed var(--line);padding-top:10px}
 #sec-prijs .paddrow input{font-size:12px;border:1px solid var(--line);border-radius:7px;padding:6px 9px;outline:none}
 #sec-prijs .paddrow input:focus{border-color:var(--green)}
@@ -307,6 +317,7 @@ details[open] summary::before{content:"▾ "}
         <button data-f="niet">Niet-ronada</button>
       </div>
       <input id="psearch" type="text" placeholder="Zoek op naam of SKU…" autocomplete="off">
+      <button id="ptogh" class="ptogh">Verborgen (<span id="phc">0</span>)</button>
       <button id="prun" class="prun" style="margin-left:auto">Vergelijking uitvoeren</button>
     </div>
     <div id="pcontent"></div>
@@ -697,7 +708,7 @@ window.__ronadaLoad=function(){if(!loadedOnce){loadedOnce=true;rload();}};
 "use strict";
 let PD={products:[],updated:""};
 let inited=false,busy=false;
-const st={f:"all",q:"",limit:60};
+const st={f:"all",q:"",limit:60,showHidden:false};
 const PAGE=60;
 const eur2=n=>(n==null||!isFinite(n))?"—":"€"+Number(n).toLocaleString("nl-NL",{minimumFractionDigits:2,maximumFractionDigits:2});
 const GROUPS={all:"Alle",ronada:"Ronada",rtm:"RTM",ronadap:"Ronada products",niet:"Niet-ronada"};
@@ -740,14 +751,15 @@ function comprows(it,pi){
     const inner=`${shopHtml}${r.title?`<span class="pctitle">${esc(r.title)}</span>`:'<span class="pctitle"></span>'}${r.url?'<span class="pcopen">↗</span>':""}<span class="pcprice">${priceHtml}</span>`;
     const cls="pclink"+(r.us?" pcus":"");
     const link=r.url?`<a class="${cls}" href="${esc(r.url)}" target="_blank" rel="noopener" title="Open ${esc(r.shop)}">${inner}</a>`:`<div class="${cls}" style="cursor:default">${inner}</div>`;
-    return `<div class="pcrow">${link}${(isAdmin()&&!r.us)?`<button class="pdel" data-pi="${pi}" data-ci="${r.ci}" title="verwijderen">✕</button>`:""}</div>`;
+    const trail=isAdmin()?(r.us?`<span class="pdelspace"></span>`:`<button class="pdel" data-pi="${pi}" data-ci="${r.ci}" title="concurrent verwijderen">✕</button>`):"";
+    return `<div class="pcrow">${link}${trail}</div>`;
   }).join("");
 }
 function cardHtml(it,pi){
   const pos=position(it),comp=it.comp||[];
   const purl=it.url||("https://ongediertewinkel.nl/?s="+encodeURIComponent(it.sku));
   const brandChip=it.brand?` · <span style="color:var(--greenDk);font-weight:700">${esc(it.brand)}</span>`:"";
-  return `<div class="pcard" data-pi="${pi}">
+  return `<div class="pcard${it.hidden?" phidden":""}" data-pi="${pi}">
     <div class="phead">
       <img class="pimg" src="${esc(it.img)}" loading="lazy" onerror="this.style.display='none'">
       <div style="min-width:0">
@@ -759,19 +771,22 @@ function cardHtml(it,pi){
     </div>
     ${comp.length?`<div class="pcomp">${comprows(it,pi)}</div>`:`<div class="ptodo">Nog geen concurrent gekoppeld${isAdmin()?" — voeg hieronder een link toe.":"."}</div>`}
     ${isAdmin()?`<div class="paddrow"><input class="paddurl" placeholder="Concurrent-URL (https://…)"><input class="paddshop" placeholder="Shopnaam (optie)"><input class="paddprice" placeholder="Prijs (optie)" inputmode="decimal"><button class="paddbtn" data-pi="${pi}">+ Link toevoegen</button></div>`:""}
+    ${isAdmin()?`<div class="pfoot"><button class="pprod ${it.hidden?"prestore":"phide"}" data-pi="${pi}">${it.hidden?"↩ Terugzetten in monitor":"🗑 Verberg dit product"}</button></div>`:""}
   </div>`;
 }
 function render(){
   const q=st.q.trim().toLowerCase();
   const c=document.getElementById("pcontent");
   if(!PD.products.length){c.innerHTML='<div class="pempty">Nog geen producten.</div>';setUpd();return;}
+  const hc=document.getElementById("phc");if(hc)hc.textContent=PD.products.filter(p=>p.hidden).length;
   const matched=[];
   PD.products.forEach((it,pi)=>{
+    if(!!it.hidden!==st.showHidden)return;
     if(st.f!=="all"&&(it.group||"niet")!==st.f)return;
     if(q&&!((it.title||"").toLowerCase().includes(q)||String(it.sku).toLowerCase().includes(q)))return;
     matched.push([it,pi]);
   });
-  if(!matched.length){c.innerHTML='<div class="pempty">Geen producten gevonden.</div>';setUpd(`0 in ${GROUPS[st.f]||""}`);return;}
+  if(!matched.length){c.innerHTML=`<div class="pempty">${st.showHidden?"Geen verborgen producten.":"Geen producten gevonden."}</div>`;setUpd(st.showHidden?"verborgen weergave":`0 in ${GROUPS[st.f]||""}`);return;}
   const slice=matched.slice(0,st.limit);
   const html=slice.map(([it,pi])=>cardHtml(it,pi)).join("");
   const more=matched.length>st.limit?`<button class="pmore" id="pmore">Toon meer — ${matched.length-st.limit} van ${matched.length} resterend</button>`:"";
@@ -781,8 +796,11 @@ function render(){
 async function save(){
   if(!isAdmin())return;
   const comp={};PD.products.forEach(p=>{if(p.comp&&p.comp.length)comp[String(p.sku)]=p.comp;});
-  try{await fetch("/api/pricing",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({comp})});}catch(e){}
+  const hidden=PD.products.filter(p=>p.hidden).map(p=>String(p.sku));
+  try{await fetch("/api/pricing",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({comp,hidden})});}catch(e){}
 }
+async function hideProduct(pi){const p=PD.products[pi];if(!p)return;p.hidden=true;render();await save();}
+async function restoreProduct(pi){const p=PD.products[pi];if(!p)return;p.hidden=false;render();await save();}
 async function addComp(pi,card){
   const url=card.querySelector(".paddurl").value.trim();
   const shop=card.querySelector(".paddshop").value.trim();
@@ -811,7 +829,11 @@ async function run(){
 function sortPD(){PD.products.sort((a,b)=>(b.units||0)-(a.units||0));}
 async function reload(){
   setUpd("— laden…");
-  try{const r=await fetch("/api/pricing");const d=await r.json();PD={products:d.products||[],updated:d.updated||""};}
+  try{
+    const [pr,me]=await Promise.all([fetch("/api/pricing"),fetch("/api/me").catch(()=>null)]);
+    const d=await pr.json();PD={products:d.products||[],updated:d.updated||""};
+    if(me){try{const m=await me.json();if(m&&m.role)ROLE=m.role;}catch(e){}}
+  }
   catch(e){PD={products:[],updated:""};}
   sortPD();render();
 }
@@ -824,8 +846,10 @@ window.__prijsLoad=function(){
     document.getElementById("pcontent").addEventListener("click",async e=>{
       const del=e.target.closest(".pdel");if(del){await delComp(+del.dataset.pi,+del.dataset.ci);return;}
       const add=e.target.closest(".paddbtn");if(add){await addComp(+add.dataset.pi,add.closest(".pcard"));return;}
+      const prod=e.target.closest(".pprod");if(prod){const pi=+prod.dataset.pi;if(PD.products[pi]&&PD.products[pi].hidden)await restoreProduct(pi);else await hideProduct(pi);return;}
       const more=e.target.closest("#pmore");if(more){st.limit+=PAGE;render();return;}
     });
+    document.getElementById("ptogh").addEventListener("click",e=>{st.showHidden=!st.showHidden;st.limit=PAGE;e.currentTarget.classList.toggle("on",st.showHidden);render();});
     reload();return;
   }
   if(!PD.products.length)reload();else render();
