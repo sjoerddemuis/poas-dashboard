@@ -138,61 +138,66 @@ async function pricesBySku(token, skus) {
   return out;
 }
 
-// Voorraad-runway: Ronada/RTM voorraad-dagen o.b.v. verkoop over 3/6/12 maanden.
+// Voorraad-runway + trend: per Ronada/RTM-product 12 maandelijkse verkoop-buckets.
+// We halen 12 cumulatieve vensters op (laatste 1..12 mnd) en differentiëren die naar
+// losse maandbuckets, zodat de frontend groei/daling (trend) kan berekenen.
 const STOCK_FILTERS = JSON.stringify([{ field: "brand", operator: "in", value: ["Ronada", "RTM"] }]);
-function stockPeriodDays(months) {
-  const d = new Date(); d.setMonth(d.getMonth() - months);
-  return { start: d.toISOString().slice(0, 10), periodDays: Math.max(1, Math.round((Date.now() - d.getTime()) / 86400000)) };
-}
-async function stockRaw(token, months) {
+async function stockWindow(token, months) {
   const end = new Date().toISOString().slice(0, 10);
-  const { start, periodDays } = stockPeriodDays(months);
+  const d = new Date(); d.setMonth(d.getMonth() - months);
+  const start = d.toISOString().slice(0, 10);
   const u = new URL(PRODUCTS);
   u.searchParams.set("start_date", start);
   u.searchParams.set("end_date", end);
   u.searchParams.set("per_page", "100");
-  u.searchParams.set("order_by", "gross_items_sold");
-  u.searchParams.set("order_dir", "desc");
   u.searchParams.set("filters", STOCK_FILTERS);
   const r = await fetch(u, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
   if (!r.ok) throw new Error("Metorik API " + r.status);
   const j = await r.json();
-  const items = (j.data || []).map((p) => ({ sku: p.sku, title: p.title, img: p.image, stock: p.stock_quantity || 0, sold: p.net_items_sold || 0, status: p.status, price: p.current_price }));
-  return { periodDays, items };
+  const map = {};
+  (j.data || []).forEach((p) => {
+    map[String(p.sku)] = { sold: p.net_items_sold || 0, stock: p.stock_quantity || 0, title: p.title, img: p.image, status: p.status, price: p.current_price };
+  });
+  return map;
 }
-function computeStockRows(items, periodDays) {
-  return items.map((p) => {
-    const perDay = p.sold / periodDays;
-    let days = null;
-    if (p.stock <= 0) days = 0;
-    else if (perDay > 0) days = Math.round(p.stock / perDay);
-    return { sku: p.sku, title: p.title, img: p.img, stock: p.stock, sold: p.sold, perDay: Math.round(perDay * 100) / 100, days, status: p.status, price: p.price };
-  }).sort((a, b) => {
-    if (a.days == null && b.days == null) return b.stock - a.stock;
-    if (a.days == null) return 1;
-    if (b.days == null) return -1;
-    return a.days - b.days;
+// Retourneert array van producten met m = [12 maandbuckets, meest recente eerst].
+async function stockData(token) {
+  const N = 12;
+  const cums = await Promise.all(Array.from({ length: N }, (_, i) => stockWindow(token, i + 1)));
+  const bySku = {};
+  cums.forEach((mp, i) => {
+    Object.entries(mp).forEach(([sku, d]) => {
+      if (!bySku[sku]) bySku[sku] = { sku: d.sku != null ? d.sku : sku, title: d.title, img: d.img || d.image, status: d.status, price: d.price, stock: d.stock, cum: new Array(N).fill(0) };
+      const o = bySku[sku];
+      o.cum[i] = d.sold;
+      if (d.stock > o.stock) o.stock = d.stock;
+      if (d.price != null) o.price = d.price;
+      if (d.title) o.title = d.title;
+      if (!o.img && d.img) o.img = d.img;
+    });
+  });
+  return Object.values(bySku).map((p) => {
+    const m = [];
+    for (let i = 0; i < N; i++) { const c = p.cum[i] || 0, pc = i > 0 ? (p.cum[i - 1] || 0) : 0; m[i] = Math.max(0, c - pc); }
+    return { sku: String(p.sku), title: p.title, img: p.img, status: p.status, price: p.price, stock: p.stock, m };
   });
 }
-async function stockData(token) {
-  const [r3, r6, r12] = await Promise.all([stockRaw(token, 3), stockRaw(token, 6), stockRaw(token, 12)]);
-  return { 3: computeStockRows(r3.items, r3.periodDays), 6: computeStockRows(r6.items, r6.periodDays), 12: computeStockRows(r12.items, r12.periodDays) };
-}
-// Alle shops samen: verkoop optellen per SKU; voorraad gedeeld (max over shops).
+// Alle shops samen: buckets per maand optellen per SKU; voorraad gedeeld (max over shops).
 async function stockDataAll(tokens) {
-  const periods = {};
-  for (const months of [3, 6, 12]) {
-    const raws = await Promise.all(tokens.map((t) => stockRaw(t, months)));
-    const periodDays = raws.length ? raws[0].periodDays : 1;
-    const map = {};
-    raws.forEach((r) => (r.items || []).forEach((it) => {
-      const k = String(it.sku);
-      if (!map[k]) map[k] = { sku: it.sku, title: it.title, img: it.img, status: it.status, price: it.price, stock: it.stock, sold: it.sold };
-      else { map[k].sold += it.sold; if (it.stock > map[k].stock) map[k].stock = it.stock; if (!map[k].img && it.img) map[k].img = it.img; }
-    }));
-    periods[months] = computeStockRows(Object.values(map), periodDays);
-  }
-  return periods;
+  const per = await Promise.all(tokens.map((t) => stockData(t)));
+  const bySku = {};
+  per.forEach((list) => list.forEach((p) => {
+    const k = String(p.sku);
+    if (!bySku[k]) bySku[k] = { sku: p.sku, title: p.title, img: p.img, status: p.status, price: p.price, stock: p.stock, m: p.m.slice() };
+    else {
+      const o = bySku[k];
+      for (let i = 0; i < p.m.length; i++) o.m[i] = (o.m[i] || 0) + (p.m[i] || 0);
+      if (p.stock > o.stock) o.stock = p.stock;
+      if (!o.img && p.img) o.img = p.img;
+      if (p.price != null && o.price == null) o.price = p.price;
+    }
+  }));
+  return Object.values(bySku);
 }
 
 async function allData() {
