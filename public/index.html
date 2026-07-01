@@ -801,8 +801,23 @@ let PRD=[],sP=3,smethod="trend",sInited=false,sQ="",sFilt="all",sSup="",supPanel
 const sSel=new Set();
 let cfg={suppliers:{},leadtimes:{},coverage:60,covSup:{},covSku:{}};
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
-function loadCfg(){try{const s=localStorage.getItem("ow_stockcfg");if(s)cfg=Object.assign({suppliers:{},leadtimes:{},coverage:60,covSup:{},covSku:{}},JSON.parse(s));}catch(e){}}
-function saveCfg(){try{localStorage.setItem("ow_stockcfg",JSON.stringify(cfg));}catch(e){}}
+const cfgDefaults={suppliers:{},leadtimes:{},coverage:60,covSup:{},covSku:{}};
+function loadCfg(){try{const s=localStorage.getItem("ow_stockcfg");if(s)cfg=Object.assign({},cfgDefaults,JSON.parse(s));}catch(e){}}
+function saveCfgLocal(){try{localStorage.setItem("ow_stockcfg",JSON.stringify(cfg));}catch(e){}}
+let cfgPushT=null;
+function pushCfg(){try{fetch("/api/settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cfg})});}catch(e){}}
+// Bewaart lokaal (direct) + server (gedeeld, gedebounced). Metorik-cijfers blijven altijd live.
+function saveCfg(){saveCfgLocal();clearTimeout(cfgPushT);cfgPushT=setTimeout(pushCfg,700);}
+async function loadCfgRemote(){
+  loadCfg();
+  try{
+    const r=await fetch("/api/settings");
+    if(r.ok){const d=await r.json();
+      if(d&&d.cfg&&typeof d.cfg==="object"){cfg=Object.assign({},cfgDefaults,d.cfg);saveCfgLocal();}
+      else if(Object.keys(cfg.suppliers||{}).length||Object.keys(cfg.covSku||{}).length){pushCfg();} // migreer bestaande lokale config naar server
+    }
+  }catch(e){}
+}
 /* --- Trend-model: lineaire regressie over de maandbuckets van het gekozen venster --- */
 const MDAYS=30.44;
 function regress(y){const n=y.length;if(n<2)return{a:y[0]||0,b:0};let sx=0,sy=0,sxx=0,sxy=0;for(let i=0;i<n;i++){sx+=i;sy+=y[i];sxx+=i*i;sxy+=i*y[i];}const d=n*sxx-sx*sx;if(!d)return{a:sy/n,b:0};const b=(n*sxy-sx*sy)/d;return{a:(sy-b*sx)/n,b};}
@@ -898,6 +913,7 @@ window.__voorraadLoad=function(){
     document.getElementById("svcontent").addEventListener("change",e=>{const all=e.target.closest(".svall");if(all){if(all.checked)lastView.forEach(s=>sSel.add(s));else lastView.forEach(s=>sSel.delete(s));srender();return;}const chk=e.target.closest(".svchk");if(!chk)return;const sku=String(chk.dataset.sku);if(chk.checked)sSel.add(sku);else sSel.delete(sku);const selc=document.getElementById("svselc");if(selc)selc.textContent=sSel.size;if(sFilt==="sel")srender();});
     loadCfg();
     document.getElementById("svcov").value=cfg.coverage;
+    loadCfgRemote().then(()=>{const el=document.getElementById("svcov");if(el)el.value=cfg.coverage;srender();});
     document.getElementById("svcov").addEventListener("input",e=>{cfg.coverage=+e.target.value||0;saveCfg();srender();});
     [...document.querySelectorAll(".svq")].forEach(b=>b.addEventListener("click",()=>{cfg.coverage=+b.dataset.c;document.getElementById("svcov").value=cfg.coverage;saveCfg();srender();}));
     document.getElementById("svsupf").addEventListener("change",e=>{sSup=e.target.value;srender();});
