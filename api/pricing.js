@@ -23,24 +23,25 @@ async function getCatalog() {
 async function getStore() {
   let store = null;
   try { store = await getKey("pricing2"); } catch (e) {}
-  if (store && store.comp) return store;
+  if (store && store.comp) { if (!Array.isArray(store.hidden)) store.hidden = []; return store; }
   let old = null; try { old = await getKey("pricing"); } catch (e) {}
   const src = (old && Array.isArray(old.products)) ? old.products : SEED.products;
   const comp = {};
   src.forEach((p) => { if (p.comp && p.comp.length) comp[String(p.sku)] = p.comp; });
-  store = { updated: (old && old.updated) || SEED.updated, comp };
+  store = { updated: (old && old.updated) || SEED.updated, comp, hidden: (old && Array.isArray(old.hidden)) ? old.hidden : [] };
   try { await setKey("pricing2", store); } catch (e) {}
   return store;
 }
 
 function merge(catalog, store) {
   const comp = store.comp || {};
-  const products = catalog.map((p) => ({ ...p, comp: comp[String(p.sku)] || [] }));
+  const hidden = new Set((store.hidden || []).map(String));
+  const products = catalog.map((p) => ({ ...p, comp: comp[String(p.sku)] || [], hidden: hidden.has(String(p.sku)) }));
   // Concurrent-SKU's die niet in de catalogus zitten (bv. niet-gepubliceerd) toch tonen.
   const have = new Set(catalog.map((p) => String(p.sku)));
   Object.keys(comp).forEach((sku) => {
     if (!have.has(String(sku)) && comp[sku] && comp[sku].length) {
-      products.push({ sku, title: "SKU " + sku, brand: "", group: "niet", mine: null, img: "", stock: null, units: null, margin: null, url: "", comp: comp[sku] });
+      products.push({ sku, title: "SKU " + sku, brand: "", group: "niet", mine: null, img: "", stock: null, units: null, margin: null, url: "", comp: comp[sku], hidden: hidden.has(String(sku)) });
     }
   });
   return products;
@@ -65,6 +66,7 @@ module.exports = async (req, res) => {
     try {
       const store = await getStore();
       store.comp = body.comp;
+      if (Array.isArray(body.hidden)) store.hidden = body.hidden.map(String);
       await setKey("pricing2", store);
       const catalog = await getCatalog();
       return res.json({ ok: true, products: merge(catalog, store), updated: store.updated || "" });

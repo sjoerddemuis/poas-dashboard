@@ -50,8 +50,9 @@ module.exports = async (req, res) => {
     const token = process.env.METORIK_TOKEN_NL;
     const catalog = token ? await allProductsNL(token) : [];
     const have = new Set(catalog.map((p) => String(p.sku)));
-    products = catalog.map((p) => ({ ...p, comp: comp[String(p.sku)] || [] }));
-    Object.keys(comp).forEach((sku) => { if (!have.has(String(sku)) && comp[sku] && comp[sku].length) products.push({ sku, title: "SKU " + sku, brand: "", group: "niet", mine: null, img: "", comp: comp[sku] }); });
+    const hiddenSet = new Set((store.hidden || []).map(String));
+    products = catalog.map((p) => ({ ...p, comp: comp[String(p.sku)] || [], hidden: hiddenSet.has(String(p.sku)) }));
+    Object.keys(comp).forEach((sku) => { if (!have.has(String(sku)) && comp[sku] && comp[sku].length) products.push({ sku, title: "SKU " + sku, brand: "", group: "niet", mine: null, img: "", comp: comp[sku], hidden: hiddenSet.has(String(sku)) }); });
   } catch (e) {}
 
   res.json({ products, updated: store.updated, scraped, failed });
