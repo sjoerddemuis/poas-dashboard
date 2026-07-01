@@ -325,7 +325,7 @@ details[open] summary::before{content:"▾ "}
       <div class="svfld"><input id="svcov" type="number" min="0" value="60"><span>dgn</span></div>
       <select id="svsupf"><option value="">Alle leveranciers</option></select>
       <button id="svltbtn" class="svclear">⚙ Leveranciers</button>
-      <button id="svexport" class="svexport">Kopieer inkooplijst</button>
+      <button id="svexport" class="svexport">⬇ Download CSV</button>
     </div>
     <div id="svsuppliers" class="svsuppliers" style="display:none"></div>
     <div id="svcontent"><div class="svloading">Voorraad laden uit Metorik…</div></div>
@@ -846,14 +846,31 @@ function trendBadge(tp){if(tp==null)return"";if(tp>=3)return' <span class="svtr 
 function suppliersList(){return [...new Set(Object.values(cfg.suppliers).filter(Boolean))].sort((a,b)=>a.localeCompare(b));}
 function renderSupFilter(){const sel=document.getElementById("svsupf");if(!sel)return;const sl=suppliersList();sel.innerHTML='<option value="">Alle leveranciers</option>'+sl.map(s=>`<option value="${esc(s)}"${s===sSup?" selected":""}>${esc(s)}</option>`).join("");}
 function renderSupPanel(){const p=document.getElementById("svsuppliers");if(!p)return;const sl=suppliersList();p.innerHTML=sl.length?'<div class="svpnlh">Per leverancier: leadtime + gewenste dekking</div><div class="svpnlrow" style="border-top:none;color:var(--mute);font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.4px"><span>Leverancier</span><span>Leadtime · Dekking</span></div>'+sl.map(s=>`<div class="svpnlrow"><span>${esc(s)}</span><div style="display:flex;gap:6px"><div class="svfld"><input type="number" min="0" class="svlt" data-sup="${esc(s)}" value="${cfg.leadtimes[s]!=null?cfg.leadtimes[s]:""}" placeholder="lt"><span>lt</span></div><div class="svfld"><input type="number" min="0" class="svcovs" data-sup="${esc(s)}" value="${cfg.covSup[s]!=null?cfg.covSup[s]:""}" placeholder="${+cfg.coverage||0}"><span>dek</span></div></div></div>`).join(""):'<div class="svmute" style="padding:4px 0">Nog geen leveranciers. Vul ze in de kolom “Leverancier” in, dan verschijnen ze hier.</div>';}
-function exportList(){
-  const rows=computeRows().filter(r=>reorder(r)>0);
+function csvCell(v){v=String(v==null?"":v);return /[";\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
+function exportCsv(){
   const bExp=document.getElementById("svexport");
-  if(!rows.length){if(bExp){const o=bExp.textContent;bExp.textContent="Niets bij te bestellen";setTimeout(()=>bExp.textContent=o,1600);}return;}
-  const bySup={};rows.forEach(r=>{const s=cfg.suppliers[String(r.sku)]||"(geen leverancier)";(bySup[s]=bySup[s]||[]).push(r);});
-  let txt="Inkooplijst Ronada/RTM — "+(smethod==="trend"?"trend":"vlak")+", venster laatste "+sP+" mnd\n";
-  Object.keys(bySup).sort().forEach(s=>{const lt=cfg.leadtimes[s];txt+="\n== "+s+(lt!=null?" (leadtime "+lt+" dgn)":"")+" ==\n";bySup[s].forEach(r=>{const cov=covFor(String(r.sku),cfg.suppliers[String(r.sku)]||"");txt+=reorder(r)+" x  "+r.title+"  (SKU "+r.sku+" | voorraad "+r.stock+" | "+fmt1(r.perDay)+"/dag | dekking "+cov+" dgn)\n";});});
-  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(()=>{if(bExp){const o=bExp.textContent;bExp.textContent="✓ Gekopieerd";setTimeout(()=>bExp.textContent=o,1600);}},()=>{});}
+  const flash=t=>{if(bExp){const o=bExp.textContent;bExp.textContent=t;setTimeout(()=>bExp.textContent=o,1600);}};
+  const all=computeRows();
+  // Geselecteerde producten, of alles als er niets is aangevinkt.
+  const rows=sSel.size?all.filter(r=>sSel.has(String(r.sku))):all;
+  if(!rows.length){flash("Geen producten");return;}
+  const dec=n=>String(n).replace(".",",");
+  const store=document.getElementById("svstore");
+  const shopName=store.options[store.selectedIndex].text;
+  const head=["SKU","Product","Shop","Methode","Venster (mnd)","Voorraad","Verkoop/dag","Dagen voorraad","Trend %/mnd","Leverancier","Leadtime (dgn)","Gewenste dekking (dgn)","Bijbestellen","Status"];
+  const lines=[head.join(";")];
+  rows.forEach(r=>{
+    const sk=String(r.sku),sup=cfg.suppliers[sk]||"",lt=+cfg.leadtimes[sup]||0,cov=covFor(sk,sup),ro=reorder(r);
+    const dagen=r.stock<=0?"uitverkocht":(r.days==null?"geen verkoop":r.days);
+    lines.push([sk,r.title||"",shopName,smethod==="trend"?"Trend":"Vlak",sP,r.stock,dec(r.perDay),dagen,r.trendPct==null?"":Math.round(r.trendPct),sup,sup?lt:"",cov,ro,r.status||""].map(csvCell).join(";"));
+  });
+  const blob=new Blob(["﻿"+lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;a.download="voorraad_"+store.value+"_"+sP+"mnd_"+new Date().toISOString().slice(0,10)+".csv";
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+  flash("✓ "+rows.length+" gedownload");
 }
 const fmtN0=n=>Math.round(Number(n)).toLocaleString("nl-NL");
 const fmt1=n=>Number(n).toLocaleString("nl-NL",{minimumFractionDigits:1,maximumFractionDigits:1});
@@ -919,7 +936,7 @@ window.__voorraadLoad=function(){
     document.getElementById("svsupf").addEventListener("change",e=>{sSup=e.target.value;srender();});
     document.getElementById("svltbtn").addEventListener("click",()=>{supPanel=!supPanel;const p=document.getElementById("svsuppliers");p.style.display=supPanel?"":"none";if(supPanel)renderSupPanel();});
     document.getElementById("svsuppliers").addEventListener("input",e=>{const lt=e.target.closest(".svlt");if(lt){cfg.leadtimes[lt.dataset.sup]=lt.value===""?null:(+lt.value||0);saveCfg();srender();return;}const cs=e.target.closest(".svcovs");if(cs){if(cs.value==="")delete cfg.covSup[cs.dataset.sup];else cfg.covSup[cs.dataset.sup]=+cs.value||0;saveCfg();srender();return;}});
-    document.getElementById("svexport").addEventListener("click",exportList);
+    document.getElementById("svexport").addEventListener("click",exportCsv);
     document.getElementById("svcontent").addEventListener("input",e=>{const sup=e.target.closest(".svsup");if(sup){const sku=String(sup.dataset.sku),v=sup.value.trim();if(v)cfg.suppliers[sku]=v;else delete cfg.suppliers[sku];saveCfg();return;}const cov=e.target.closest(".svcov2");if(cov){const sku=String(cov.dataset.sku);if(cov.value==="")delete cfg.covSku[sku];else cfg.covSku[sku]=+cov.value||0;saveCfg();return;}});
     document.getElementById("svcontent").addEventListener("change",e=>{const sup=e.target.closest(".svsup");if(sup){renderSupFilter();if(supPanel)renderSupPanel();srender();return;}const cov=e.target.closest(".svcov2");if(cov){srender();return;}});
     sload();return;
