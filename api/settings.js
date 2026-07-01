@@ -4,7 +4,7 @@
 // de frontend valt dan terug op localStorage.
 const { getSession, readBody } = require("./_lib/util");
 const { getKey, setKey } = require("./_lib/store");
-const KEY = "stockcfg";
+const KEY = "stockcfg"; // v2: KV gekoppeld
 
 module.exports = async (req, res) => {
   const s = getSession(req);
