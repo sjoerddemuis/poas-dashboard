@@ -788,17 +788,18 @@ async function run(){
     const r=await fetch("/api/pricing-run",{method:"POST"});
     const d=await r.json();
     if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
-    PD={products:d.products||[],updated:d.updated||""};render();
+    PD={products:d.products||[],updated:d.updated||""};sortPD();render();
     setUpd(`✓ ${d.scraped||0} concurrentprijzen opgehaald${d.failed?`, ${d.failed} niet gelukt (handmatig invullen)`:""}.`);
   }catch(e){setUpd("✕ Vergelijking mislukt: "+(e.message||e));}
   if(btn){btn.disabled=false;btn.textContent="Vergelijking uitvoeren";}
   busy=false;
 }
+function sortPD(){PD.products.sort((a,b)=>(b.units||0)-(a.units||0));}
 async function reload(){
   setUpd("— laden…");
   try{const r=await fetch("/api/pricing");const d=await r.json();PD={products:d.products||[],updated:d.updated||""};}
   catch(e){PD={products:[],updated:""};}
-  render();
+  sortPD();render();
 }
 window.__prijsLoad=function(){
   if(!inited){inited=true;
