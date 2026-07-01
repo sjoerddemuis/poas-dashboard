@@ -152,11 +152,19 @@ details[open] summary::before{content:"▾ "}
 #sec-prijs .pos-mid{background:#FFF4E5;color:#9a5b00}
 #sec-prijs .pos-high{background:#FBEEE8;color:var(--red)}
 #sec-prijs .pos-none{background:#F0F0EC;color:var(--mute)}
-#sec-prijs .pcomp{margin-top:10px;border-top:1px solid var(--line);padding-top:10px;display:flex;flex-wrap:wrap;gap:8px}
-#sec-prijs .pchip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:12px;background:var(--paper)}
-#sec-prijs .pchip b{font-weight:700}
-#sec-prijs .pchip a{color:var(--blue);text-decoration:none}
-#sec-prijs .pchip .cheap{color:var(--greenDk);font-weight:700}
+#sec-prijs .pcomp{margin-top:10px;border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:5px}
+#sec-prijs .pcrow{display:flex;align-items:center;gap:6px}
+#sec-prijs .pclink{flex:1;display:flex;align-items:center;gap:10px;min-width:0;padding:8px 11px;border:1px solid var(--line);border-radius:9px;background:var(--paper);text-decoration:none;color:inherit;transition:border-color .12s,background .12s,box-shadow .12s}
+#sec-prijs a.pclink:hover{border-color:var(--green);background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.05)}
+#sec-prijs .pcshop{font-weight:700;font-size:12.5px;white-space:nowrap;flex:none}
+#sec-prijs .pctitle{color:var(--mute);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+#sec-prijs .pcopen{color:var(--mute);font-size:12px;flex:none}
+#sec-prijs a.pclink:hover .pcopen{color:var(--green)}
+#sec-prijs .pcprice{margin-left:auto;text-align:right;white-space:nowrap;font-size:13px;min-width:150px;display:flex;justify-content:flex-end;gap:8px;align-items:baseline;flex:none}
+#sec-prijs .pcprice .cheap{color:var(--greenDk);font-weight:800}
+#sec-prijs .pcv{font-weight:700}
+#sec-prijs .pmore{display:block;width:100%;border:1.5px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink);font-size:13px;font-weight:700;padding:10px;cursor:pointer;margin-top:4px}
+#sec-prijs .pmore:hover{border-color:var(--green);color:var(--greenDk)}
 #sec-prijs .ptodo{font-size:12px;color:var(--mute);margin-top:10px;border-top:1px dashed var(--line);padding-top:10px}
 #sec-prijs .pdelta-up{color:var(--red);font-weight:700}
 #sec-prijs .pdelta-down{color:var(--greenDk);font-weight:700}
@@ -284,14 +292,16 @@ details[open] summary::before{content:"▾ "}
   </div><!-- /sec-ronada -->
 
   <div id="sec-prijs" style="display:none">
-    <div class="psub">Marktpositie van je best-lopende eigen producten (<b>Ronada + RTM</b>): jouw prijs (uit Metorik) vs. soortgelijke producten bij concurrenten. <span id="pupd"></span></div>
+    <div class="psub"><span id="pupd"></span></div>
     <div class="pcontrols">
-      <input id="psearch" type="text" placeholder="Zoek product…" autocomplete="off">
       <div class="pseg" id="pfilter">
         <button data-f="all" class="on">Alle</button>
-        <button data-f="done">Met concurrent</button>
-        <button data-f="todo">Nog te doen</button>
+        <button data-f="ronada">Ronada</button>
+        <button data-f="rtm">RTM</button>
+        <button data-f="ronadap">Ronada products</button>
+        <button data-f="niet">Niet-ronada</button>
       </div>
+      <input id="psearch" type="text" placeholder="Zoek op naam of SKU…" autocomplete="off">
       <button id="prun" class="prun" style="margin-left:auto">Vergelijking uitvoeren</button>
     </div>
     <div id="pcontent"></div>
@@ -682,16 +692,19 @@ window.__ronadaLoad=function(){if(!loadedOnce){loadedOnce=true;rload();}};
 "use strict";
 let PD={products:[],updated:""};
 let inited=false,busy=false;
-const st={f:"all",q:""};
-const eur2=n=>"€"+Number(n).toLocaleString("nl-NL",{minimumFractionDigits:2,maximumFractionDigits:2});
+const st={f:"all",q:"",limit:60};
+const PAGE=60;
+const eur2=n=>(n==null||!isFinite(n))?"—":"€"+Number(n).toLocaleString("nl-NL",{minimumFractionDigits:2,maximumFractionDigits:2});
+const GROUPS={all:"Alle",ronada:"Ronada",rtm:"RTM",ronadap:"Ronada products",niet:"Niet-ronada"};
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
 const isAdmin=()=>typeof ROLE!=="undefined"&&ROLE==="admin";
 const hostOf=u=>{try{return new URL(u).hostname.replace(/^www\./,"");}catch(e){return "Concurrent";}};
-function setUpd(extra){
+function setUpd(shownTxt){
   const n=PD.products.length,withP=PD.products.filter(p=>(p.comp||[]).some(c=>c.price!=null)).length;
-  document.getElementById("pupd").textContent=`Bijgewerkt ${PD.updated||"—"} · ${n} producten · ${withP} met concurrentprijs.`+(extra?" "+extra:"");
+  document.getElementById("pupd").textContent=`${n} producten · ${withP} met concurrentprijs · bijgewerkt ${PD.updated||"—"}.`+(shownTxt?" "+shownTxt:"");
 }
 function position(it){
+  if(it.mine==null||!isFinite(it.mine))return{cls:"pos-none",txt:"Geen prijs bekend"};
   const priced=(it.comp||[]).filter(c=>c.price!=null);
   if(!priced.length)return{cls:"pos-none",txt:"Nog geen vergelijking"};
   const prices=priced.map(c=>c.price),minC=Math.min(...prices),maxC=Math.max(...prices);
@@ -700,50 +713,61 @@ function position(it){
   const dAbs=it.mine-minC,dPct=dAbs/minC*100;
   return{cls:it.mine>maxC?"pos-high":"pos-mid",txt:`${rank}e van ${total} · ${eur2(dAbs)} duurder dan goedkoopste (+${dPct.toLocaleString("nl-NL",{maximumFractionDigits:0})}%)`};
 }
-function chips(it,pi){
+function comprows(it,pi){
   const comp=it.comp||[];
   const priced=comp.filter(c=>c.price!=null).map(c=>c.price);
   const minC=priced.length?Math.min(...priced):null;
+  const hasMine=it.mine!=null&&isFinite(it.mine);
   return comp.map((c,ci)=>{
     const has=c.price!=null;
-    const d=has?c.price-it.mine:0,sign=d>0?"+":"−",dcls=d>0?"pdelta-down":d<0?"pdelta-up":"";
-    const priceHtml=has?`<span class="${c.price===minC?"cheap":""}">${eur2(c.price)}</span> <span class="${dcls}" title="concurrent t.o.v. jouw prijs">${d===0?"=":sign+eur2(Math.abs(d))}</span>`:`<span style="color:var(--orange)">${c.err?esc(c.err):"nog niet opgehaald"}</span>`;
-    return `<span class="pchip"><b>${esc(c.shop||hostOf(c.url))}</b>${c.title?` <span style="color:var(--mute)">${esc(c.title)}</span>`:""} ${priceHtml}${c.url?` <a href="${esc(c.url)}" target="_blank" rel="noopener" title="open concurrent-pagina">↗</a>`:""}${isAdmin()?` <button class="pdel" data-pi="${pi}" data-ci="${ci}" title="verwijderen">✕</button>`:""}</span>`;
+    const d=(has&&hasMine)?c.price-it.mine:0,sign=d>0?"+":"−",dcls=d>0?"pdelta-down":d<0?"pdelta-up":"";
+    const priceHtml=has
+      ?`<span class="pcv ${c.price===minC?"cheap":""}">${eur2(c.price)}</span>${hasMine?` <span class="${dcls}" title="concurrent t.o.v. jouw prijs">${d===0?"=":sign+eur2(Math.abs(d))}</span>`:""}`
+      :`<span style="color:var(--orange)">${c.err?esc(c.err):"nog niet opgehaald"}</span>`;
+    const inner=`<span class="pcshop">${esc(c.shop||hostOf(c.url))}</span>${c.title?`<span class="pctitle">${esc(c.title)}</span>`:'<span class="pctitle"></span>'}${c.url?'<span class="pcopen">↗</span>':""}<span class="pcprice">${priceHtml}</span>`;
+    const link=c.url?`<a class="pclink" href="${esc(c.url)}" target="_blank" rel="noopener" title="Open pagina van ${esc(c.shop||hostOf(c.url))}">${inner}</a>`:`<div class="pclink" style="cursor:default">${inner}</div>`;
+    return `<div class="pcrow">${link}${isAdmin()?`<button class="pdel" data-pi="${pi}" data-ci="${ci}" title="verwijderen">✕</button>`:""}</div>`;
   }).join("");
+}
+function cardHtml(it,pi){
+  const pos=position(it),comp=it.comp||[];
+  const purl=it.url||("https://ongediertewinkel.nl/?s="+encodeURIComponent(it.sku));
+  const brandChip=it.brand?` · <span style="color:var(--greenDk);font-weight:700">${esc(it.brand)}</span>`:"";
+  return `<div class="pcard" data-pi="${pi}">
+    <div class="phead">
+      <img class="pimg" src="${esc(it.img)}" loading="lazy" onerror="this.style.display='none'">
+      <div style="min-width:0">
+        <div class="ptitle"><a href="${esc(purl)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${esc(it.title)}</a></div>
+        <div class="pmeta">SKU ${esc(it.sku)}${brandChip}${it.units!=null?` · ${Number(it.units).toLocaleString("nl-NL")} verkocht`:""}${it.margin!=null?` · marge ${Number(it.margin).toLocaleString("nl-NL",{maximumFractionDigits:1})}%`:""}${it.stock!=null?` · voorraad ${Number(it.stock).toLocaleString("nl-NL")}`:""}</div>
+        <div class="ppos ${pos.cls}">${pos.txt}</div>
+      </div>
+      <div class="pmine"><div class="l">Jouw prijs</div><div class="v">${eur2(it.mine)}</div></div>
+    </div>
+    ${comp.length?`<div class="pcomp">${comprows(it,pi)}</div>`:`<div class="ptodo">Nog geen concurrent gekoppeld${isAdmin()?" — voeg hieronder een link toe.":"."}</div>`}
+    ${isAdmin()?`<div class="paddrow"><input class="paddurl" placeholder="Concurrent-URL (https://…)"><input class="paddshop" placeholder="Shopnaam (optie)"><input class="paddprice" placeholder="Prijs (optie)" inputmode="decimal"><button class="paddbtn" data-pi="${pi}">+ Link toevoegen</button></div>`:""}
+  </div>`;
 }
 function render(){
   const q=st.q.trim().toLowerCase();
   const c=document.getElementById("pcontent");
   if(!PD.products.length){c.innerHTML='<div class="pempty">Nog geen producten.</div>';setUpd();return;}
-  let shown=0;
-  const html=PD.products.map((it,pi)=>{
-    const hasPrice=(it.comp||[]).some(x=>x.price!=null);
-    if(st.f==="done"&&!hasPrice)return "";
-    if(st.f==="todo"&&hasPrice)return "";
-    if(q&&!((it.title||"").toLowerCase().includes(q)||String(it.sku).toLowerCase().includes(q)))return "";
-    shown++;
-    const pos=position(it),comp=it.comp||[];
-    const purl=it.url||("https://ongediertewinkel.nl/?s="+encodeURIComponent(it.sku));
-    return `<div class="pcard pclick" data-url="${esc(purl)}">
-      <div class="phead">
-        <img class="pimg" src="${esc(it.img)}" loading="lazy" onerror="this.style.display='none'">
-        <div style="min-width:0">
-          <div class="ptitle">${it.url?`<a href="${esc(it.url)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${esc(it.title)}</a>`:esc(it.title)}</div>
-          <div class="pmeta">SKU ${esc(it.sku)}${it.units!=null?` · ${Number(it.units).toLocaleString("nl-NL")} verkocht`:""}${it.margin!=null?` · marge ${Number(it.margin).toLocaleString("nl-NL",{maximumFractionDigits:1})}%`:""}${it.stock!=null?` · voorraad ${Number(it.stock).toLocaleString("nl-NL")}`:""}</div>
-          <div class="ppos ${pos.cls}">${pos.txt}</div>
-        </div>
-        <div class="pmine"><div class="l">Jouw prijs</div><div class="v">${eur2(it.mine)}</div></div>
-      </div>
-      ${comp.length?`<div class="pcomp">${chips(it,pi)}</div>`:`<div class="ptodo">Nog geen concurrent gekoppeld${isAdmin()?" — voeg hieronder een link toe.":"."}</div>`}
-      ${isAdmin()?`<div class="paddrow"><input class="paddurl" placeholder="Concurrent-URL (https://…)"><input class="paddshop" placeholder="Shopnaam (optie)"><input class="paddprice" placeholder="Prijs (optie)" inputmode="decimal"><button class="paddbtn" data-pi="${pi}">+ Link toevoegen</button></div>`:""}
-    </div>`;
-  }).join("");
-  c.innerHTML=shown?html:'<div class="pempty">Geen producten gevonden.</div>';
-  setUpd();
+  const matched=[];
+  PD.products.forEach((it,pi)=>{
+    if(st.f!=="all"&&(it.group||"niet")!==st.f)return;
+    if(q&&!((it.title||"").toLowerCase().includes(q)||String(it.sku).toLowerCase().includes(q)))return;
+    matched.push([it,pi]);
+  });
+  if(!matched.length){c.innerHTML='<div class="pempty">Geen producten gevonden.</div>';setUpd(`0 in ${GROUPS[st.f]||""}`);return;}
+  const slice=matched.slice(0,st.limit);
+  const html=slice.map(([it,pi])=>cardHtml(it,pi)).join("");
+  const more=matched.length>st.limit?`<button class="pmore" id="pmore">Toon meer — ${matched.length-st.limit} van ${matched.length} resterend</button>`:"";
+  c.innerHTML=html+more;
+  setUpd(`${matched.length} in ${GROUPS[st.f]||"filter"}${q?` (zoek: "${esc(st.q.trim())}")`:""}`);
 }
 async function save(){
   if(!isAdmin())return;
-  try{await fetch("/api/pricing",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({products:PD.products,updated:PD.updated})});}catch(e){}
+  const comp={};PD.products.forEach(p=>{if(p.comp&&p.comp.length)comp[String(p.sku)]=p.comp;});
+  try{await fetch("/api/pricing",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({comp})});}catch(e){}
 }
 async function addComp(pi,card){
   const url=card.querySelector(".paddurl").value.trim();
@@ -780,14 +804,12 @@ window.__prijsLoad=function(){
   if(!inited){inited=true;
     const rb=document.getElementById("prun");
     if(rb){ if(!isAdmin())rb.style.display="none"; else rb.addEventListener("click",run); }
-    document.getElementById("psearch").addEventListener("input",e=>{st.q=e.target.value;render();});
-    document.getElementById("pfilter").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;st.f=b.dataset.f;[...document.querySelectorAll("#pfilter button")].forEach(x=>x.classList.toggle("on",x===b));render();});
+    document.getElementById("psearch").addEventListener("input",e=>{st.q=e.target.value;st.limit=PAGE;render();});
+    document.getElementById("pfilter").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;st.f=b.dataset.f;st.limit=PAGE;[...document.querySelectorAll("#pfilter button")].forEach(x=>x.classList.toggle("on",x===b));render();});
     document.getElementById("pcontent").addEventListener("click",async e=>{
       const del=e.target.closest(".pdel");if(del){await delComp(+del.dataset.pi,+del.dataset.ci);return;}
       const add=e.target.closest(".paddbtn");if(add){await addComp(+add.dataset.pi,add.closest(".pcard"));return;}
-      if(e.target.closest("a,button,input"))return;
-      const card=e.target.closest(".pcard");
-      if(card&&card.dataset.url)window.open(card.dataset.url,"_blank","noopener");
+      const more=e.target.closest("#pmore");if(more){st.limit+=PAGE;render();return;}
     });
     reload();return;
   }
