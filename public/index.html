@@ -911,19 +911,25 @@ window.__voorraadLoad=function(){
   if(!PRD.length)sload();else srender();
 };
 })();
-/* ===== Sectienavigatie ===== */
+/* ===== Sectienavigatie (onthoudt actieve tab via URL-hash) ===== */
 (function(){
   const nav=document.getElementById("secnav");
   const SECS=["poas","ronada","prijs","voorraad"];
-  nav.addEventListener("click",e=>{
-    const b=e.target.closest(".snav");if(!b)return;
-    const sec=b.dataset.sec;
+  function activate(sec,updateHash){
+    if(!SECS.includes(sec))sec="poas";
+    const b=nav.querySelector('.snav[data-sec="'+sec+'"]');
     [...nav.querySelectorAll(".snav")].forEach(x=>x.classList.toggle("on",x===b));
     SECS.forEach(s=>{const el=document.getElementById("sec-"+s);if(el)el.style.display=s===sec?"":"none";});
     if(sec==="ronada"&&window.__ronadaLoad)window.__ronadaLoad();
     if(sec==="prijs"&&window.__prijsLoad)window.__prijsLoad();
     if(sec==="voorraad"&&window.__voorraadLoad)window.__voorraadLoad();
-  });
+    if(updateHash&&location.hash!=="#"+sec)history.replaceState(null,"","#"+sec);
+    window.dispatchEvent(new Event("resize")); // charts hersizen na tab-wissel
+  }
+  nav.addEventListener("click",e=>{const b=e.target.closest(".snav");if(!b)return;activate(b.dataset.sec,true);});
+  window.addEventListener("hashchange",()=>activate((location.hash||"").replace("#",""),false));
+  const init=(location.hash||"").replace("#","");
+  if(SECS.includes(init)&&init!=="poas")activate(init,false);
 })();
 </script>
 </body>
