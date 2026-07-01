@@ -138,6 +138,55 @@ async function pricesBySku(token, skus) {
   return out;
 }
 
+// Prijsmonitor: alle gepubliceerde NL-producten (bestsellers eerst) met merk-groep.
+// Het product-object bevat zelf geen brand, dus we halen per merk de SKU-set op en taggen.
+function pmWindow() {
+  const end = new Date().toISOString().slice(0, 10);
+  const d = new Date(); d.setMonth(d.getMonth() - 24);
+  return { start: d.toISOString().slice(0, 10), end };
+}
+async function brandSkuSet(token, brand) {
+  const { start, end } = pmWindow();
+  const set = new Set();
+  for (let page = 1; page <= 10; page++) {
+    const u = new URL(PRODUCTS);
+    u.searchParams.set("start_date", start); u.searchParams.set("end_date", end);
+    u.searchParams.set("per_page", "100"); u.searchParams.set("page", String(page));
+    u.searchParams.set("filters", JSON.stringify([{ field: "brand", operator: "eq", value: brand }]));
+    const r = await fetch(u, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+    if (!r.ok) throw new Error("Metorik API " + r.status);
+    const j = await r.json();
+    (j.data || []).forEach((p) => { if (p.sku != null) set.add(String(p.sku)); });
+    if (!(j.pagination && j.pagination.has_more_pages)) break;
+  }
+  return set;
+}
+async function allProductsNL(token) {
+  const { start, end } = pmWindow();
+  const [ronada, rtm, ronadap] = await Promise.all([
+    brandSkuSet(token, "Ronada"), brandSkuSet(token, "RTM"), brandSkuSet(token, "Ronada products"),
+  ]);
+  const out = [];
+  for (let page = 1; page <= 15; page++) {
+    const u = new URL(PRODUCTS);
+    u.searchParams.set("start_date", start); u.searchParams.set("end_date", end);
+    u.searchParams.set("order_by", "gross_sales"); u.searchParams.set("order_dir", "desc");
+    u.searchParams.set("per_page", "100"); u.searchParams.set("page", String(page));
+    const r = await fetch(u, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+    if (!r.ok) throw new Error("Metorik API " + r.status);
+    const j = await r.json();
+    (j.data || []).forEach((p) => {
+      if (p.status !== "publish") return;
+      const sku = String(p.sku);
+      const group = ronada.has(sku) ? "ronada" : rtm.has(sku) ? "rtm" : ronadap.has(sku) ? "ronadap" : "niet";
+      const brand = group === "ronada" ? "Ronada" : group === "rtm" ? "RTM" : group === "ronadap" ? "Ronada products" : "";
+      out.push({ sku: p.sku, title: p.title, brand, group, mine: p.current_price, img: p.image, stock: p.stock_quantity || 0, units: p.net_items_sold || 0, margin: p.sales_margin != null ? Math.round(p.sales_margin * 10) / 10 : null, url: "" });
+    });
+    if (!(j.pagination && j.pagination.has_more_pages)) break;
+  }
+  return out;
+}
+
 // Voorraad-runway + trend: per Ronada/RTM-product 12 maandelijkse verkoop-buckets.
 // We halen 12 cumulatieve vensters op (laatste 1..12 mnd) en differentiëren die naar
 // losse maandbuckets, zodat de frontend groei/daling (trend) kan berekenen.
@@ -211,4 +260,4 @@ async function allData() {
   out.updatedAt = Date.now();
   return out;
 }
-module.exports = { allData, SHOPS, ronadaData, topProducts, topProductsPage, pricesBySku, stockData, stockDataAll };
+module.exports = { allData, SHOPS, ronadaData, topProducts, topProductsPage, pricesBySku, stockData, stockDataAll, allProductsNL };
