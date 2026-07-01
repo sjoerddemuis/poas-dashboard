@@ -871,10 +871,7 @@ function srender(){
   const out=rows.filter(r=>r.stock<=0).length;
   const isAll=document.getElementById("svstore").value==="ALL";
   const shown=view.length!==rows.length?` · ${view.length} getoond`:"";
-  const totOrder=view.reduce((a,r)=>a+reorder(r),0);
-  const mLbl=smethod==="trend"?"trend (groei/daling meegewogen)":"vlak gemiddelde";
-  c.innerHTML=`<div class="svsum">${rows.length} producten · <b style="color:var(--red)">${urgent}</b> binnen 30 dagen leeg · ${out} uitverkocht${shown}. Venster laatste ${sP} mnd · ${mLbl}${isAll?" · alle shops samen, gedeelde voorraad":""}. <b>Bij te bestellen (getoond): ${fmtN0(totOrder)} st.</b></div>
-  ${view.length?`<div class="svtbl"><table>
+  c.innerHTML=`${view.length?`<div class="svtbl"><table>
     <thead><tr><th class="svchkh"><input type="checkbox" class="svall svchk2" title="Alles in weergave selecteren"></th><th>Product</th><th>Voorraad</th><th>/dag</th><th>Dagen</th><th>Leverancier</th><th>Dekking</th><th>Bijbestellen</th></tr></thead>
     <tbody>${view.map(r=>{const sk=String(r.sku);const sup=cfg.suppliers[sk]||"";const ro=reorder(r);const eff=covFor(sk,sup);return `<tr>
       <td class="svchkc"><input type="checkbox" class="svchk" data-sku="${esc(r.sku)}"${sSel.has(sk)?" checked":""}></td>
