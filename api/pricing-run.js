@@ -1,32 +1,32 @@
-// 'Vergelijking uitvoeren': mijn prijzen uit Metorik (op SKU) + concurrentprijzen scrapen. Alleen admin.
+// 'Vergelijking uitvoeren': concurrentprijzen scrapen in de opgeslagen concurrent-map. Alleen admin.
+// Mijn prijzen komen live uit de Metorik-catalogus (pricing.js), dus die hoeven hier niet ververst.
 const { getSession } = require("./_lib/util");
 const { getKey, setKey } = require("./_lib/store");
 const { SEED } = require("./_lib/pricingseed");
-const { pricesBySku } = require("./_lib/metorik");
+const { allProductsNL } = require("./_lib/metorik");
 const { scrapePrice } = require("./_lib/scrape");
+
+async function loadStore() {
+  let store = null;
+  try { store = await getKey("pricing2"); } catch (e) {}
+  if (store && store.comp) return store;
+  let old = null; try { old = await getKey("pricing"); } catch (e) {}
+  const src = (old && Array.isArray(old.products)) ? old.products : SEED.products;
+  const comp = {};
+  src.forEach((p) => { if (p.comp && p.comp.length) comp[String(p.sku)] = p.comp; });
+  return { updated: (old && old.updated) || SEED.updated, comp };
+}
 
 module.exports = async (req, res) => {
   const s = getSession(req);
   if (!s || s.role !== "admin") return res.status(403).json({ error: "Alleen admin." });
 
-  let data = null;
-  try { data = await getKey("pricing"); } catch (e) {}
-  data = JSON.parse(JSON.stringify(data || SEED));
-  const products = data.products || [];
+  const store = await loadStore();
+  const comp = store.comp || {};
 
-  // 1) Mijn prijzen verversen uit Metorik (NL).
-  const nlToken = process.env.METORIK_TOKEN_NL;
-  if (nlToken) {
-    try {
-      const skus = products.map((p) => p.sku).filter(Boolean);
-      const map = await pricesBySku(nlToken, skus);
-      products.forEach((p) => { if (map[String(p.sku)] != null) p.mine = map[String(p.sku)]; });
-    } catch (e) { /* mijn-prijzen optioneel */ }
-  }
-
-  // 2) Concurrentprijzen scrapen (parallel).
+  // Scrape alle concurrent-URL's (parallel).
   const tasks = [];
-  products.forEach((p) => (p.comp || []).forEach((c) => {
+  Object.keys(comp).forEach((sku) => (comp[sku] || []).forEach((c) => {
     if (!c.url) return;
     tasks.push((async () => {
       const r = await scrapePrice(c.url);
@@ -37,10 +37,22 @@ module.exports = async (req, res) => {
   await Promise.all(tasks);
 
   let scraped = 0, failed = 0;
-  products.forEach((p) => (p.comp || []).forEach((c) => { if (c.url) (c.err ? failed++ : scraped++); }));
+  Object.keys(comp).forEach((sku) => (comp[sku] || []).forEach((c) => { if (c.url) (c.err ? failed++ : scraped++); }));
 
   const d = new Date();
-  data.updated = d.toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" }) + " " + d.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
-  try { await setKey("pricing", data); } catch (e) {}
-  res.json({ ...data, scraped, failed });
+  store.updated = d.toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" }) + " " + d.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+  store.comp = comp;
+  try { await setKey("pricing2", store); } catch (e) {}
+
+  // Terug: samengevoegde productlijst zodat de UI meteen ververst.
+  let products = [];
+  try {
+    const token = process.env.METORIK_TOKEN_NL;
+    const catalog = token ? await allProductsNL(token) : [];
+    const have = new Set(catalog.map((p) => String(p.sku)));
+    products = catalog.map((p) => ({ ...p, comp: comp[String(p.sku)] || [] }));
+    Object.keys(comp).forEach((sku) => { if (!have.has(String(sku)) && comp[sku] && comp[sku].length) products.push({ sku, title: "SKU " + sku, brand: "", group: "niet", mine: null, img: "", comp: comp[sku] }); });
+  } catch (e) {}
+
+  res.json({ products, updated: store.updated, scraped, failed });
 };
