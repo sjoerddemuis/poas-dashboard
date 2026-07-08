@@ -192,6 +192,7 @@ details[open] summary::before{content:"▾ "}
 #sec-prijs .pprod.prestore:hover{background:var(--lightg)}
 #sec-prijs .paddrow{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px;border-top:1px dashed var(--line);padding-top:10px}
 #sec-prijs .paddrow input{font-size:12px;border:1px solid var(--line);border-radius:7px;padding:6px 9px;outline:none}
+#sec-prijs .paddrow .paddurl{flex:1 1 320px}
 #sec-prijs .paddrow input:focus{border-color:var(--green)}
 #sec-prijs .paddurl{flex:1;min-width:180px}
 #sec-prijs .paddshop{width:130px}
@@ -773,7 +774,7 @@ function cardHtml(it,pi){
       <div class="pmine"><div class="l">Jouw prijs</div><div class="v">${eur2(it.mine)}</div></div>
     </div>
     ${comp.length?`<div class="pcomp">${comprows(it,pi)}</div>`:`<div class="ptodo">Nog geen concurrent gekoppeld${isAdmin()?" — voeg hieronder een link toe.":"."}</div>`}
-    ${isAdmin()?`<div class="paddrow"><input class="paddurl" placeholder="Concurrent-URL (https://…)"><input class="paddshop" placeholder="Shopnaam (optie)"><input class="paddtitle" placeholder="Productnaam concurrent (optie)"><input class="paddprice" placeholder="Prijs (optie)" inputmode="decimal"><input class="paddnote" placeholder="Notitie: formaat, variant, opmerking… (optie)"><button class="paddbtn" data-pi="${pi}">+ Concurrent toevoegen</button></div>`:""}
+    ${isAdmin()?`<div class="paddrow"><input class="paddurl" placeholder="Plak concurrent-URL — naam &amp; prijs worden automatisch opgehaald"><input class="paddshop" placeholder="Shopnaam (optie)"><input class="paddtitle" placeholder="Productnaam (optie, overschrijft)"><input class="paddprice" placeholder="Prijs (optie)" inputmode="decimal"><input class="paddnote" placeholder="Notitie (optie)"><button class="paddbtn" data-pi="${pi}">+ Concurrent toevoegen</button></div>`:""}
     ${isAdmin()?`<div class="pfoot"><button class="pprod ${it.hidden?"prestore":"phide"}" data-pi="${pi}">${it.hidden?"↩ Terugzetten in monitor":"🗑 Verberg dit product"}</button></div>`:""}
   </div>`;
 }
@@ -808,14 +809,27 @@ async function hideProduct(pi){const p=PD.products[pi];if(!p)return;p.hidden=tru
 async function restoreProduct(pi){const p=PD.products[pi];if(!p)return;p.hidden=false;render();await save();}
 async function addComp(pi,card){
   const url=card.querySelector(".paddurl").value.trim();
-  const shop=card.querySelector(".paddshop").value.trim();
-  const title=card.querySelector(".paddtitle").value.trim();
+  let shop=card.querySelector(".paddshop").value.trim();
+  let title=card.querySelector(".paddtitle").value.trim();
   const note=card.querySelector(".paddnote").value.trim();
   const priceRaw=card.querySelector(".paddprice").value.trim();
-  if(!url&&!priceRaw&&!title&&!note)return;
+  let price=null;
+  if(priceRaw){const v=parseFloat(priceRaw.replace(/[^0-9.,]/g,"").replace(",","."));if(isFinite(v))price=v;}
+  if(!url&&price==null&&!title&&!note)return;
+  // Alleen een link geplakt? Naam + prijs automatisch ophalen.
+  const btn=card.querySelector(".paddbtn");
+  if(url&&(title===""||price==null)){
+    const o=btn?btn.textContent:"";if(btn){btn.textContent="⏳ Ophalen…";btn.disabled=true;}
+    try{
+      const r=await fetch("/api/pricing-fetch",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})});
+      const d=await r.json();
+      if(d){if(price==null&&d.price!=null)price=d.price;if(title===""&&d.title)title=d.title;if(shop===""&&d.shop)shop=d.shop;}
+    }catch(e){}
+    if(btn){btn.textContent=o;btn.disabled=false;}
+  }
   const c={shop:shop||(url?hostOf(url):"Concurrent"),url:url,title:title};
   if(note)c.note=note;
-  if(priceRaw){const v=parseFloat(priceRaw.replace(/[^0-9.,]/g,"").replace(",","."));if(isFinite(v))c.price=v;}
+  if(price!=null)c.price=price;
   PD.products[pi].comp=PD.products[pi].comp||[];PD.products[pi].comp.push(c);
   render();await save();
 }
