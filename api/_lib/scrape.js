@@ -85,14 +85,30 @@ function parseTitle(html) {
   if (t) { let s = decodeEntities(t[1]); s = s.split(/\s[|–—-]\s/)[0].trim() || s; return s; }
   return "";
 }
+// Zo browser-achtig mogelijke headers om eenvoudige bot-blokkades (403) te omzeilen.
+function browserHeaders(url) {
+  let ref = ""; try { ref = new URL(url).origin + "/"; } catch (e) {}
+  const h = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "nl-NL,nl;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Upgrade-Insecure-Requests": "1",
+    "sec-ch-ua": '"Chromium";v="124", "Not:A-Brand";v="99"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"Windows"',
+    "sec-fetch-dest": "document",
+    "sec-fetch-mode": "navigate",
+    "sec-fetch-site": "none",
+    "sec-fetch-user": "?1",
+  };
+  if (ref) h["Referer"] = ref;
+  return h;
+}
 async function fetchHtml(url) {
   const ctrl = new AbortController();
   const to = setTimeout(() => ctrl.abort(), 12000);
   try {
-    const r = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Accept-Language": "nl-NL,nl;q=0.9,en;q=0.8" },
-      redirect: "follow", signal: ctrl.signal,
-    });
+    const r = await fetch(url, { headers: browserHeaders(url), redirect: "follow", signal: ctrl.signal });
     clearTimeout(to);
     if (!r.ok) return { error: "HTTP " + r.status };
     return { html: await r.text() };
@@ -113,10 +129,7 @@ async function scrapePrice(url) {
   try {
     const ctrl = new AbortController();
     const to = setTimeout(() => ctrl.abort(), 12000);
-    const r = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Accept-Language": "nl-NL,nl;q=0.9,en;q=0.8" },
-      redirect: "follow", signal: ctrl.signal,
-    });
+    const r = await fetch(url, { headers: browserHeaders(url), redirect: "follow", signal: ctrl.signal });
     clearTimeout(to);
     if (!r.ok) return { price: null, error: "HTTP " + r.status };
     const html = await r.text();
