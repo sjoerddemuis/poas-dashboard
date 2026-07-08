@@ -62,11 +62,22 @@ module.exports = async (req, res) => {
   if (req.method === "POST") {
     if (s.role !== "admin") return res.status(403).json({ error: "Alleen admin kan de monitor bewerken." });
     const body = await readBody(req);
-    if (!body || typeof body.comp !== "object" || body.comp === null) return res.status(400).json({ error: "ongeldige data" });
+    if (!body) return res.status(400).json({ error: "ongeldige data" });
     try {
       const store = await getStore();
-      store.comp = body.comp;
-      if (Array.isArray(body.hidden)) store.hidden = body.hidden.map(String);
+      store.comp = store.comp || {};
+      store.hidden = Array.isArray(store.hidden) ? store.hidden : [];
+      if (body.sku != null) {
+        // Per-product update: raakt alleen dit product, geen clobber van de rest.
+        const sku = String(body.sku);
+        if (Array.isArray(body.comp)) { if (body.comp.length) store.comp[sku] = body.comp; else delete store.comp[sku]; }
+        if (typeof body.hidden === "boolean") { const set = new Set(store.hidden.map(String)); if (body.hidden) set.add(sku); else set.delete(sku); store.hidden = [...set]; }
+      } else if (body.comp && typeof body.comp === "object") {
+        store.comp = body.comp;
+        if (Array.isArray(body.hidden)) store.hidden = body.hidden.map(String);
+      } else {
+        return res.status(400).json({ error: "ongeldige data" });
+      }
       await setKey("pricing2", store);
       const catalog = await getCatalog();
       return res.json({ ok: true, products: merge(catalog, store), updated: store.updated || "" });
