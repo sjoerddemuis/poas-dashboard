@@ -56,6 +56,59 @@ function parsePrice(html) {
   if (el) { const n = normNum(el[1]); if (n != null) return n; }
   return null;
 }
+function decodeEntities(s) {
+  return String(s || "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&nbsp;/g, " ").replace(/&#(\d+);/g, (m, n) => String.fromCharCode(+n)).replace(/\s+/g, " ").trim();
+}
+// Productnaam uit JSON-LD (name), anders og:title, anders <title>.
+function parseTitle(html) {
+  if (!html) return "";
+  const blocks = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
+  for (const b of blocks) {
+    const raw = b.replace(/<script[^>]*>/i, "").replace(/<\/script>/i, "").trim();
+    let data; try { data = JSON.parse(raw); } catch (e) { continue; }
+    const stack = [data];
+    while (stack.length) {
+      const node = stack.pop();
+      if (node == null) continue;
+      if (Array.isArray(node)) { node.forEach((x) => stack.push(x)); continue; }
+      if (typeof node === "object") {
+        const t = String(node["@type"] || "");
+        if (/product/i.test(t) && typeof node.name === "string" && node.name.trim()) return decodeEntities(node.name);
+        Object.values(node).forEach((v) => { if (v && typeof v === "object") stack.push(v); });
+      }
+    }
+  }
+  const og = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
+    || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i);
+  if (og) return decodeEntities(og[1]);
+  const t = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (t) { let s = decodeEntities(t[1]); s = s.split(/\s[|–—-]\s/)[0].trim() || s; return s; }
+  return "";
+}
+async function fetchHtml(url) {
+  const ctrl = new AbortController();
+  const to = setTimeout(() => ctrl.abort(), 12000);
+  try {
+    const r = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Accept-Language": "nl-NL,nl;q=0.9,en;q=0.8" },
+      redirect: "follow", signal: ctrl.signal,
+    });
+    clearTimeout(to);
+    if (!r.ok) return { error: "HTTP " + r.status };
+    return { html: await r.text() };
+  } catch (e) {
+    clearTimeout(to);
+    return { error: (e && e.name === "AbortError") ? "time-out" : (e.message || "kon pagina niet ophalen") };
+  }
+}
+// Haalt prijs én productnaam op uit één URL (voor 'plak alleen een link').
+async function scrapeInfo(url) {
+  const r = await fetchHtml(url);
+  if (r.error) return { price: null, title: "", error: r.error };
+  const price = parsePrice(r.html);
+  const title = parseTitle(r.html);
+  return { price, title, error: (price == null && !title) ? "geen prijs/naam gevonden" : null };
+}
 async function scrapePrice(url) {
   try {
     const ctrl = new AbortController();
@@ -73,4 +126,4 @@ async function scrapePrice(url) {
     return { price: null, error: (e && e.name === "AbortError") ? "time-out" : (e.message || "kon pagina niet ophalen") };
   }
 }
-module.exports = { scrapePrice, parsePrice, normNum };
+module.exports = { scrapePrice, scrapeInfo, parsePrice, parseTitle, normNum };
