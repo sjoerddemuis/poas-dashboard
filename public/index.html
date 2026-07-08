@@ -721,6 +721,9 @@ const GROUPS={all:"Alle",ronada:"Ronada",rtm:"RTM",ronadap:"Ronada products",nie
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
 const isAdmin=()=>typeof ROLE!=="undefined"&&ROLE==="admin";
 const hostOf=u=>{try{return new URL(u).hostname.replace(/^www\./,"");}catch(e){return "Concurrent";}};
+// Sessie verlopen mid-session? Waarschuw en stuur naar login (i.p.v. stil falen).
+let sessGone=false;
+function need401(r){if(r&&r.status===401){if(!sessGone){sessGone=true;const el=document.getElementById("pupd");if(el)el.innerHTML='⚠ Je sessie is verlopen — je wordt opnieuw ingelogd…';setTimeout(()=>{location.href="/login.html";},900);}return true;}return false;}
 function setUpd(shownTxt){
   const n=PD.products.length,withP=PD.products.filter(p=>(p.comp||[]).some(c=>c.price!=null)).length;
   document.getElementById("pupd").textContent=`${n} producten · ${withP} met concurrentprijs · bijgewerkt ${PD.updated||"—"}.`+(shownTxt?" "+shownTxt:"");
@@ -813,11 +816,11 @@ function render(){
 // Per-product opslaan (surgical: raakt alleen dit product op de server).
 async function saveComp(pi){
   if(!isAdmin())return;const p=PD.products[pi];if(!p)return;
-  try{await fetch("/api/pricing",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sku:String(p.sku),comp:p.comp||[]})});}catch(e){}
+  try{const r=await fetch("/api/pricing",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sku:String(p.sku),comp:p.comp||[]})});need401(r);}catch(e){}
 }
 async function saveHidden(pi){
   if(!isAdmin())return;const p=PD.products[pi];if(!p)return;
-  try{await fetch("/api/pricing",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sku:String(p.sku),hidden:!!p.hidden})});}catch(e){}
+  try{const r=await fetch("/api/pricing",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sku:String(p.sku),hidden:!!p.hidden})});need401(r);}catch(e){}
 }
 async function hideProduct(pi){const p=PD.products[pi];if(!p)return;p.hidden=true;render();await saveHidden(pi);}
 async function restoreProduct(pi){const p=PD.products[pi];if(!p)return;p.hidden=false;render();await saveHidden(pi);}
@@ -833,6 +836,7 @@ async function addComp(pi,card){
     const o=btn?btn.textContent:"";if(btn){btn.textContent="⏳ Ophalen…";btn.disabled=true;}
     try{
       const r=await fetch("/api/pricing-fetch",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})});
+      if(need401(r)){if(btn){btn.textContent=o;btn.disabled=false;}return;}
       const d=await r.json();
       if(d){if(price==null&&d.price!=null)price=d.price;if(title===""&&d.title)title=d.title;if(shop===""&&d.shop)shop=d.shop;}
     }catch(e){}
@@ -851,6 +855,7 @@ async function run(){
   setUpd("— prijzen worden opgehaald…");
   try{
     const r=await fetch("/api/pricing-run",{method:"POST"});
+    need401(r);
     const d=await r.json();
     if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
     PD={products:d.products||[],updated:d.updated||""};sortPD();render();
@@ -864,6 +869,7 @@ async function reload(){
   setUpd("— laden…");
   try{
     const [pr,me]=await Promise.all([fetch("/api/pricing"),fetch("/api/me").catch(()=>null)]);
+    if(need401(pr))return;
     const d=await pr.json();PD={products:d.products||[],updated:d.updated||""};
     if(me){try{const m=await me.json();if(m&&m.role)ROLE=m.role;}catch(e){}}
   }
