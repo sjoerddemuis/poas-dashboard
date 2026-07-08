@@ -165,6 +165,10 @@ details[open] summary::before{content:"▾ "}
 #sec-prijs .pcprice .pcv{min-width:66px;text-align:right;font-weight:700}
 #sec-prijs .pcprice .pcd{min-width:66px;text-align:right;display:inline-block}
 #sec-prijs .pcprice .cheap{color:var(--greenDk);font-weight:800}
+#sec-prijs .pceur{color:var(--mute);font-weight:700}
+#sec-prijs .pcpe{width:54px;text-align:right;border:1px solid var(--line);border-radius:6px;padding:3px 5px;font-size:12.5px;font-weight:700;font-family:var(--mono);background:var(--card);color:var(--ink);outline:none}
+#sec-prijs .pcpe:focus{border-color:var(--green)}
+#sec-prijs .pcpe::placeholder{color:var(--orange)}
 #sec-prijs .pclink.pcus{background:rgba(0,192,48,.10);border-color:rgba(0,192,48,.40)}
 #sec-prijs a.pclink.pcus:hover{background:rgba(0,192,48,.16);border-color:var(--green)}
 #sec-prijs .pcus .pcshop{color:var(--greenDk)}
@@ -746,17 +750,24 @@ function comprows(it,pi){
     const has=r.price!=null;
     const d=(has&&hasMine&&!r.us)?r.price-it.mine:0,sign=d>0?"+":"−",dcls=d>0?"pdelta-down":d<0?"pdelta-up":"";
     const deltaTxt=(has&&hasMine&&!r.us)?(d===0?"=":sign+eur2(Math.abs(d))):"";
-    const priceHtml=has
-      ?`<span class="pcv ${r.price===minC?"cheap":""}">${eur2(r.price)}</span><span class="pcd ${dcls}" title="concurrent t.o.v. jouw prijs">${deltaTxt}</span>`
-      :`<span class="pcv" style="color:var(--orange)">${r.err?esc(r.err):"nog niet opgehaald"}</span><span class="pcd"></span>`;
+    const deltaHtml=`<span class="pcd ${dcls}" title="concurrent t.o.v. jouw prijs">${deltaTxt}</span>`;
+    // Prijs inline bewerkbaar voor admin (niet onze eigen rij) — zo kun je bij een geblokkeerde link (403) alsnog handmatig invullen.
+    let priceCell;
+    if(isAdmin()&&!r.us){
+      const val=has?String(r.price).replace(".",","):"";
+      priceCell=`<span class="pcprice"><span class="pceur">€</span><input class="pcpe" data-pi="${pi}" data-ci="${r.ci}" value="${val}" inputmode="decimal" placeholder="${r.err?"?":"—"}" title="${r.err?esc(r.err)+" — vul prijs handmatig in":"prijs bewerken"}">${deltaHtml}</span>`;
+    }else{
+      const pv=has?`<span class="pcv ${r.price===minC?"cheap":""}">${eur2(r.price)}</span>`:`<span class="pcv" style="color:var(--orange)">${r.err?esc(r.err):"—"}</span>`;
+      priceCell=`<span class="pcprice">${pv}${deltaHtml}</span>`;
+    }
     const shopHtml=`<span class="pcshop">${esc(r.shop)}${r.us?'<span class="pcusbadge">WIJ</span>':""}</span>`;
     const titleHtml=`<span class="pctitle">${r.title?esc(r.title):""}${r.note?`<span class="pcnote">${r.title?" · ":""}${esc(r.note)}</span>`:""}</span>`;
-    const inner=`${shopHtml}${titleHtml}${r.url?'<span class="pcopen">↗</span>':""}<span class="pcprice">${priceHtml}</span>`;
+    const inner=`${shopHtml}${titleHtml}${r.url?'<span class="pcopen">↗</span>':""}`;
     const cls="pclink"+(r.us?" pcus":"");
     const tip=[r.shop,r.title,r.note].filter(Boolean).join(" — ");
     const link=r.url?`<a class="${cls}" href="${esc(r.url)}" target="_blank" rel="noopener" title="Open — ${esc(tip)}">${inner}</a>`:`<div class="${cls}" style="cursor:default" title="${esc(tip)}">${inner}</div>`;
     const trail=isAdmin()?(r.us?`<span class="pdelspace"></span>`:`<button class="pdel" data-pi="${pi}" data-ci="${r.ci}" title="concurrent verwijderen">✕</button>`):"";
-    return `<div class="pcrow">${link}${trail}</div>`;
+    return `<div class="pcrow">${link}${priceCell}${trail}</div>`;
   }).join("");
 }
 function cardHtml(it,pi){
@@ -774,7 +785,7 @@ function cardHtml(it,pi){
       <div class="pmine"><div class="l">Jouw prijs</div><div class="v">${eur2(it.mine)}</div></div>
     </div>
     ${comp.length?`<div class="pcomp">${comprows(it,pi)}</div>`:`<div class="ptodo">Nog geen concurrent gekoppeld${isAdmin()?" — voeg hieronder een link toe.":"."}</div>`}
-    ${isAdmin()?`<div class="paddrow"><input class="paddurl" placeholder="Plak concurrent-URL — naam &amp; prijs worden automatisch opgehaald"><input class="paddshop" placeholder="Shopnaam (optie)"><input class="paddtitle" placeholder="Productnaam (optie, overschrijft)"><input class="paddprice" placeholder="Prijs (optie)" inputmode="decimal"><input class="paddnote" placeholder="Notitie (optie)"><button class="paddbtn" data-pi="${pi}">+ Concurrent toevoegen</button></div>`:""}
+    ${isAdmin()?`<div class="paddrow"><input class="paddurl" placeholder="Plak concurrent-URL — naam &amp; prijs worden automatisch opgehaald"><button class="paddbtn" data-pi="${pi}">+ Concurrent toevoegen</button></div>`:""}
     ${isAdmin()?`<div class="pfoot"><button class="pprod ${it.hidden?"prestore":"phide"}" data-pi="${pi}">${it.hidden?"↩ Terugzetten in monitor":"🗑 Verberg dit product"}</button></div>`:""}
   </div>`;
 }
@@ -799,20 +810,20 @@ function render(){
   c.innerHTML=html+more;
   setUpd(`${matched.length} in ${GROUPS[st.f]||"filter"}${q?` (zoek: "${esc(st.q.trim())}")`:""}`);
 }
-async function save(){
-  if(!isAdmin())return;
-  const comp={};PD.products.forEach(p=>{if(p.comp&&p.comp.length)comp[String(p.sku)]=p.comp;});
-  const hidden=PD.products.filter(p=>p.hidden).map(p=>String(p.sku));
-  try{await fetch("/api/pricing",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({comp,hidden})});}catch(e){}
+// Per-product opslaan (surgical: raakt alleen dit product op de server).
+async function saveComp(pi){
+  if(!isAdmin())return;const p=PD.products[pi];if(!p)return;
+  try{await fetch("/api/pricing",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sku:String(p.sku),comp:p.comp||[]})});}catch(e){}
 }
-async function hideProduct(pi){const p=PD.products[pi];if(!p)return;p.hidden=true;render();await save();}
-async function restoreProduct(pi){const p=PD.products[pi];if(!p)return;p.hidden=false;render();await save();}
+async function saveHidden(pi){
+  if(!isAdmin())return;const p=PD.products[pi];if(!p)return;
+  try{await fetch("/api/pricing",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sku:String(p.sku),hidden:!!p.hidden})});}catch(e){}
+}
+async function hideProduct(pi){const p=PD.products[pi];if(!p)return;p.hidden=true;render();await saveHidden(pi);}
+async function restoreProduct(pi){const p=PD.products[pi];if(!p)return;p.hidden=false;render();await saveHidden(pi);}
 async function addComp(pi,card){
-  const url=card.querySelector(".paddurl").value.trim();
-  let shop=card.querySelector(".paddshop").value.trim();
-  let title=card.querySelector(".paddtitle").value.trim();
-  const note=card.querySelector(".paddnote").value.trim();
-  const priceRaw=card.querySelector(".paddprice").value.trim();
+  const g=s=>{const el=card.querySelector(s);return el?el.value.trim():"";};
+  const url=g(".paddurl");let shop=g(".paddshop");let title=g(".paddtitle");const note=g(".paddnote");const priceRaw=g(".paddprice");
   let price=null;
   if(priceRaw){const v=parseFloat(priceRaw.replace(/[^0-9.,]/g,"").replace(",","."));if(isFinite(v))price=v;}
   if(!url&&price==null&&!title&&!note)return;
@@ -831,9 +842,9 @@ async function addComp(pi,card){
   if(note)c.note=note;
   if(price!=null)c.price=price;
   PD.products[pi].comp=PD.products[pi].comp||[];PD.products[pi].comp.push(c);
-  render();await save();
+  render();await saveComp(pi);
 }
-async function delComp(pi,ci){PD.products[pi].comp.splice(ci,1);render();await save();}
+async function delComp(pi,ci){PD.products[pi].comp.splice(ci,1);render();await saveComp(pi);}
 async function run(){
   if(busy)return;busy=true;
   const btn=document.getElementById("prun");if(btn){btn.disabled=true;btn.textContent="Bezig met ophalen…";}
@@ -870,6 +881,14 @@ window.__prijsLoad=function(){
       const add=e.target.closest(".paddbtn");if(add){await addComp(+add.dataset.pi,add.closest(".pcard"));return;}
       const prod=e.target.closest(".pprod");if(prod){const pi=+prod.dataset.pi;if(PD.products[pi]&&PD.products[pi].hidden)await restoreProduct(pi);else await hideProduct(pi);return;}
       const more=e.target.closest("#pmore");if(more){st.limit+=PAGE;render();return;}
+    });
+    document.getElementById("pcontent").addEventListener("change",async e=>{
+      const pe=e.target.closest(".pcpe");if(!pe)return;
+      const pi=+pe.dataset.pi,ci=+pe.dataset.ci;const p=PD.products[pi];if(!p||!p.comp||!p.comp[ci])return;
+      const raw=pe.value.trim();
+      if(raw===""){delete p.comp[ci].price;}
+      else{const v=parseFloat(raw.replace(/[^0-9.,]/g,"").replace(",","."));if(isFinite(v)&&v>0){p.comp[ci].price=Math.round(v*100)/100;delete p.comp[ci].err;}}
+      render();await saveComp(pi);
     });
     document.getElementById("ptogh").addEventListener("click",e=>{st.showHidden=!st.showHidden;st.limit=PAGE;e.currentTarget.classList.toggle("on",st.showHidden);render();});
     reload();return;
