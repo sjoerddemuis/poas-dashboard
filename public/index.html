@@ -319,7 +319,7 @@ details[open] summary::before{content:"▾ "}
       </div>
       <input id="psearch" type="text" placeholder="Zoek op naam of SKU…" autocomplete="off">
       <button id="ptogh" class="ptogh">Verborgen (<span id="phc">0</span>)</button>
-      <button id="prun" class="prun" style="margin-left:auto">Vergelijking uitvoeren</button>
+      <button id="prun" class="prun" style="margin-left:auto">↻ Ververs alle prijzen</button>
     </div>
     <div id="pcontent"></div>
   </div><!-- /sec-prijs -->
@@ -782,6 +782,8 @@ function render(){
   const c=document.getElementById("pcontent");
   if(!PD.products.length){c.innerHTML='<div class="pempty">Nog geen producten.</div>';setUpd();return;}
   const hc=document.getElementById("phc");if(hc)hc.textContent=PD.products.filter(p=>p.hidden).length;
+  const rb=document.getElementById("prun");if(rb)rb.style.display=isAdmin()?"":"none";
+  const tg=document.getElementById("ptogh");if(tg)tg.style.display=isAdmin()?"":"none";
   const matched=[];
   PD.products.forEach((it,pi)=>{
     if(!!it.hidden!==st.showHidden)return;
@@ -829,7 +831,7 @@ async function run(){
     PD={products:d.products||[],updated:d.updated||""};sortPD();render();
     setUpd(`✓ ${d.scraped||0} concurrentprijzen opgehaald${d.failed?`, ${d.failed} niet gelukt (handmatig invullen)`:""}.`);
   }catch(e){setUpd("✕ Vergelijking mislukt: "+(e.message||e));}
-  if(btn){btn.disabled=false;btn.textContent="Vergelijking uitvoeren";}
+  if(btn){btn.disabled=false;btn.textContent="↻ Ververs alle prijzen";}
   busy=false;
 }
 function sortPD(){PD.products.sort((a,b)=>(b.units||0)-(a.units||0));}
@@ -846,7 +848,7 @@ async function reload(){
 window.__prijsLoad=function(){
   if(!inited){inited=true;
     const rb=document.getElementById("prun");
-    if(rb){ if(!isAdmin())rb.style.display="none"; else rb.addEventListener("click",run); }
+    if(rb)rb.addEventListener("click",run);
     document.getElementById("psearch").addEventListener("input",e=>{st.q=e.target.value;st.limit=PAGE;render();});
     document.getElementById("pfilter").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;st.f=b.dataset.f;st.limit=PAGE;[...document.querySelectorAll("#pfilter button")].forEach(x=>x.classList.toggle("on",x===b));render();});
     document.getElementById("pcontent").addEventListener("click",async e=>{
