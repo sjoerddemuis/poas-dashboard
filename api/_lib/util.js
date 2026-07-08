@@ -2,7 +2,7 @@
 // Geen externe deps — alleen Node's ingebouwde crypto.
 const crypto = require("crypto");
 const SECRET = process.env.JWT_SECRET || "dev-insecure-secret-change-me";
-const MAXAGE = 60 * 60 * 24 * 7; // 7 dagen
+const MAXAGE = 60 * 60 * 24 * 30; // 30 dagen
 
 function b64url(s) { return Buffer.from(s).toString("base64url"); }
 
