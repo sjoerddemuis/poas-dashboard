@@ -158,6 +158,7 @@ details[open] summary::before{content:"▾ "}
 #sec-prijs a.pclink:hover{border-color:var(--green);background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.05)}
 #sec-prijs .pcshop{font-weight:700;font-size:12.5px;white-space:nowrap;flex:none}
 #sec-prijs .pctitle{color:var(--mute);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+#sec-prijs .pcnote{font-style:italic;opacity:.85}
 #sec-prijs .pcopen{flex:none;width:16px;text-align:center;color:var(--mute);font-size:12px;margin-left:8px}
 #sec-prijs a.pclink:hover .pcopen{color:var(--green)}
 #sec-prijs .pcprice{flex:none;display:flex;align-items:baseline;gap:8px;white-space:nowrap;font-size:13px;margin-left:8px}
@@ -736,7 +737,7 @@ function comprows(it,pi){
   // Gecombineerde lijst: wij + concurrenten, gesorteerd op prijs (goedkoopste eerst).
   const rows=[];
   if(hasMine)rows.push({us:true,shop:"Ongediertewinkel",title:"ons product",price:it.mine,url:ourUrl});
-  comp.forEach((c,ci)=>rows.push({us:false,ci,shop:c.shop||hostOf(c.url),title:c.title,price:c.price,url:c.url,err:c.err}));
+  comp.forEach((c,ci)=>rows.push({us:false,ci,shop:c.shop||hostOf(c.url),title:c.title,note:c.note,price:c.price,url:c.url,err:c.err}));
   const priced=rows.filter(r=>r.price!=null).map(r=>r.price);
   const minC=priced.length?Math.min(...priced):null;
   rows.sort((a,b)=>{if(a.price==null&&b.price==null)return 0;if(a.price==null)return 1;if(b.price==null)return -1;return a.price-b.price;});
@@ -748,9 +749,11 @@ function comprows(it,pi){
       ?`<span class="pcv ${r.price===minC?"cheap":""}">${eur2(r.price)}</span><span class="pcd ${dcls}" title="concurrent t.o.v. jouw prijs">${deltaTxt}</span>`
       :`<span class="pcv" style="color:var(--orange)">${r.err?esc(r.err):"nog niet opgehaald"}</span><span class="pcd"></span>`;
     const shopHtml=`<span class="pcshop">${esc(r.shop)}${r.us?'<span class="pcusbadge">WIJ</span>':""}</span>`;
-    const inner=`${shopHtml}${r.title?`<span class="pctitle">${esc(r.title)}</span>`:'<span class="pctitle"></span>'}${r.url?'<span class="pcopen">↗</span>':""}<span class="pcprice">${priceHtml}</span>`;
+    const titleHtml=`<span class="pctitle">${r.title?esc(r.title):""}${r.note?`<span class="pcnote">${r.title?" · ":""}${esc(r.note)}</span>`:""}</span>`;
+    const inner=`${shopHtml}${titleHtml}${r.url?'<span class="pcopen">↗</span>':""}<span class="pcprice">${priceHtml}</span>`;
     const cls="pclink"+(r.us?" pcus":"");
-    const link=r.url?`<a class="${cls}" href="${esc(r.url)}" target="_blank" rel="noopener" title="Open ${esc(r.shop)}">${inner}</a>`:`<div class="${cls}" style="cursor:default">${inner}</div>`;
+    const tip=[r.shop,r.title,r.note].filter(Boolean).join(" — ");
+    const link=r.url?`<a class="${cls}" href="${esc(r.url)}" target="_blank" rel="noopener" title="Open — ${esc(tip)}">${inner}</a>`:`<div class="${cls}" style="cursor:default" title="${esc(tip)}">${inner}</div>`;
     const trail=isAdmin()?(r.us?`<span class="pdelspace"></span>`:`<button class="pdel" data-pi="${pi}" data-ci="${r.ci}" title="concurrent verwijderen">✕</button>`):"";
     return `<div class="pcrow">${link}${trail}</div>`;
   }).join("");
@@ -770,7 +773,7 @@ function cardHtml(it,pi){
       <div class="pmine"><div class="l">Jouw prijs</div><div class="v">${eur2(it.mine)}</div></div>
     </div>
     ${comp.length?`<div class="pcomp">${comprows(it,pi)}</div>`:`<div class="ptodo">Nog geen concurrent gekoppeld${isAdmin()?" — voeg hieronder een link toe.":"."}</div>`}
-    ${isAdmin()?`<div class="paddrow"><input class="paddurl" placeholder="Concurrent-URL (https://…)"><input class="paddshop" placeholder="Shopnaam (optie)"><input class="paddprice" placeholder="Prijs (optie)" inputmode="decimal"><button class="paddbtn" data-pi="${pi}">+ Link toevoegen</button></div>`:""}
+    ${isAdmin()?`<div class="paddrow"><input class="paddurl" placeholder="Concurrent-URL (https://…)"><input class="paddshop" placeholder="Shopnaam (optie)"><input class="paddtitle" placeholder="Productnaam concurrent (optie)"><input class="paddprice" placeholder="Prijs (optie)" inputmode="decimal"><input class="paddnote" placeholder="Notitie: formaat, variant, opmerking… (optie)"><button class="paddbtn" data-pi="${pi}">+ Concurrent toevoegen</button></div>`:""}
     ${isAdmin()?`<div class="pfoot"><button class="pprod ${it.hidden?"prestore":"phide"}" data-pi="${pi}">${it.hidden?"↩ Terugzetten in monitor":"🗑 Verberg dit product"}</button></div>`:""}
   </div>`;
 }
@@ -804,9 +807,12 @@ async function restoreProduct(pi){const p=PD.products[pi];if(!p)return;p.hidden=
 async function addComp(pi,card){
   const url=card.querySelector(".paddurl").value.trim();
   const shop=card.querySelector(".paddshop").value.trim();
+  const title=card.querySelector(".paddtitle").value.trim();
+  const note=card.querySelector(".paddnote").value.trim();
   const priceRaw=card.querySelector(".paddprice").value.trim();
-  if(!url&&!priceRaw)return;
-  const c={shop:shop||(url?hostOf(url):"Concurrent"),url:url,title:""};
+  if(!url&&!priceRaw&&!title&&!note)return;
+  const c={shop:shop||(url?hostOf(url):"Concurrent"),url:url,title:title};
+  if(note)c.note=note;
   if(priceRaw){const v=parseFloat(priceRaw.replace(/[^0-9.,]/g,"").replace(",","."));if(isFinite(v))c.price=v;}
   PD.products[pi].comp=PD.products[pi].comp||[];PD.products[pi].comp.push(c);
   render();await save();
