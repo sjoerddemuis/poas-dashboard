@@ -269,6 +269,30 @@ details[open] summary::before{content:"▾ "}
 #sec-voorraad .sd-grey{background:#F0F0EC;color:var(--mute)}
 #sec-voorraad .svloading,#sec-voorraad .sverr,#sec-voorraad .svempty{padding:40px;text-align:center;color:var(--mute)}
 #sec-voorraad .sverr{color:var(--red)}
+/* ---- Google Ads-sectie ---- */
+#sec-ads .adsub{color:var(--mute);font-size:13px;margin:0 0 14px;line-height:1.5;max-width:820px}
+#sec-ads .adbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 12px;margin-bottom:14px}
+#sec-ads select{font-size:14px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:9px;padding:8px 12px;cursor:pointer;font-weight:600}
+#sec-ads .addate{font-size:13px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:9px;padding:7px 9px;font-family:var(--mono);outline:none}
+#sec-ads .addate:focus{border-color:var(--green)}
+#sec-ads .adlbl{font-size:12px;color:var(--mute);font-weight:600}
+#sec-ads .adsep{width:1px;align-self:stretch;min-height:24px;background:var(--line);margin:0 4px}
+#sec-ads .adseg{display:inline-flex;border:1.5px solid var(--line);border-radius:9px;overflow:hidden}
+#sec-ads .adseg button{border:0;border-right:1px solid var(--line);background:var(--card);color:var(--ink);font-family:var(--mono);font-size:12px;font-weight:700;padding:8px 12px;cursor:pointer}
+#sec-ads .adseg button:last-child{border-right:0}
+#sec-ads .adseg button.on{background:var(--green);color:#fff}
+#sec-ads .adcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+#sec-ads .adcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+#sec-ads .adcard .l{font-family:var(--mono);font-size:9px;letter-spacing:.4px;text-transform:uppercase;color:var(--mute)}
+#sec-ads .adcard .v{font-size:22px;font-weight:700;line-height:1.1;margin-top:3px}
+#sec-ads .adcard .s{font-size:11px;color:var(--mute);margin-top:2px}
+#sec-ads .adcard.on{border-color:var(--green);box-shadow:0 0 0 1px var(--green) inset}
+#sec-ads .adchartbox{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;height:340px;position:relative}
+#sec-ads .adloading,#sec-ads .aderr,#sec-ads .adempty,#sec-ads .adsetup{padding:36px;text-align:center;color:var(--mute)}
+#sec-ads .aderr{color:var(--red)}
+#sec-ads .adsetup{max-width:640px;margin:0 auto;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;line-height:1.6;color:var(--ink)}
+#sec-ads .adsetup h3{margin:0 0 8px;font-size:16px}
+#sec-ads .adsetup code{background:var(--paper);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:12px}
 </style>
 </head>
 <body>
@@ -288,6 +312,7 @@ details[open] summary::before{content:"▾ "}
     <button class="snav" data-sec="ronada">Ronada-aandeel</button>
     <button class="snav" data-sec="prijs">Prijsmonitor</button>
     <button class="snav" data-sec="voorraad">Voorraad</button>
+    <button class="snav" data-sec="ads">Google Ads</button>
   </div>
   <div id="sec-poas">
   <div class="refresh"><span class="dot" id="dot"></span><span id="status">Laden…</span><button class="btn" id="reloadBtn" style="margin-left:auto">↻ Ververs</button></div>
@@ -362,6 +387,26 @@ details[open] summary::before{content:"▾ "}
     <div id="svsuppliers" class="svsuppliers" style="display:none"></div>
     <div id="svcontent"><div class="svloading">Voorraad laden uit Metorik…</div></div>
   </div><!-- /sec-voorraad -->
+
+  <div id="sec-ads" style="display:none">
+    <div class="adsub">Google Ads-prestaties per shop en totaal, over een instelbare periode. <span id="aupd"></span></div>
+    <div class="adbar" id="adcontrols">
+      <select id="adshop">
+        <option value="total">Alle shops (totaal)</option>
+        <option value="NL">Ongediertewinkel.nl</option>
+        <option value="DE">Ungeziefershop.de</option>
+        <option value="FR">Boutiqueantinuisibles.fr</option>
+      </select>
+      <select id="admetric"></select>
+      <span class="adsep"></span>
+      <span class="adlbl">Van</span><input id="adfrom" type="date" class="addate">
+      <span class="adlbl">t/m</span><input id="adto" type="date" class="addate">
+      <div class="adseg" id="adpreset">
+        <button data-d="7">7d</button><button data-d="30" class="on">30d</button><button data-d="90">90d</button>
+      </div>
+    </div>
+    <div id="adcontent"><div class="adloading">Laden…</div></div>
+  </div><!-- /sec-ads -->
 </div>
 
 <div class="modal" id="adminModal">
@@ -1052,10 +1097,97 @@ window.__voorraadLoad=function(){
   if(!PRD.length)sload();else srender();
 };
 })();
+/* ===== Sectie 5: Google Ads ===== */
+(function(){
+"use strict";
+let AD={configured:null,shops:{},total:[],start:"",end:""};
+let aInited=false,chart=null,metric="cpa",shopSel="total";
+const adState={from:"",to:""};
+const M={
+  cpa:{label:"CPA (kosten/conversie)",fmt:"eur",agg:d=>d.conv>0?d.cost/d.conv:null},
+  cost:{label:"Kosten",fmt:"eur",agg:d=>d.cost},
+  conv:{label:"Conversies",fmt:"num",agg:d=>d.conv},
+  value:{label:"Conversiewaarde",fmt:"eur",agg:d=>d.value},
+  roas:{label:"ROAS",fmt:"x",agg:d=>d.cost>0?d.value/d.cost:null},
+  cpc:{label:"CPC",fmt:"eur",agg:d=>d.clicks>0?d.cost/d.clicks:null},
+  ctr:{label:"CTR",fmt:"pct",agg:d=>d.impr>0?d.clicks/d.impr*100:null},
+  clicks:{label:"Klikken",fmt:"num",agg:d=>d.clicks},
+  impr:{label:"Vertoningen",fmt:"num",agg:d=>d.impr},
+};
+const MORDER=["cpa","cost","conv","value","roas","cpc","ctr","clicks","impr"];
+function fmtM(v,fmt){
+  if(v==null||!isFinite(v))return "—";
+  if(fmt==="eur")return "€"+Number(v).toLocaleString("nl-NL",{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(fmt==="x")return Number(v).toLocaleString("nl-NL",{minimumFractionDigits:2,maximumFractionDigits:2})+"×";
+  if(fmt==="pct")return Number(v).toLocaleString("nl-NL",{maximumFractionDigits:2})+"%";
+  return Math.round(v).toLocaleString("nl-NL");
+}
+function sumRows(rows){const s={cost:0,conv:0,value:0,clicks:0,impr:0};rows.forEach(d=>{s.cost+=d.cost;s.conv+=d.conv;s.value+=d.value;s.clicks+=d.clicks;s.impr+=d.impr;});return s;}
+function clearPreset(){[...document.querySelectorAll("#adpreset button")].forEach(x=>x.classList.remove("on"));}
+function setUpd(){const el=document.getElementById("aupd");if(el)el.textContent=(AD.configured&&AD.start)?`Periode ${AD.start} t/m ${AD.end}.`:"";}
+function setupHtml(){return '<div class="adsetup"><h3>Google Ads nog niet gekoppeld</h3>'
+  +'Zet in Vercel (Project → Settings → Environment Variables) deze variabelen en doe een redeploy:'
+  +'<ul><li><code>GOOGLE_ADS_DEVELOPER_TOKEN</code></li>'
+  +'<li><code>GOOGLE_ADS_CLIENT_ID</code> + <code>GOOGLE_ADS_CLIENT_SECRET</code></li>'
+  +'<li><code>GOOGLE_ADS_REFRESH_TOKEN</code></li>'
+  +'<li><code>GOOGLE_ADS_LOGIN_CUSTOMER_ID</code> (je MCC-id, cijfers)</li>'
+  +'<li><code>GOOGLE_ADS_CID_NL</code> / <code>GOOGLE_ADS_CID_DE</code> / <code>GOOGLE_ADS_CID_FR</code> (klant-id per shop)</li></ul>'
+  +'Volg het stappenplan dat je van Claude kreeg om deze waarden op te halen (developer token via je MCC, OAuth-refresh token, klant-id\'s).</div>';}
+function drawChart(rows){
+  if(typeof Chart==="undefined")return;
+  const m=M[metric];
+  const labels=rows.map(d=>d.date.slice(5));
+  const data=rows.map(d=>{const v=m.agg(d);return v==null?null:Math.round(v*1000)/1000;});
+  const ctx=document.getElementById("adchart");if(!ctx)return;
+  if(chart)chart.destroy();
+  chart=new Chart(ctx,{type:"line",data:{labels,datasets:[{label:m.label,data,borderColor:"#00C030",backgroundColor:"rgba(0,192,48,.12)",fill:true,tension:.25,pointRadius:rows.length>45?0:3,borderWidth:2,spanGaps:true}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>m.label+": "+fmtM(c.parsed.y,m.fmt)}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>fmtM(v,m.fmt)}},x:{ticks:{maxTicksLimit:12,autoSkip:true}}}}});
+}
+function render(){
+  const c=document.getElementById("adcontent");
+  if(AD.configured===false){c.innerHTML=setupHtml();setUpd();return;}
+  const rows=(shopSel==="total"?AD.total:(AD.shops[shopSel]||[]));
+  if(!rows.length){c.innerHTML='<div class="adempty">Geen Google Ads-data in deze periode.</div>';setUpd();return;}
+  const sum=sumRows(rows);
+  const cards=MORDER.map(k=>{const m=M[k];const v=m.agg(sum);return `<div class="adcard ${k===metric?"on":""}" data-m="${k}"><div class="l">${m.label}</div><div class="v">${fmtM(v,m.fmt)}</div></div>`;}).join("");
+  c.innerHTML=`<div class="adcards">${cards}</div><div class="adchartbox"><canvas id="adchart"></canvas></div>`;
+  drawChart(rows);
+  setUpd();
+}
+async function load(){
+  const c=document.getElementById("adcontent");c.innerHTML='<div class="adloading">Laden uit Google Ads…</div>';
+  try{
+    const r=await fetch("/api/googleads?start="+encodeURIComponent(adState.from)+"&end="+encodeURIComponent(adState.to));
+    if(r.status===401){location.href="/login.html";return;}
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
+    if(d.configured===false){AD={configured:false};render();return;}
+    AD={configured:true,shops:d.shops||{},total:d.total||[],start:d.start,end:d.end};
+    render();
+  }catch(e){c.innerHTML='<div class="aderr">Kon Google Ads niet laden.<br><small>'+(e.message||e)+'</small></div>';}
+}
+window.__adsLoad=function(){
+  if(!aInited){aInited=true;
+    const t=new Date(),f=new Date();f.setDate(f.getDate()-29);
+    adState.to=t.toISOString().slice(0,10);adState.from=f.toISOString().slice(0,10);
+    document.getElementById("adfrom").value=adState.from;
+    document.getElementById("adto").value=adState.to;
+    document.getElementById("admetric").innerHTML=MORDER.map(k=>`<option value="${k}"${k===metric?" selected":""}>${M[k].label}</option>`).join("");
+    document.getElementById("admetric").addEventListener("change",e=>{metric=e.target.value;render();});
+    document.getElementById("adshop").addEventListener("change",e=>{shopSel=e.target.value;render();});
+    document.getElementById("adfrom").addEventListener("change",e=>{if(e.target.value){adState.from=e.target.value;clearPreset();load();}});
+    document.getElementById("adto").addEventListener("change",e=>{if(e.target.value){adState.to=e.target.value;clearPreset();load();}});
+    document.getElementById("adpreset").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const days=+b.dataset.d;[...document.querySelectorAll("#adpreset button")].forEach(x=>x.classList.toggle("on",x===b));const t=new Date(),f=new Date();f.setDate(f.getDate()-(days-1));adState.to=t.toISOString().slice(0,10);adState.from=f.toISOString().slice(0,10);document.getElementById("adfrom").value=adState.from;document.getElementById("adto").value=adState.to;load();});
+    document.getElementById("adcontent").addEventListener("click",e=>{const card=e.target.closest(".adcard");if(!card)return;metric=card.dataset.m;const sel=document.getElementById("admetric");if(sel)sel.value=metric;render();});
+    load();return;
+  }
+  if(AD.configured===null)load();else render();
+};
+})();
 /* ===== Sectienavigatie (onthoudt actieve tab via URL-hash) ===== */
 (function(){
   const nav=document.getElementById("secnav");
-  const SECS=["poas","ronada","prijs","voorraad"];
+  const SECS=["poas","ronada","prijs","voorraad","ads"];
   function activate(sec,updateHash){
     if(!SECS.includes(sec))sec="poas";
     const b=nav.querySelector('.snav[data-sec="'+sec+'"]');
@@ -1064,6 +1196,7 @@ window.__voorraadLoad=function(){
     if(sec==="ronada"&&window.__ronadaLoad)window.__ronadaLoad();
     if(sec==="prijs"&&window.__prijsLoad)window.__prijsLoad();
     if(sec==="voorraad"&&window.__voorraadLoad)window.__voorraadLoad();
+    if(sec==="ads"&&window.__adsLoad)window.__adsLoad();
     if(updateHash&&location.hash!=="#"+sec)history.replaceState(null,"","#"+sec);
     window.dispatchEvent(new Event("resize")); // charts hersizen na tab-wissel
   }
