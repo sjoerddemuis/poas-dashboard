@@ -751,7 +751,7 @@ document.getElementById("addUser").onclick=async()=>{const err=document.getEleme
   const r=await fetch("/api/admin/users",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});
   const d=await r.json();if(!r.ok){err.textContent=d.error||"Mislukt";return;}
   document.getElementById("newEmail").value="";document.getElementById("newPw").value="";refreshUsers();};
-document.getElementById("logoutBtn").onclick=async()=>{await fetch("/api/logout",{method:"POST"});location.href="/login.html";};
+document.getElementById("logoutBtn").onclick=async()=>{await fetch("/api/me",{method:"POST"});location.href="/login.html";};
 document.getElementById("reloadBtn").onclick=loadData;
 
 /* ---- boot ---- */
@@ -777,7 +777,7 @@ let metric="omzet",rows=[],rchart=null,loadedOnce=false,topP=12,curShop="NL";
 const mkTop=()=>({rev:{items:[],more:false,page:1},ord:{items:[],more:false,page:1}});
 let topData={12:mkTop(),6:mkTop(),3:mkTop()};
 async function catFetch(period,kind,page){
-  const r=await fetch(`/api/topproducts?shop=${encodeURIComponent(curShop)}&months=${period}&sort=${kind}&page=${page}`);
+  const r=await fetch(`/api/ronada?view=top&shop=${encodeURIComponent(curShop)}&months=${period}&sort=${kind}&page=${page}`);
   if(!r.ok){let e={};try{e=await r.json();}catch(x){}throw new Error(e.error||("HTTP "+r.status));}
   return r.json();
 }
