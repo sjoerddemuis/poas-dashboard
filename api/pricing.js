@@ -4,6 +4,7 @@ const { getSession, readBody } = require("./_lib/util");
 const { getKey, setKey } = require("./_lib/store");
 const { SEED } = require("./_lib/pricingseed");
 const { allProductsNL } = require("./_lib/metorik");
+const { scrapePrice, scrapeInfo } = require("./_lib/scrape");
 
 let catalogCache = null, catalogAt = 0;
 const TTL = 30 * 60 * 1000;
@@ -63,6 +64,48 @@ module.exports = async (req, res) => {
     if (s.role !== "admin") return res.status(403).json({ error: "Alleen admin kan de monitor bewerken." });
     const body = await readBody(req);
     if (!body) return res.status(400).json({ error: "ongeldige data" });
+
+    // op:"fetch" — naam + prijs ophalen uit één concurrent-URL (was api/pricing-fetch).
+    if (body.op === "fetch") {
+      const url = body.url || "";
+      if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: "ongeldige URL" });
+      let shop = ""; try { shop = new URL(url).hostname.replace(/^www\./, ""); } catch (e) {}
+      try {
+        const r = await scrapeInfo(url);
+        return res.json({ ok: (r.price != null || !!r.title), shop, price: r.price != null ? r.price : null, title: r.title || "", error: r.error || null });
+      } catch (e) {
+        return res.json({ ok: false, shop, price: null, title: "", error: e.message || "ophalen mislukt" });
+      }
+    }
+
+    // op:"run" — alle concurrent-URL's scrapen en prijzen bijwerken (was api/pricing-run).
+    if (body.op === "run") {
+      try {
+        const store = await getStore();
+        const comp = store.comp || {};
+        const tasks = [];
+        Object.keys(comp).forEach((sku) => (comp[sku] || []).forEach((c) => {
+          if (!c.url) return;
+          tasks.push((async () => {
+            const r = await scrapePrice(c.url);
+            if (r.price != null) { c.price = r.price; c.date = Date.now(); delete c.err; }
+            else { c.err = r.error; }
+          })());
+        }));
+        await Promise.all(tasks);
+        let scraped = 0, failed = 0;
+        Object.keys(comp).forEach((sku) => (comp[sku] || []).forEach((c) => { if (c.url) (c.err ? failed++ : scraped++); }));
+        const d = new Date();
+        store.updated = d.toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" }) + " " + d.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+        store.comp = comp;
+        await setKey("pricing2", store);
+        const catalog = await getCatalog();
+        return res.json({ products: merge(catalog, store), updated: store.updated, scraped, failed });
+      } catch (e) {
+        return res.status(500).json({ error: e.message || "vergelijking mislukt" });
+      }
+    }
+
     try {
       const store = await getStore();
       store.comp = store.comp || {};
