@@ -357,6 +357,57 @@ details[open] summary::before{content:"▾ "}
 #sec-ads .adsetup{max-width:640px;margin:0 auto;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;line-height:1.6;color:var(--ink)}
 #sec-ads .adsetup h3{margin:0 0 8px;font-size:16px}
 #sec-ads .adsetup code{background:var(--paper);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:12px}
+/* ---- Reviews-sectie ---- */
+#sec-reviews .rvbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 12px;margin-bottom:14px}
+#sec-reviews select{font-size:14px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:9px;padding:8px 12px;cursor:pointer;font-weight:600}
+#sec-reviews .rvseg{display:inline-flex;border:1.5px solid var(--line);border-radius:9px;overflow:hidden}
+#sec-reviews .rvseg button{border:0;border-right:1px solid var(--line);background:var(--card);color:var(--ink);font-size:12px;font-weight:700;padding:8px 12px;cursor:pointer}
+#sec-reviews .rvseg button:last-child{border-right:0}
+#sec-reviews .rvseg button.on{background:var(--green);color:#fff}
+#sec-reviews .rvsep{width:1px;align-self:stretch;min-height:24px;background:var(--line);margin:0 4px}
+#sec-reviews .rvlbl{font-size:12px;color:var(--mute)}
+#sec-reviews .rvimport{border:none;border-radius:9px;background:var(--green);color:#fff;font-size:12px;font-weight:700;padding:9px 14px;cursor:pointer}
+#sec-reviews .rvimport:hover{background:var(--greenDk)}
+#sec-reviews .rvloading,#sec-reviews .rverr,#sec-reviews .rvempty{padding:40px;text-align:center;color:var(--mute)}
+#sec-reviews .rverr{color:var(--red)}
+#sec-reviews .rvempty{max-width:560px;margin:0 auto;line-height:1.6}
+#sec-reviews .rvcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+#sec-reviews .rvcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow)}
+#sec-reviews .rvcard .l{font-size:9.5px;letter-spacing:.4px;text-transform:uppercase;color:var(--mute);font-weight:700}
+#sec-reviews .rvcard .v{font-size:24px;font-weight:700;line-height:1.1;margin-top:3px}
+#sec-reviews .rvcard .s{font-size:11px;color:var(--mute);margin-top:2px}
+#sec-reviews .rvpanel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:16px;box-shadow:var(--shadow)}
+#sec-reviews .rvh{font-weight:700;font-size:15px;margin:0 0 3px}
+#sec-reviews .rvsub{font-size:12px;color:var(--mute);margin-bottom:12px;line-height:1.5}
+#sec-reviews .rvdist{display:flex;flex-direction:column;gap:5px}
+#sec-reviews .rvdrow{display:flex;align-items:center;gap:9px;font-size:12.5px}
+#sec-reviews .rvdrow .st{width:44px;flex:none;color:var(--mute);font-weight:700}
+#sec-reviews .rvdbar{flex:1;height:9px;border-radius:6px;background:var(--paper);overflow:hidden}
+#sec-reviews .rvdbar i{display:block;height:100%;border-radius:6px}
+#sec-reviews .rvdrow .n{width:78px;flex:none;text-align:right;color:var(--mute)}
+#sec-reviews .rvchartbox{position:relative;height:280px}
+/* Thema-prioriteitenlijst */
+#sec-reviews .rvth{display:flex;align-items:center;gap:10px;padding:11px 0;border-top:1px solid var(--line)}
+#sec-reviews .rvth:first-of-type{border-top:none}
+#sec-reviews .rvrank{width:22px;flex:none;text-align:right;font-weight:700;color:var(--mute);font-size:13px}
+#sec-reviews .rvtn{flex:1;min-width:0}
+#sec-reviews .rvtn .t{font-weight:700;font-size:13.5px}
+#sec-reviews .rvtn .d{font-size:11.5px;color:var(--mute);margin-top:1px}
+#sec-reviews .rvimpact{flex:none;width:190px;display:flex;align-items:center;gap:8px}
+#sec-reviews .rvibar{flex:1;height:8px;border-radius:6px;background:var(--paper);overflow:hidden}
+#sec-reviews .rvibar i{display:block;height:100%;background:var(--red);border-radius:6px}
+#sec-reviews .rvival{flex:none;width:56px;text-align:right;font-weight:800;font-size:13px;color:var(--red)}
+#sec-reviews .rvtstars{flex:none;width:64px;text-align:right;font-weight:700;font-size:13px}
+#sec-reviews .rvopen{flex:none;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--mute);font-size:11px;font-weight:700;padding:5px 10px;cursor:pointer}
+#sec-reviews .rvopen:hover{border-color:var(--green);color:var(--greenDk)}
+#sec-reviews .rvgain{background:var(--lightg);border:1px solid rgba(1,181,45,.35);border-radius:10px;padding:10px 13px;font-size:13px;line-height:1.5;margin-top:12px;color:var(--ink)}
+/* Reviewlijst in modal */
+#rvmodalbody .rvlist{max-height:60vh;overflow:auto;margin-top:8px}
+#rvmodalbody .rvitem{border-top:1px solid var(--line);padding:10px 0}
+#rvmodalbody .rvitem .m{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--mute)}
+#rvmodalbody .rvstars{font-weight:800;color:var(--orange)}
+#rvmodalbody .rvitem .ti{font-weight:700;font-size:13px;margin-top:3px}
+#rvmodalbody .rvitem .tx{font-size:12.5px;line-height:1.5;margin-top:2px;color:var(--ink)}
 /* ===================================================================
    Huisstijl-refresh — afgestemd op ongediertewinkel.nl
    (brand-groen #01B52D, oranje-accent #FD5900, system-ui, clean cards)
@@ -434,6 +485,7 @@ summary{border-radius:11px;font-weight:600}
     <button class="snav" data-sec="prijs">Prijsmonitor</button>
     <button class="snav" data-sec="voorraad">Voorraad</button>
     <button class="snav" data-sec="ads">Google Ads</button>
+    <button class="snav" data-sec="reviews">Reviews</button>
   </div>
   <div id="sec-poas">
   <div class="refresh"><span class="dot" id="dot"></span><span id="status">Laden…</span><button class="btn" id="reloadBtn" style="margin-left:auto">↻ Ververs</button></div>
@@ -532,7 +584,31 @@ summary{border-radius:11px;font-weight:600}
     </div>
     <div id="adcontent"><div class="adloading">Laden…</div></div>
   </div><!-- /sec-ads -->
+
+  <div id="sec-reviews" style="display:none">
+    <div class="rvbar">
+      <select id="rvshop">
+        <option value="ALL">Alle landen (totaal)</option>
+        <option value="NL">Ongediertewinkel.nl</option>
+        <option value="DE">Ungeziefershop.de</option>
+        <option value="FR">Boutiqueantinuisibles.fr</option>
+      </select>
+      <div class="rvseg" id="rvperiod">
+        <button data-p="0" class="on">Alles</button>
+        <button data-p="12">12 mnd</button>
+        <button data-p="6">6 mnd</button>
+        <button data-p="3">3 mnd</button>
+      </div>
+      <span class="rvsep"></span>
+      <span class="rvlbl" id="rvupd"></span>
+      <button id="rvimport" class="rvimport" style="margin-left:auto">⬆ Reviews inladen (CSV)</button>
+    </div>
+    <div id="rvcontent"><div class="rvloading">Reviews laden…</div></div>
+  </div><!-- /sec-reviews -->
 </div>
+
+<div id="rvmodal" class="omodal"><div class="opanel" id="rvmodalbody"></div></div>
+<input type="file" id="rvfile" accept=".csv,text/csv" style="display:none">
 
 <div class="modal" id="adminModal">
   <div class="panel">
@@ -1401,10 +1477,263 @@ window.__adsLoad=function(){
   if(AD.configured===null)load();else render();
 };
 })();
+/* ===== Sectie 6: Reviews (Trustpilot-export) — thema-analyse + score-impact ===== */
+(function(){
+"use strict";
+let RV={NL:[],DE:[],FR:[]},RVU={},rvInit=false,rvShop="ALL",rvPeriod=0,rvChart=null,pending=null;
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+const SHOPNAME={NL:"Ongediertewinkel.nl",DE:"Ungeziefershop.de",FR:"Boutiqueantinuisibles.fr"};
+
+/* --- Thema's: trefwoorden in NL / DE / FR --- */
+const THEMES=[
+  {k:"bezorging",label:"Bezorging & levering",w:["bezorg","levering","geleverd","verzend","verzonden","pakket","postnl","dhl","te laat","niet aangekomen","kwijt","vertraag","lang wachten","nooit ontvangen","niet ontvangen","liefer","versand","paket","verspät","zu spät","nicht angekommen","nicht erhalten","livraison","colis","retard","jamais reçu","pas reçu","expédi"]},
+  {k:"product",label:"Product & kwaliteit",w:["werkt niet","werkte niet","kapot","defect","stuk","kwaliteit","niet effectief","geen effect","helpt niet","werkt averechts","beschadigd","waardeloos","slecht product","teleurstellend","funktioniert nicht","kaputt","defekt","qualität","wirkungslos","keine wirkung","hilft nicht","beschädigt","enttäusch","ne fonctionne pas","cassé","défectueux","qualité","inefficace","aucun effet","endommagé","décevant"]},
+  {k:"service",label:"Klantenservice & contact",w:["klantenservice","klantcontact","reageert niet","geen reactie","geen antwoord","niet bereikbaar","onbeschoft","onvriendelijk","slechte service","niemand","telefonisch","kundenservice","keine antwort","reagiert nicht","nicht erreichbar","unfreundlich","service client","aucune réponse","ne répond pas","injoignable","impoli"]},
+  {k:"retour",label:"Retour, garantie & terugbetaling",w:["retour","terugsturen","teruggestuurd","terugbetaling","geld terug","niet terugbetaald","garantie","refund","ruilen","rücksendung","rückerstattung","geld zurück","zurückgeschickt","remboursement","rembours","renvoyer","garantie"]},
+  {k:"prijs",label:"Prijs",w:["te duur","duur","dure","duurder","prijzig","prijs","prijs-kwaliteit","goedkoper","niet waard","geld waard","teuer","zu teuer","preis","günstiger","trop cher","cher","prix","moins cher"]},
+  {k:"voorraad",label:"Voorraad & beschikbaarheid",w:["niet op voorraad","uitverkocht","nabestelling","backorder","niet leverbaar","niet meer leverbaar","nicht vorrätig","ausverkauft","nachbestellung","nicht lieferbar","rupture de stock","indisponible","épuisé"]},
+  {k:"website",label:"Website & bestelproces",w:["website","webshop","bestelproces","bestellen ging","inloggen","account","foutmelding","betaling","betalen","ideal","formulier","bestellvorgang","konto","zahlung","fehler","site web","commande en ligne","compte","paiement","erreur"]},
+];
+const OTHER={k:"overig",label:"Overig / niet ingedeeld"};
+
+function classify(r){
+  const t=((r.title||"")+" "+(r.text||"")).toLowerCase();
+  const hit=THEMES.filter(th=>th.w.some(w=>t.includes(w)));
+  return hit.length?hit:[OTHER];
+}
+
+/* --- CSV-parser (komma of puntkomma, met quotes) --- */
+function parseCSV(text){
+  text=text.replace(/^﻿/,"");
+  const first=(text.split(/\r?\n/)[0]||"");
+  const delim=((first.match(/;/g)||[]).length>(first.match(/,/g)||[]).length)?";":",";
+  const rows=[];let row=[],cell="",q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){
+      if(c==='"'){ if(text[i+1]==='"'){cell+='"';i++;} else q=false; }
+      else cell+=c;
+    }else{
+      if(c==='"')q=true;
+      else if(c===delim){row.push(cell);cell="";}
+      else if(c==="\n"){row.push(cell);cell="";rows.push(row);row=[];}
+      else if(c==="\r"){}
+      else cell+=c;
+    }
+  }
+  if(cell.length||row.length){row.push(cell);rows.push(row);}
+  return rows.filter(r=>r.length&&r.some(x=>String(x).trim()!==""));
+}
+function findCol(hdr,res){for(let i=0;i<hdr.length;i++){const h=hdr[i];for(const re of res)if(re.test(h))return i;}return -1;}
+function toDate(v){
+  v=String(v||"").trim();if(!v)return "";
+  let m=v.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[1]+"-"+m[2]+"-"+m[3];
+  m=v.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);          // dd-mm-yyyy
+  if(m)return m[3]+"-"+String(m[2]).padStart(2,"0")+"-"+String(m[1]).padStart(2,"0");
+  const d=new Date(v);if(!isNaN(d))return d.toISOString().slice(0,10);
+  return "";
+}
+function mapRows(rows){
+  if(rows.length<2)return{reviews:[],err:"Geen rijen gevonden in het CSV-bestand."};
+  const hdr=rows[0].map(h=>String(h).trim().toLowerCase());
+  const ci={
+    stars:findCol(hdr,[/star/,/rating/,/\bscore\b/,/sterren/,/bewertung/,/\bnote\b/]),
+    date:findCol(hdr,[/date/,/datum/,/created/,/\btime\b/]),
+    title:findCol(hdr,[/title/,/titel/,/titre/,/rubrik/]),
+    text:findCol(hdr,[/content/,/\btext\b/,/body/,/inhoud/,/bericht/,/comment/,/kommentar/,/bewertungstext/]),
+    id:findCol(hdr,[/^id$/,/review ?id/,/\bid\b/]),
+    product:findCol(hdr,[/product/,/\bsku\b/,/reference/,/referentie/]),
+  };
+  if(ci.stars<0)return{reviews:[],err:"Geen kolom met sterren/rating gevonden. Kolommen: "+hdr.join(", ")};
+  const out=[];
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i];const get=j=>(j>=0&&j<r.length)?String(r[j]).trim():"";
+    const sm=get(ci.stars).match(/[1-5]/);
+    const stars=sm?+sm[0]:0;
+    if(!stars)continue;
+    out.push({
+      id:get(ci.id),date:toDate(get(ci.date)),stars,
+      title:get(ci.title),text:get(ci.text),product:get(ci.product),
+    });
+  }
+  if(!out.length)return{reviews:[],err:"Geen geldige reviews (met 1–5 sterren) gevonden."};
+  return{reviews:out,err:null};
+}
+
+/* --- Analyse --- */
+function viewReviews(){
+  let list=[];
+  if(rvShop==="ALL"){["NL","DE","FR"].forEach(s=>list=list.concat((RV[s]||[]).map(r=>({...r,shop:s}))));}
+  else list=(RV[rvShop]||[]).map(r=>({...r,shop:rvShop}));
+  if(rvPeriod>0){
+    const cut=new Date();cut.setMonth(cut.getMonth()-rvPeriod);
+    const c=cut.toISOString().slice(0,10);
+    list=list.filter(r=>!r.date||r.date>=c);
+  }
+  return list;
+}
+function analyse(list){
+  const n=list.length;
+  if(!n)return null;
+  const sum=list.reduce((s,r)=>s+r.stars,0);
+  const avg=sum/n;
+  const dist=[0,0,0,0,0];
+  list.forEach(r=>dist[r.stars-1]++);
+  // Score-impact per thema: het "verlies" t.o.v. 5 sterren, verdeeld over de thema's van een review.
+  const T={};
+  const reg=k=>T[k]||(T[k]={k,label:(THEMES.find(x=>x.k===k)||OTHER).label,n:0,neg:0,stars:0,loss:0,revs:[]});
+  list.forEach(r=>{
+    const th=classify(r);const share=(5-r.stars)/th.length;
+    th.forEach(x=>{const t=reg(x.k);t.n++;t.stars+=r.stars;if(r.stars<=3){t.neg++;t.revs.push(r);}t.loss+=share;});
+  });
+  const themes=Object.values(T).map(t=>({...t,avg:t.stars/t.n,impact:t.loss/n})).sort((a,b)=>b.impact-a.impact);
+  // Trend per maand
+  const M={};
+  list.forEach(r=>{if(!r.date)return;const m=r.date.slice(0,7);const o=M[m]||(M[m]={m,n:0,sum:0,neg:0});o.n++;o.sum+=r.stars;if(r.stars<=3)o.neg++;});
+  const months=Object.values(M).sort((a,b)=>a.m<b.m?-1:1).map(o=>({m:o.m,avg:o.sum/o.n,neg:o.neg,n:o.n}));
+  return{n,avg,dist,themes,months};
+}
+
+/* --- Render --- */
+const f1=v=>Number(v).toLocaleString("nl-NL",{minimumFractionDigits:1,maximumFractionDigits:1});
+const f2=v=>Number(v).toLocaleString("nl-NL",{minimumFractionDigits:2,maximumFractionDigits:2});
+const n0=v=>Math.round(v).toLocaleString("nl-NL");
+function barCol(i){return ["#E5484D","#E5484D","#FD5900","#9ec94a","#01B52D"][i];}
+function rvrender(){
+  const c=document.getElementById("rvcontent");
+  const upd=document.getElementById("rvupd");
+  if(upd){const u=rvShop==="ALL"?Object.keys(RVU).map(k=>RVU[k]?k+": "+RVU[k]:"").filter(Boolean).join(" · "):(RVU[rvShop]?"Bijgewerkt "+RVU[rvShop]:"");upd.textContent=u||"";}
+  const list=viewReviews();
+  if(!list.length){
+    c.innerHTML='<div class="rvempty"><div class="rvh" style="margin-bottom:6px">Nog geen reviews ingeladen</div>'
+      +'Exporteer je reviews uit Trustpilot (Business-account → Reviews → Export/Download CSV) en klik rechtsboven op <b>Reviews inladen (CSV)</b>. '
+      +'Ik ontdek de kolommen automatisch (sterren, datum, titel, tekst) en analyseer wat je score omlaag haalt.</div>';
+    return;
+  }
+  const a=analyse(list);
+  const top=a.themes.filter(t=>t.impact>0.001);
+  const best=top[0];
+  const cards=`<div class="rvcards">
+    <div class="rvcard"><div class="l">Gemiddelde score</div><div class="v">${f2(a.avg)}</div><div class="s">van 5 · ${n0(a.n)} reviews</div></div>
+    <div class="rvcard"><div class="l">Negatief (1–3★)</div><div class="v">${n0(a.dist[0]+a.dist[1]+a.dist[2])}</div><div class="s">${f1((a.dist[0]+a.dist[1]+a.dist[2])/a.n*100)}% van alle reviews</div></div>
+    <div class="rvcard"><div class="l">Verloren punten</div><div class="v">${f2(5-a.avg)}</div><div class="s">t.o.v. een perfecte 5,00</div></div>
+    <div class="rvcard"><div class="l">Grootste scoredrukker</div><div class="v" style="font-size:15px;line-height:1.3;margin-top:6px">${best?esc(best.label):"—"}</div><div class="s">${best?"kost je "+f2(best.impact)+" punt":""}</div></div>
+  </div>`;
+  const dist=`<div class="rvpanel"><div class="rvh">Verdeling</div><div class="rvsub">Waar zitten je reviews? Elke 1-ster kost je het meest.</div><div class="rvdist">${
+    [5,4,3,2,1].map(st=>{const cnt=a.dist[st-1];const pct=cnt/a.n*100;return `<div class="rvdrow"><span class="st">${st} ★</span><span class="rvdbar"><i style="width:${pct.toFixed(1)}%;background:${barCol(st-1)}"></i></span><span class="n">${n0(cnt)} · ${f1(pct)}%</span></div>`;}).join("")
+  }</div></div>`;
+  const maxImp=top.length?top[0].impact:1;
+  const prio=`<div class="rvpanel"><div class="rvh">Wat haalt je score het meest omlaag?</div>
+    <div class="rvsub">Per thema: hoeveel punt het je kost op je gemiddelde van ${f2(a.avg)}. Los je een thema volledig op (alle reviews erin naar 5★), dan stijgt je score met dat bedrag.</div>
+    ${top.length?top.map((t,i)=>`<div class="rvth">
+      <span class="rvrank">${i+1}</span>
+      <span class="rvtn"><span class="t">${esc(t.label)}</span><div class="d">${n0(t.neg)} negatieve van ${n0(t.n)} reviews die dit noemen</div></span>
+      <span class="rvtstars">${f2(t.avg)} ★</span>
+      <span class="rvimpact"><span class="rvibar"><i style="width:${(t.impact/maxImp*100).toFixed(1)}%"></i></span><span class="rvival">−${f2(t.impact)}</span></span>
+      <button class="rvopen" data-th="${esc(t.k)}">Lees ${n0(t.neg)}</button>
+    </div>`).join(""):'<div class="rvsub">Geen thema’s met impact gevonden.</div>'}
+    ${best?`<div class="rvgain"><b>Grootste winst:</b> los je “${esc(best.label)}” op, dan gaat je score van <b>${f2(a.avg)}</b> naar <b>${f2(a.avg+best.impact)}</b>. Pak je de top-3 samen aan, dan kom je op <b>${f2(Math.min(5,a.avg+top.slice(0,3).reduce((s,t)=>s+t.impact,0)))}</b>.</div>`:""}
+  </div>`;
+  const trend=`<div class="rvpanel"><div class="rvh">Trend over tijd</div><div class="rvsub">Gemiddelde score per maand (lijn) en het aantal negatieve reviews (balken). Zo zie je of een probleem groeit of juist opgelost is.</div><div class="rvchartbox"><canvas id="rvchart"></canvas></div></div>`;
+  c.innerHTML=cards+prio+dist+trend;
+  drawTrend(a.months);
+}
+function drawTrend(months){
+  if(typeof Chart==="undefined"||!months.length)return;
+  const ctx=document.getElementById("rvchart");if(!ctx)return;
+  if(rvChart)rvChart.destroy();
+  rvChart=new Chart(ctx,{data:{labels:months.map(m=>m.m),datasets:[
+    {type:"bar",label:"Negatieve reviews (1–3★)",data:months.map(m=>m.neg),backgroundColor:"rgba(229,72,77,.35)",borderColor:"#E5484D",borderWidth:1,yAxisID:"y1",order:2},
+    {type:"line",label:"Gemiddelde score",data:months.map(m=>Math.round(m.avg*100)/100),borderColor:"#01B52D",backgroundColor:"rgba(1,181,45,.12)",fill:true,tension:.25,borderWidth:2,pointRadius:months.length>36?0:3,yAxisID:"y",order:1},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{boxWidth:12,font:{size:11}}}},
+    scales:{y:{position:"left",min:1,max:5,title:{display:true,text:"Score"}},y1:{position:"right",beginAtZero:true,grid:{drawOnChartArea:false},title:{display:true,text:"Negatief"}},x:{ticks:{maxTicksLimit:14,autoSkip:true}}}}});
+}
+/* --- Reviews van één thema lezen --- */
+function openTheme(k){
+  const list=viewReviews();const a=analyse(list);if(!a)return;
+  const t=a.themes.find(x=>x.k===k);if(!t)return;
+  const revs=[...t.revs].sort((x,y)=>x.stars-y.stars||(x.date<y.date?1:-1)).slice(0,200);
+  const b=document.getElementById("rvmodalbody");
+  b.innerHTML=`<h2>${esc(t.label)}</h2><div class="osub">${n0(t.neg)} negatieve reviews (1–3★) · kost je ${f2(t.impact)} punt · gemiddelde ${f2(t.avg)} ★</div>
+    <div class="rvlist">${revs.length?revs.map(r=>`<div class="rvitem"><div class="m"><span class="rvstars">${"★".repeat(r.stars)}${"☆".repeat(5-r.stars)}</span><span>${esc(r.date||"")}</span>${r.shop?`<span>· ${esc(r.shop)}</span>`:""}${r.product?`<span>· ${esc(r.product)}</span>`:""}</div>${r.title?`<div class="ti">${esc(r.title)}</div>`:""}${r.text?`<div class="tx">${esc(r.text)}</div>`:""}</div>`).join(""):'<div class="osub">Geen negatieve reviews in dit thema.</div>'}</div>
+    <div class="ofoot"><button class="obtn" id="rvclose">Sluiten</button></div>`;
+  document.getElementById("rvmodal").classList.add("show");
+}
+/* --- Import --- */
+function importDialog(){
+  const b=document.getElementById("rvmodalbody");
+  b.innerHTML=`<h2>Reviews inladen</h2>
+    <div class="osub">Exporteer je reviews in Trustpilot (Business → Reviews → Export als CSV) en kies het bestand. De kolommen worden automatisch herkend.</div>
+    <div class="ogroup"><div class="ogrouph">Voor welk land zijn deze reviews?</div>
+      <select id="rvimpshop" style="font-size:14px;border:1.5px solid var(--line);border-radius:9px;padding:8px 12px;font-weight:600;width:100%">
+        <option value="NL">Ongediertewinkel.nl (NL)</option>
+        <option value="DE">Ungeziefershop.de (DE)</option>
+        <option value="FR">Boutiqueantinuisibles.fr (FR)</option>
+      </select></div>
+    <div id="rvimpinfo" class="osub"></div>
+    <div class="ofoot"><button class="obtn" id="rvclose">Annuleren</button><button class="obtn prim" id="rvpick">Kies CSV-bestand…</button></div>`;
+  document.getElementById("rvmodal").classList.add("show");
+}
+function closeModal(){document.getElementById("rvmodal").classList.remove("show");}
+async function saveReviews(shop,reviews){
+  const info=document.getElementById("rvimpinfo");
+  const CH=400;
+  for(let i=0;i<reviews.length;i+=CH){
+    const chunk=reviews.slice(i,i+CH);
+    const r=await fetch("/api/reviews",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({shop,reviews:chunk,mode:i===0?"replace":"append"})});
+    if(r.status===401){location.href="/login.html";return;}
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
+    if(info)info.textContent=`Opslaan… ${Math.min(i+CH,reviews.length)} / ${reviews.length}`;
+  }
+}
+async function rvload(){
+  const c=document.getElementById("rvcontent");c.innerHTML='<div class="rvloading">Reviews laden…</div>';
+  try{
+    const r=await fetch("/api/reviews");
+    if(r.status===401){location.href="/login.html";return;}
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
+    RV=d.reviews||{NL:[],DE:[],FR:[]};RVU=d.updated||{};
+    rvrender();
+  }catch(e){c.innerHTML='<div class="rverr">Kon reviews niet laden.<br><small>'+esc(e.message||e)+'</small></div>';}
+}
+window.__reviewsLoad=function(){
+  if(!rvInit){rvInit=true;
+    document.getElementById("rvshop").addEventListener("change",e=>{rvShop=e.target.value;rvrender();});
+    document.getElementById("rvperiod").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;rvPeriod=+b.dataset.p;[...document.querySelectorAll("#rvperiod button")].forEach(x=>x.classList.toggle("on",x===b));rvrender();});
+    const imp=document.getElementById("rvimport");
+    imp.style.display=isAdmin()?"":"none";
+    imp.addEventListener("click",importDialog);
+    document.getElementById("rvcontent").addEventListener("click",e=>{const o=e.target.closest(".rvopen");if(o)openTheme(o.dataset.th);});
+    document.getElementById("rvmodal").addEventListener("click",e=>{
+      if(e.target.id==="rvmodal"||e.target.id==="rvclose"){closeModal();return;}
+      if(e.target.id==="rvpick"){pending=document.getElementById("rvimpshop").value;document.getElementById("rvfile").click();return;}
+    });
+    document.getElementById("rvfile").addEventListener("change",async e=>{
+      const f=e.target.files&&e.target.files[0];e.target.value="";
+      if(!f||!pending)return;
+      const info=document.getElementById("rvimpinfo");
+      try{
+        const txt=await f.text();
+        const {reviews,err}=mapRows(parseCSV(txt));
+        if(err){if(info)info.innerHTML='<span style="color:var(--red)">'+esc(err)+'</span>';return;}
+        if(info)info.textContent=`${reviews.length} reviews gevonden. Opslaan…`;
+        await saveReviews(pending,reviews);
+        closeModal();await rvload();
+      }catch(ex){if(info)info.innerHTML='<span style="color:var(--red)">Mislukt: '+esc(ex.message||ex)+'</span>';}
+    });
+    rvload();return;
+  }
+  const any=(RV.NL||[]).length+(RV.DE||[]).length+(RV.FR||[]).length;
+  if(!any)rvload();else rvrender();
+};
+})();
 /* ===== Sectienavigatie (onthoudt actieve tab via URL-hash) ===== */
 (function(){
   const nav=document.getElementById("secnav");
-  const SECS=["poas","ronada","prijs","voorraad","ads"];
+  const SECS=["poas","ronada","prijs","voorraad","ads","reviews"];
   function activate(sec,updateHash){
     if(!SECS.includes(sec))sec="poas";
     const b=nav.querySelector('.snav[data-sec="'+sec+'"]');
@@ -1414,6 +1743,7 @@ window.__adsLoad=function(){
     if(sec==="prijs"&&window.__prijsLoad)window.__prijsLoad();
     if(sec==="voorraad"&&window.__voorraadLoad)window.__voorraadLoad();
     if(sec==="ads"&&window.__adsLoad)window.__adsLoad();
+    if(sec==="reviews"&&window.__reviewsLoad)window.__reviewsLoad();
     if(updateHash&&location.hash!=="#"+sec)history.replaceState(null,"","#"+sec);
     window.dispatchEvent(new Event("resize")); // charts hersizen na tab-wissel
   }
