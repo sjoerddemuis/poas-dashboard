@@ -1482,7 +1482,7 @@ window.__adsLoad=function(){
 /* ===== Sectie 6: Reviews (Trustpilot-export) — thema-analyse + score-impact ===== */
 (function(){
 "use strict";
-let RV={NL:[],DE:[],FR:[]},RVU={},rvInit=false,rvShop="ALL",rvPeriod=0,rvChart=null,pending=null;
+let RV={NL:[],DE:[],FR:[]},RVU={},rvInit=false,rvShop="ALL",rvPeriod=0,rvChart=null,pending=null,parsed=null;
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
 const SHOPNAME={NL:"Ongediertewinkel.nl",DE:"Ungeziefershop.de",FR:"Boutiqueantinuisibles.fr"};
 
@@ -1504,11 +1504,15 @@ function classify(r){
   return hit.length?hit:[OTHER];
 }
 
-/* --- CSV-parser (komma of puntkomma, met quotes) --- */
+/* --- CSV/TSV-parser: herkent tab, puntkomma of komma als scheidingsteken --- */
+let LASTDELIM=",",LASTCOLS={};
 function parseCSV(text){
   text=text.replace(/^﻿/,"");
   const first=(text.split(/\r?\n/)[0]||"");
-  const delim=((first.match(/;/g)||[]).length>(first.match(/,/g)||[]).length)?";":",";
+  const cnt={"\t":(first.match(/\t/g)||[]).length,";":(first.match(/;/g)||[]).length,",":(first.match(/,/g)||[]).length};
+  // Trustpilot exporteert tab-gescheiden; kies simpelweg het teken dat het vaakst in de kopregel staat.
+  const delim=Object.keys(cnt).reduce((a,b)=>(cnt[b]>cnt[a]?b:a),",");
+  LASTDELIM=delim==="\t"?"tab":delim;
   const rows=[];let row=[],cell="",q=false;
   for(let i=0;i<text.length;i++){
     const c=text[i];
@@ -1544,20 +1548,24 @@ function mapRows(rows){
     title:findCol(hdr,[/title/,/titel/,/titre/,/rubrik/]),
     text:findCol(hdr,[/content/,/\btext\b/,/body/,/inhoud/,/bericht/,/comment/,/kommentar/,/bewertungstext/]),
     id:findCol(hdr,[/^id$/,/review ?id/,/\bid\b/]),
-    product:findCol(hdr,[/product/,/\bsku\b/,/reference/,/referentie/]),
+    product:findCol(hdr,[/product/,/\bsku\b/]),
   };
-  if(ci.stars<0)return{reviews:[],err:"Geen kolom met sterren/rating gevonden. Kolommen: "+hdr.join(", ")};
+  if(ci.stars<0)return{reviews:[],err:"Geen kolom met sterren/rating gevonden. Gevonden kolommen: "+hdr.join(" | ")};
   const out=[];
   for(let i=1;i<rows.length;i++){
     const r=rows[i];const get=j=>(j>=0&&j<r.length)?String(r[j]).trim():"";
-    const sm=get(ci.stars).match(/[1-5]/);
-    const stars=sm?+sm[0]:0;
+    const raw=get(ci.stars);
+    // Alleen een kolom die écht een cijfer 1–5 bevat telt als sterren (voorkomt dat een
+    // verkeerd herkende kolom willekeurige cijfers uit de tekst oppikt).
+    const sm=raw.match(/^([1-5])(?:[.,]0+)?$/);
+    const stars=sm?+sm[1]:0;
     if(!stars)continue;
     out.push({
       id:get(ci.id),date:toDate(get(ci.date)),stars,
       title:get(ci.title),text:get(ci.text),product:get(ci.product),
     });
   }
+  ci.hdr=hdr;LASTCOLS=ci;
   if(!out.length)return{reviews:[],err:"Geen geldige reviews (met 1–5 sterren) gevonden."};
   return{reviews:out,err:null};
 }
@@ -1677,6 +1685,32 @@ function importDialog(){
   document.getElementById("rvmodal").classList.add("show");
 }
 function closeModal(){document.getElementById("rvmodal").classList.remove("show");}
+// Controle vóór opslaan: laat zien wat er herkend is, zodat een verkeerd ingelezen bestand opvalt.
+function previewDialog(reviews){
+  const n=reviews.length;
+  const avg=reviews.reduce((s,r)=>s+r.stars,0)/n;
+  const dist=[0,0,0,0,0];reviews.forEach(r=>dist[r.stars-1]++);
+  const dates=reviews.map(r=>r.date).filter(Boolean).sort();
+  const zonderDatum=reviews.filter(r=>!r.date).length;
+  const zonderTekst=reviews.filter(r=>!r.text||r.text.length<3).length;
+  const warn=[];
+  if(zonderDatum>n*0.2)warn.push(`${n0(zonderDatum)} reviews zonder datum — datumkolom mogelijk niet herkend.`);
+  if(zonderTekst>n*0.5)warn.push(`${n0(zonderTekst)} reviews zonder tekst — tekstkolom mogelijk niet herkend.`);
+  if(avg<2.5)warn.push(`Gemiddelde van ${f2(avg)} is verdacht laag — controleer of de sterrenkolom klopt.`);
+  const b=document.getElementById("rvmodalbody");
+  b.innerHTML=`<h2>Controleer de inlezing</h2>
+    <div class="osub">Bestand ingelezen als <b>${LASTDELIM==="tab"?"tab-gescheiden (TSV)":"‘"+esc(LASTDELIM)+"’-gescheiden"}</b>. Klopt dit? Dan opslaan.</div>
+    <div class="rvcards" style="margin-bottom:10px">
+      <div class="rvcard"><div class="l">Reviews</div><div class="v">${n0(n)}</div></div>
+      <div class="rvcard"><div class="l">Gemiddelde</div><div class="v">${f2(avg)}</div><div class="s">van 5</div></div>
+      <div class="rvcard"><div class="l">Periode</div><div class="v" style="font-size:14px;margin-top:7px">${dates.length?esc(dates[0])+"<br>t/m "+esc(dates[dates.length-1]):"—"}</div></div>
+    </div>
+    <div class="rvdist" style="margin-bottom:10px">${[5,4,3,2,1].map(st=>{const c=dist[st-1],p=c/n*100;return `<div class="rvdrow"><span class="st">${st} ★</span><span class="rvdbar"><i style="width:${p.toFixed(1)}%;background:${barCol(st-1)}"></i></span><span class="n">${n0(c)} · ${f1(p)}%</span></div>`;}).join("")}</div>
+    ${warn.length?`<div class="rvgain" style="background:#FBEEE8;border-color:var(--red)"><b>⚠ Let op:</b><br>${warn.map(esc).join("<br>")}</div>`:`<div class="rvgain">Ziet er goed uit — datums, sterren en teksten zijn herkend.</div>`}
+    <div class="ofoot"><button class="obtn" id="rvclose">Annuleren</button><button class="obtn prim" id="rvsave">Opslaan (${n0(n)})</button></div>
+    <div id="rvimpinfo" class="osub" style="text-align:right;margin-top:6px"></div>`;
+  document.getElementById("rvmodal").classList.add("show");
+}
 async function saveReviews(shop,reviews){
   const info=document.getElementById("rvimpinfo");
   const CH=400;
@@ -1709,9 +1743,16 @@ window.__reviewsLoad=function(){
     imp.style.display=isAdmin()?"":"none";
     imp.addEventListener("click",importDialog);
     document.getElementById("rvcontent").addEventListener("click",e=>{const o=e.target.closest(".rvopen");if(o)openTheme(o.dataset.th);});
-    document.getElementById("rvmodal").addEventListener("click",e=>{
+    document.getElementById("rvmodal").addEventListener("click",async e=>{
       if(e.target.id==="rvmodal"||e.target.id==="rvclose"){closeModal();return;}
       if(e.target.id==="rvpick"){pending=document.getElementById("rvimpshop").value;document.getElementById("rvfile").click();return;}
+      if(e.target.id==="rvsave"){
+        if(!parsed||!pending)return;
+        const btn=e.target;btn.disabled=true;btn.textContent="Bezig…";
+        try{await saveReviews(pending,parsed);parsed=null;closeModal();await rvload();}
+        catch(ex){const i=document.getElementById("rvimpinfo");if(i)i.innerHTML='<span style="color:var(--red)">Opslaan mislukt: '+esc(ex.message||ex)+'</span>';btn.disabled=false;btn.textContent="Opnieuw proberen";}
+        return;
+      }
     });
     document.getElementById("rvfile").addEventListener("change",async e=>{
       const f=e.target.files&&e.target.files[0];e.target.value="";
@@ -1721,9 +1762,7 @@ window.__reviewsLoad=function(){
         const txt=await f.text();
         const {reviews,err}=mapRows(parseCSV(txt));
         if(err){if(info)info.innerHTML='<span style="color:var(--red)">'+esc(err)+'</span>';return;}
-        if(info)info.textContent=`${reviews.length} reviews gevonden. Opslaan…`;
-        await saveReviews(pending,reviews);
-        closeModal();await rvload();
+        parsed=reviews;previewDialog(reviews);
       }catch(ex){if(info)info.innerHTML='<span style="color:var(--red)">Mislukt: '+esc(ex.message||ex)+'</span>';}
     });
     rvInit=true;   // pas markeren als álle listeners écht gekoppeld zijn
