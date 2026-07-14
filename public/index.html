@@ -630,6 +630,8 @@ const fmtN=(n,d=2)=>isFinite(n)?n.toLocaleString("nl-NL",{minimumFractionDigits:
 const fmtX=n=>isFinite(n)?fmtN(n,2)+"×":"—";
 const fmtPct=n=>isFinite(n)?fmtN(n*100,1)+"%":"—";
 let DATA={},AOV={},ROLE="viewer";
+// Globaal: elke sectie-IIFE moet de rol kunnen checken (stond eerder alleen in de prijsmonitor).
+window.isAdmin=()=>typeof ROLE!=="undefined"&&ROLE==="admin";
 const state={shop:"NL",preset:{},lock:true,over:{}};
 function parseNum(s){if(typeof s==="number")return s;if(s==null)return NaN;let t=String(s).replace(/[€%\s]/g,"").replace(/\.(?=\d{3}(\D|$))/g,"").replace(",",".");const v=parseFloat(t);return isFinite(v)?v:NaN;}
 const charts={};
@@ -1700,7 +1702,7 @@ async function rvload(){
   }catch(e){c.innerHTML='<div class="rverr">Kon reviews niet laden.<br><small>'+esc(e.message||e)+'</small></div>';}
 }
 window.__reviewsLoad=function(){
-  if(!rvInit){rvInit=true;
+  if(!rvInit){
     document.getElementById("rvshop").addEventListener("change",e=>{rvShop=e.target.value;rvrender();});
     document.getElementById("rvperiod").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;rvPeriod=+b.dataset.p;[...document.querySelectorAll("#rvperiod button")].forEach(x=>x.classList.toggle("on",x===b));rvrender();});
     const imp=document.getElementById("rvimport");
@@ -1724,6 +1726,7 @@ window.__reviewsLoad=function(){
         closeModal();await rvload();
       }catch(ex){if(info)info.innerHTML='<span style="color:var(--red)">Mislukt: '+esc(ex.message||ex)+'</span>';}
     });
+    rvInit=true;   // pas markeren als álle listeners écht gekoppeld zijn
     rvload();return;
   }
   const any=(RV.NL||[]).length+(RV.DE||[]).length+(RV.FR||[]).length;
