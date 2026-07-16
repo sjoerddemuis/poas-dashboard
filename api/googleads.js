@@ -58,44 +58,118 @@ async function queryCustomer(cid, token, start, end) {
   return Object.values(byDate).sort((a, b) => (a.date < b.date ? -1 : 1));
 }
 
-// Tijdelijk: meet welke bron/UTM-data Metorik teruggeeft, om te bepalen of we
-// betrouwbaar op campagnenaam kunnen joinen met Google Ads. Alleen admin.
-async function srcProbe(req, res) {
-  const token = process.env.METORIK_TOKEN_NL;
-  if (!token) return res.status(400).json({ error: "geen NL-token" });
-  const q = req.query || {};
-  const start = q.start || "2026-06-01", end = q.end || "2026-06-30";
+// ---- Profit per campagne: Metorik-winst (per utm_campaign = Google-campagne-ID)
+//      gekoppeld aan de adspend van diezelfde campagne in Google Ads.
+const SRCUTM = "https://app.metorik.com/api/v1/store/reports/sources-utms";
+
+// Winst/omzet per utm_campaign uit Metorik. utm_campaign bevat de Google-campagne-ID
+// (dankzij {campaignid} in het trackingtemplate).
+async function metorikByCampaign(token, start, end) {
+  const u = new URL(SRCUTM);
+  u.searchParams.set("start_date", start);
+  u.searchParams.set("end_date", end);
+  u.searchParams.set("source_type", "utm_campaign");
+  const r = await fetch(u, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+  if (!r.ok) throw new Error("Metorik " + r.status);
+  const j = await r.json();
   const out = {};
-  async function probe(name, url, params) {
-    try {
-      const u = new URL(url);
-      Object.entries(params).forEach(([k, v]) => u.searchParams.set(k, v));
-      const r = await fetch(u, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
-      const txt = await r.text();
-      if (!r.ok) { out[name] = { status: r.status, body: txt.slice(0, 160) }; return; }
-      let j; try { j = JSON.parse(txt); } catch (e) { out[name] = { status: r.status, body: txt.slice(0, 160) }; return; }
-      const data = j.data || j;
-      out[name] = { status: r.status, keys: Object.keys(j).slice(0, 8),
-        aantal: Array.isArray(data) ? data.length : null,
-        eerste5: Array.isArray(data) ? data.slice(0, 5) : String(JSON.stringify(data)).slice(0, 250) };
-    } catch (e) { out[name] = { error: e.message }; }
+  (j.data || []).forEach((row) => {
+    const key = row.utm_campaign == null ? "" : String(row.utm_campaign).trim();
+    if (!key) return;
+    out[key] = {
+      orders: row.count || 0,
+      revenue: row.net || 0,            // netto-omzet, zelfde definitie als elders
+      profit: row.profit || 0,          // winst na COGS (Metorik)
+      grossProfit: row.gross_profit || 0,
+    };
+  });
+  return out;
+}
+
+// Adspend per campagne (id + naam) uit Google Ads.
+async function adsByCampaign(cid, token, start, end) {
+  const ver = (process.env.GOOGLE_ADS_API_VERSION || "v24").replace(/^v?/, "v");
+  const dev = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
+  const mcc = (process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID || "").replace(/\D/g, "");
+  cid = String(cid).replace(/\D/g, "");
+  const query = "SELECT campaign.id, campaign.name, campaign.status, metrics.cost_micros, metrics.conversions, metrics.conversions_value, metrics.clicks FROM campaign WHERE segments.date BETWEEN '" + start + "' AND '" + end + "'";
+  const headers = { "Authorization": "Bearer " + token, "developer-token": dev, "Content-Type": "application/json" };
+  if (mcc) headers["login-customer-id"] = mcc;
+  const r = await fetch("https://googleads.googleapis.com/" + ver + "/customers/" + cid + "/googleAds:searchStream", {
+    method: "POST", headers, body: JSON.stringify({ query }),
+  });
+  if (!r.ok) { const t = await r.text().catch(() => ""); throw new Error("Ads API " + r.status + ": " + t.slice(0, 200)); }
+  const j = await r.json();
+  const chunks = Array.isArray(j) ? j : [j];
+  const byId = {};
+  chunks.forEach((chunk) => (chunk.results || []).forEach((row) => {
+    const c = row.campaign || {}, m = row.metrics || {};
+    const id = String(c.id || "");
+    if (!id) return;
+    const o = byId[id] || (byId[id] = { id, name: c.name || id, status: c.status || "", spend: 0, gConv: 0, gValue: 0, clicks: 0 });
+    o.spend += (+m.costMicros || 0) / 1e6;
+    o.gConv += +m.conversions || 0;
+    o.gValue += +m.conversionsValue || 0;
+    o.clicks += +m.clicks || 0;
+  }));
+  return byId;
+}
+
+async function profitView(req, res) {
+  const q = req.query || {};
+  const today = ymd(new Date());
+  const d30 = new Date(); d30.setDate(d30.getDate() - 29);
+  let start = q.start || ymd(d30), end = q.end || today;
+  if (!isDate(start) || !isDate(end)) return res.status(400).json({ error: "ongeldige datum (YYYY-MM-DD)" });
+  if (start > end) { const t = start; start = end; end = t; }
+  if (!isConfigured()) return res.json({ configured: false });
+
+  const key = "profit_" + start + "_" + end;
+  const now = Date.now();
+  if (cache[key] && now - cacheAt[key] < TTL) return res.json(cache[key]);
+
+  try {
+    const token = await getAccessToken();
+    const shops = {};
+    for (const [k] of SHOPS) {
+      const cid = process.env["GOOGLE_ADS_CID_" + k];
+      const mtok = process.env["METORIK_TOKEN_" + k];
+      if (!cid || !mtok) { shops[k] = { rows: [], unmatched: [], note: !cid ? "geen Google-klant-id" : "geen Metorik-token" }; continue; }
+      const [ads, met] = await Promise.all([
+        adsByCampaign(cid, token, start, end).catch((e) => ({ __err: e.message })),
+        metorikByCampaign(mtok, start, end).catch((e) => ({ __err: e.message })),
+      ]);
+      if (ads.__err || met.__err) { shops[k] = { rows: [], unmatched: [], note: ads.__err || met.__err }; continue; }
+      // Join: Metorik's utm_campaign == Google campagne-id
+      const rows = Object.values(ads).map((c) => {
+        const m = met[c.id] || { orders: 0, revenue: 0, profit: 0 };
+        return {
+          id: c.id, name: c.name, status: c.status, spend: c.spend,
+          orders: m.orders, revenue: m.revenue, profit: m.profit,
+          roas: c.spend > 0 ? m.revenue / c.spend : null,
+          poas: c.spend > 0 ? m.profit / c.spend : null,
+          matched: !!met[c.id],
+        };
+      }).sort((a, b) => b.spend - a.spend);
+      // Metorik-omzet die we niet aan een campagne konden koppelen (bv. 'google_cpc').
+      const usedIds = new Set(Object.keys(ads));
+      const unmatched = Object.entries(met).filter(([k2]) => !usedIds.has(k2) && !/^\d+$/.test(k2))
+        .map(([k2, v]) => ({ utm: k2, orders: v.orders, revenue: v.revenue, profit: v.profit }))
+        .sort((a, b) => b.profit - a.profit).slice(0, 10);
+      shops[k] = { rows, unmatched };
+    }
+    const out = { configured: true, start, end, shops, currency: process.env.GOOGLE_ADS_CURRENCY || "EUR" };
+    cache[key] = out; cacheAt[key] = now;
+    res.json(out);
+  } catch (e) {
+    res.status(500).json({ error: e.message || "Profit per campagne ophalen mislukt" });
   }
-  const U = "https://app.metorik.com/api/v1/store/reports/sources-utms";
-  for (const st of ["utm_campaign", "utm_source", "utm_medium"]) {
-    await probe(st, U, { start_date: start, end_date: end, source_type: st });
-  }
-  // campagnes gefilterd op alleen Google-verkeer
-  await probe("utm_campaign+google", U, { start_date: start, end_date: end, source_type: "utm_campaign", utm_source: "google" });
-  return res.json({ periode: start + " t/m " + end, out });
 }
 
 module.exports = async (req, res) => {
   const s = getSession(req);
   if (!s) return res.status(401).json({ error: "unauthorized" });
-  if (req.query && req.query.view === "srcprobe") {
-    if (s.role !== "admin") return res.status(403).json({ error: "Alleen admin." });
-    return srcProbe(req, res);
-  }
+  if (req.query && req.query.view === "profit") return profitView(req, res);
   if (!isConfigured()) return res.json({ configured: false });
 
   const today = ymd(new Date());
