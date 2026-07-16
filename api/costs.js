@@ -52,7 +52,7 @@ function periodOf(name) {
     const now = new Date(), cy = now.getFullYear(), cm = now.getMonth() + 1;
     year = (mi + 1) > cm ? cy - 1 : cy;      // maand die nog moet komen = vorig jaar
   }
-  return { key: year + "-" + String(mi + 1).padStart(2, "0"), label: name.trim(), monthNum: mi + 1, year };
+  return { key: year + "-" + String(mi + 1).padStart(2, "0"), label: String(name).trim(), monthNum: mi + 1, year };
 }
 // Alle tabbladen (naam + gid) uit de htmlview-pagina halen.
 async function discoverTabs() {
@@ -60,19 +60,14 @@ async function discoverTabs() {
   if (!r.ok) throw new Error("Sheet niet bereikbaar (HTTP " + r.status + "). Staat hij op 'iedereen met de link kan lezen'?");
   const html = await r.text();
   const tabs = []; const seen = new Set();
-  // Patroon: <a href="...#gid=123">Naam</a>  (attribuutvolgorde kan varieren)
-  const patterns = [
-    /#gid=(\d+)["'][^>]*>\s*([^<>]{1,60}?)\s*</g,
-    /gid=(\d+)["'][^>]*>\s*([^<>]{1,60}?)\s*</g,
-  ];
-  for (const re of patterns) {
-    let m; re.lastIndex = 0;
-    while ((m = re.exec(html))) {
-      const gid = m[1], naam = decodeEnt(m[2]);
-      if (!naam || seen.has(gid)) continue;
-      seen.add(gid); tabs.push({ gid, naam });
-    }
-    if (tabs.length) break;
+  // De tabbladen staan in een JS-blok:  items.push({name: "Januari 2026", pageUrl: "...", gid: "1895417899"})
+  // (dus niet als gewone <a href="#gid=..">-links).
+  const re = /\{\s*name:\s*"([^"]+)"[\s\S]{0,400}?gid:\s*"(\d+)"/g;
+  let m;
+  while ((m = re.exec(html))) {
+    const naam = decodeEnt(m[1]), gid = m[2];
+    if (!naam || seen.has(gid)) continue;
+    seen.add(gid); tabs.push({ gid, naam });
   }
   return tabs;
 }
