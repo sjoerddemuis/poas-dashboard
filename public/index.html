@@ -408,6 +408,23 @@ details[open] summary::before{content:"▾ "}
 #rvmodalbody .rvstars{font-weight:800;color:var(--orange)}
 #rvmodalbody .rvitem .ti{font-weight:700;font-size:13px;margin-top:3px}
 #rvmodalbody .rvitem .tx{font-size:12.5px;line-height:1.5;margin-top:2px;color:var(--ink)}
+/* ---- Google Ads: subtabs + profit per campagne ---- */
+#sec-ads .adtabs{display:inline-flex;gap:5px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:5px;box-shadow:var(--shadow);margin-bottom:12px}
+#sec-ads .adtabs button{border:1px solid transparent;background:transparent;border-radius:8px;color:var(--mute);font-weight:600;font-size:13px;padding:7px 14px;cursor:pointer}
+#sec-ads .adtabs button.on{background:var(--green);border-color:var(--green);color:#fff}
+#apcontent .aptbl{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:14px}
+#apcontent table{width:100%;border-collapse:collapse;font-size:13px}
+#apcontent thead tr{background:var(--paper)}
+#apcontent th{text-align:right;font-size:10px;letter-spacing:.3px;text-transform:uppercase;color:var(--mute);padding:8px;white-space:nowrap;font-weight:700}
+#apcontent th:first-child{text-align:left}
+#apcontent td{text-align:right;padding:8px;border-top:1px solid var(--line);white-space:nowrap}
+#apcontent td:first-child{text-align:left;font-weight:600;white-space:normal;max-width:260px}
+#apcontent tfoot td{font-weight:700;border-top:2px solid var(--line)}
+#apcontent .apposw{color:var(--greenDk);font-weight:800}
+#apcontent .apneg{color:var(--red);font-weight:800}
+#apcontent .apwarn{background:#FFF1E5;border:1px solid var(--orange);border-radius:12px;padding:11px 14px;font-size:12.5px;line-height:1.55;margin-bottom:14px}
+#apcontent .apnomatch{color:var(--mute);font-style:italic}
+#apcontent .aphead{font-weight:700;font-size:14px;margin:16px 0 6px}
 /* ---- Verkoopkosten-sectie ---- */
 #sec-kosten .kbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 12px;margin-bottom:14px;box-shadow:var(--shadow)}
 #sec-kosten select{font-size:14px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:9px;padding:8px 12px;cursor:pointer;font-weight:600;min-width:210px}
@@ -622,6 +639,10 @@ summary{border-radius:11px;font-weight:600}
   <div id="svordermodal" class="omodal"><div class="opanel" id="svordermodalbody"></div></div>
 
   <div id="sec-ads" style="display:none">
+    <div class="adtabs" id="adtabs">
+      <button data-t="metrics" class="on">Metrics</button>
+      <button data-t="profit">Profit per campagne</button>
+    </div>
     <div class="adsub">Google Ads-prestaties per shop en totaal, over een instelbare periode. <span id="aupd"></span></div>
     <div class="adbar" id="adcontrols">
       <select id="adshop">
@@ -639,6 +660,7 @@ summary{border-radius:11px;font-weight:600}
       </div>
     </div>
     <div id="adcontent"><div class="adloading">Laden…</div></div>
+    <div id="apcontent" style="display:none"><div class="adloading">Laden…</div></div>
   </div><!-- /sec-ads -->
 
   <div id="sec-reviews" style="display:none">
@@ -1537,21 +1559,91 @@ async function load(){
     render();
   }catch(e){c.innerHTML='<div class="aderr">Kon Google Ads niet laden.<br><small>'+(e.message||e)+'</small></div>';}
 }
+/* ---- Subtab: Profit per campagne (Metorik-winst ÷ Google-adspend) ---- */
+let apTab="metrics",apData=null;
+function apRender(){
+  const c=document.getElementById("apcontent");
+  if(!apData){c.innerHTML='<div class="adloading">Laden…</div>';return;}
+  if(apData.configured===false){c.innerHTML=setupHtml();return;}
+  if(apData.error){c.innerHTML='<div class="aderr">'+String(apData.error)+'</div>';return;}
+  const shopSelNow=document.getElementById("adshop").value;
+  const keys=shopSelNow==="total"?["NL","DE","FR"]:[shopSelNow];
+  const NAAM={NL:"Ongediertewinkel.nl",DE:"Ungeziefershop.de",FR:"Boutiqueantinuisibles.fr"};
+  let html="";
+  keys.forEach(k=>{
+    const sh=(apData.shops||{})[k];
+    if(!sh)return;
+    if(sh.note){html+=`<div class="aphead">${NAAM[k]}</div><div class="apwarn">${String(sh.note)}</div>`;return;}
+    const rows=(sh.rows||[]).filter(r=>r.spend>0||r.orders>0);
+    if(!rows.length){html+=`<div class="aphead">${NAAM[k]}</div><div class="apwarn">Geen campagnes met spend in deze periode.</div>`;return;}
+    const tS=rows.reduce((s,r)=>s+r.spend,0), tR=rows.reduce((s,r)=>s+r.revenue,0), tP=rows.reduce((s,r)=>s+r.profit,0), tO=rows.reduce((s,r)=>s+r.orders,0);
+    html+=`<div class="aphead">${NAAM[k]}</div>
+      <div class="aptbl"><table>
+      <thead><tr><th>Campagne</th><th>Spend</th><th>Orders</th><th>Omzet</th><th>Winst</th><th>ROAS</th><th>POAS</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr>
+        <td>${r.name?String(r.name).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m])):r.id}${!r.matched?' <span class="apnomatch">· geen Metorik-match</span>':""}</td>
+        <td>${fmtM(r.spend,"eur")}</td>
+        <td>${r.orders?Math.round(r.orders).toLocaleString("nl-NL"):"—"}</td>
+        <td>${r.revenue?fmtM(r.revenue,"eur"):"—"}</td>
+        <td>${r.profit?fmtM(r.profit,"eur"):"—"}</td>
+        <td>${r.roas!=null&&r.matched?fmtM(r.roas,"x"):"—"}</td>
+        <td class="${r.poas!=null&&r.matched?(r.poas>=1?"apposw":"apneg"):""}">${r.poas!=null&&r.matched?fmtM(r.poas,"x"):"—"}</td>
+      </tr>`).join("")}</tbody>
+      <tfoot><tr><td>Totaal</td><td>${fmtM(tS,"eur")}</td><td>${Math.round(tO).toLocaleString("nl-NL")}</td><td>${fmtM(tR,"eur")}</td><td>${fmtM(tP,"eur")}</td><td>${tS>0?fmtM(tR/tS,"x"):"—"}</td><td class="${tS>0&&tP/tS>=1?"apposw":"apneg"}">${tS>0?fmtM(tP/tS,"x"):"—"}</td></tr></tfoot>
+      </table></div>`;
+    if((sh.unmatched||[]).length){
+      const u=sh.unmatched;
+      const uP=u.reduce((s,x)=>s+x.profit,0);
+      html+=`<div class="apwarn"><b>⚠ Niet aan een campagne te koppelen:</b> ${u.map(x=>`“${String(x.utm)}” (${Math.round(x.orders)} orders, ${fmtM(x.profit,"eur")} winst)`).join(", ")}.<br>
+        Deze omzet komt binnen zonder Google-campagne-ID in de UTM, dus die winst (${fmtM(uP,"eur")}) staat niet in de tabel hierboven. Meestal komt dat doordat het trackingtemplate geen <code>{campaignid}</code> meestuurt.</div>`;
+    }
+  });
+  c.innerHTML=html||'<div class="adempty">Geen data.</div>';
+}
+async function apLoad(){
+  const c=document.getElementById("apcontent");c.innerHTML='<div class="adloading">Winst per campagne laden…</div>';
+  try{
+    const r=await fetch("/api/googleads?view=profit&start="+encodeURIComponent(adState.from)+"&end="+encodeURIComponent(adState.to));
+    if(r.status===401){location.href="/login.html";return;}
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
+    apData=d;apRender();
+  }catch(e){c.innerHTML='<div class="aderr">Kon winst per campagne niet laden.<br><small>'+(e.message||e)+'</small></div>';}
+}
+// Datumrange gewijzigd: alleen de zichtbare subtab opnieuw ophalen, de andere
+// invalideren zodat hij bij het terugschakelen niet oude cijfers laat zien.
+function reload(){
+  if(apTab==="profit"){apData=null;apLoad();AD.configured=null;}
+  else{apData=null;load();}
+}
+function apSwitch(t){
+  if(apTab===t)return;
+  apTab=t;
+  [...document.querySelectorAll("#adtabs button")].forEach(b=>b.classList.toggle("on",b.dataset.t===t));
+  const isP=t==="profit";
+  document.getElementById("adcontent").style.display=isP?"none":"";
+  document.getElementById("apcontent").style.display=isP?"":"none";
+  document.getElementById("admetric").style.display=isP?"none":"";
+  if(isP){if(apData)apRender();else apLoad();}
+  else{if(AD.configured===null)load();else render();}
+}
 window.__adsLoad=function(){
   if(!aInited){aInited=true;
+    document.getElementById("adtabs").addEventListener("click",e=>{const b=e.target.closest("button");if(b)apSwitch(b.dataset.t);});
     const t=new Date(),f=new Date();f.setDate(f.getDate()-29);
     adState.to=t.toISOString().slice(0,10);adState.from=f.toISOString().slice(0,10);
     document.getElementById("adfrom").value=adState.from;
     document.getElementById("adto").value=adState.to;
     document.getElementById("admetric").innerHTML=MORDER.map(k=>`<option value="${k}"${k===metric?" selected":""}>${M[k].label}</option>`).join("");
     document.getElementById("admetric").addEventListener("change",e=>{metric=e.target.value;render();});
-    document.getElementById("adshop").addEventListener("change",e=>{shopSel=e.target.value;render();});
-    document.getElementById("adfrom").addEventListener("change",e=>{if(e.target.value){adState.from=e.target.value;clearPreset();load();}});
-    document.getElementById("adto").addEventListener("change",e=>{if(e.target.value){adState.to=e.target.value;clearPreset();load();}});
-    document.getElementById("adpreset").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const days=+b.dataset.d;[...document.querySelectorAll("#adpreset button")].forEach(x=>x.classList.toggle("on",x===b));const t=new Date(),f=new Date();f.setDate(f.getDate()-(days-1));adState.to=t.toISOString().slice(0,10);adState.from=f.toISOString().slice(0,10);document.getElementById("adfrom").value=adState.from;document.getElementById("adto").value=adState.to;load();});
+    document.getElementById("adshop").addEventListener("change",e=>{shopSel=e.target.value;if(apTab==="profit")apRender();else render();});
+    document.getElementById("adfrom").addEventListener("change",e=>{if(e.target.value){adState.from=e.target.value;clearPreset();reload();}});
+    document.getElementById("adto").addEventListener("change",e=>{if(e.target.value){adState.to=e.target.value;clearPreset();reload();}});
+    document.getElementById("adpreset").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const days=+b.dataset.d;[...document.querySelectorAll("#adpreset button")].forEach(x=>x.classList.toggle("on",x===b));const t=new Date(),f=new Date();f.setDate(f.getDate()-(days-1));adState.to=t.toISOString().slice(0,10);adState.from=f.toISOString().slice(0,10);document.getElementById("adfrom").value=adState.from;document.getElementById("adto").value=adState.to;reload();});
     document.getElementById("adcontent").addEventListener("click",e=>{const card=e.target.closest(".adcard");if(!card)return;metric=card.dataset.m;const sel=document.getElementById("admetric");if(sel)sel.value=metric;render();});
     load();return;
   }
+  if(apTab==="profit"){if(apData)apRender();else apLoad();return;}
   if(AD.configured===null)load();else render();
 };
 })();
