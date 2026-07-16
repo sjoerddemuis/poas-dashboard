@@ -49,18 +49,14 @@ async function metGet(url, token, params) {
   if (!r.ok) throw new Error("Metorik API " + r.status);
   return r.json();
 }
-// Advertentiekosten per maand (zoals in Metorik), om optioneel mee te tellen bij de kosten.
-async function monthlyAds(token, start, end) {
+// Netto-omzet + advertentiekosten per maand, uit dezelfde bron als de POAS-sectie
+// (profit-by-date), zodat het hele dashboard met één omzetdefinitie werkt.
+async function monthlyNetAndAds(token, start, end) {
   const rep = await metFetch(token, { start_date: start, end_date: end, group_by: "month" });
   const out = {};
-  (rep.data || []).forEach((d) => { out[ym(d.date)] = d.advertising_cost || 0; });
-  return out;
-}
-// Netto-omzet per maand (excl. verzending), voor 'kosten als % van omzet'.
-async function monthlyRevenue(token, start, end) {
-  const rev = await metGet(REVENUE, token, { group_by: "month", start_date: start, end_date: end });
-  const out = {};
-  (rev.data || []).forEach((rv) => { out[ym(rv.date)] = (rv.net || 0) - (rv.shipping || 0); });
+  (rep.data || []).forEach((d) => {
+    out[ym(d.date)] = { net: d.net || 0, ads: d.advertising_cost || 0 };
+  });
   return out;
 }
 async function ronadaData(token) {
@@ -274,4 +270,4 @@ async function allData() {
   out.updatedAt = Date.now();
   return out;
 }
-module.exports = { allData, SHOPS, ronadaData, topProducts, topProductsPage, pricesBySku, stockData, stockDataAll, allProductsNL, monthlyRevenue, monthlyAds };
+module.exports = { allData, SHOPS, ronadaData, topProducts, topProductsPage, pricesBySku, stockData, stockDataAll, allProductsNL, monthlyNetAndAds };
