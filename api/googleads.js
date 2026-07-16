@@ -58,8 +58,40 @@ async function queryCustomer(cid, token, start, end) {
   return Object.values(byDate).sort((a, b) => (a.date < b.date ? -1 : 1));
 }
 
+// Tijdelijk: meet welke bron/UTM-data Metorik teruggeeft, om te bepalen of we
+// betrouwbaar op campagnenaam kunnen joinen met Google Ads. Alleen admin.
+async function srcProbe(req, res) {
+  const token = process.env.METORIK_TOKEN_NL;
+  if (!token) return res.status(400).json({ error: "geen NL-token" });
+  const q = req.query || {};
+  const start = q.start || "2026-06-01", end = q.end || "2026-06-30";
+  const out = {};
+  async function probe(name, url, params) {
+    try {
+      const u = new URL(url);
+      Object.entries(params).forEach(([k, v]) => u.searchParams.set(k, v));
+      const r = await fetch(u, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+      const txt = await r.text();
+      if (!r.ok) { out[name] = { status: r.status, body: txt.slice(0, 160) }; return; }
+      let j; try { j = JSON.parse(txt); } catch (e) { out[name] = { status: r.status, body: txt.slice(0, 160) }; return; }
+      const data = j.data || j;
+      out[name] = { status: r.status, keys: Object.keys(j).slice(0, 8),
+        aantal: Array.isArray(data) ? data.length : null,
+        eerste5: Array.isArray(data) ? data.slice(0, 5) : String(JSON.stringify(data)).slice(0, 250) };
+    } catch (e) { out[name] = { error: e.message }; }
+  }
+  await probe("sources-utms", "https://app.metorik.com/api/v1/store/reports/sources-utms", { start_date: start, end_date: end });
+  await probe("sources", "https://app.metorik.com/api/v1/store/reports/sources", { start_date: start, end_date: end });
+  return res.json({ periode: start + " t/m " + end, out });
+}
+
 module.exports = async (req, res) => {
-  if (!getSession(req)) return res.status(401).json({ error: "unauthorized" });
+  const s = getSession(req);
+  if (!s) return res.status(401).json({ error: "unauthorized" });
+  if (req.query && req.query.view === "srcprobe") {
+    if (s.role !== "admin") return res.status(403).json({ error: "Alleen admin." });
+    return srcProbe(req, res);
+  }
   if (!isConfigured()) return res.json({ configured: false });
 
   const today = ymd(new Date());
