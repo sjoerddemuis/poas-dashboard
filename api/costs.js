@@ -4,7 +4,7 @@
 // wat eerder spookmaanden opleverde met een gekopieerd totaal.
 // Voegt Metorik-omzet en advertentiekosten per maand toe. 10 min cache.
 const { getSession } = require("./_lib/util");
-const { monthlyNetAndAds, SHOPS } = require("./_lib/metorik");
+const { netAndAdsBy, SHOPS } = require("./_lib/metorik");
 
 const SHEET_ID = process.env.COSTS_SHEET_ID || "18FeLVzTooORCph_DY4qAZ2khqFHqQbYhn4v_KLUcgTY";
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
@@ -118,24 +118,30 @@ module.exports = async (req, res) => {
 
     const names = [...new Set(months.flatMap((m) => Object.keys(m.items)))].sort((a, b) => a.localeCompare(b));
 
-    // Metorik: netto-omzet + advertentiekosten per maand (alle shops samen).
-    // Zelfde bron/definitie als de POAS-sectie, zodat 'omzet' overal hetzelfde betekent.
-    const revenue = {}, ads = {};
+    // Metorik: netto-omzet + advertentiekosten PER DAG (alle shops samen).
+    // Zelfde bron/definitie als de POAS-sectie. De maandtotalen leiden we af uit de
+    // dagen, zodat dag-, week- en maandweergave nooit uit elkaar kunnen lopen.
+    const days = {}, revenue = {}, ads = {};
     try {
       const start = months[0].key + "-01";
       const end = new Date().toISOString().slice(0, 10);
       const per = await Promise.all(SHOPS.map(async ([, envKey]) => {
         const token = process.env[envKey];
         if (!token) return {};
-        return await monthlyNetAndAds(token, start, end).catch(() => ({}));
+        return await netAndAdsBy(token, start, end, "day").catch(() => ({}));
       }));
-      per.forEach((map) => Object.entries(map).forEach(([k, v]) => {
-        revenue[k] = (revenue[k] || 0) + (v.net || 0);
-        ads[k] = (ads[k] || 0) + (v.ads || 0);
+      per.forEach((map) => Object.entries(map).forEach(([d, v]) => {
+        const o = days[d] || (days[d] = { net: 0, ads: 0 });
+        o.net += v.net || 0; o.ads += v.ads || 0;
       }));
+      Object.entries(days).forEach(([d, v]) => {
+        const k = d.slice(0, 7);
+        revenue[k] = (revenue[k] || 0) + v.net;
+        ads[k] = (ads[k] || 0) + v.ads;
+      });
     } catch (e) { /* optioneel */ }
 
-    const out = { months, names, revenue, ads, sheetId: SHEET_ID, tabs: tabs.length, updated: new Date().toISOString() };
+    const out = { months, names, revenue, ads, days, sheetId: SHEET_ID, tabs: tabs.length, updated: new Date().toISOString() };
     cache = out; cacheAt = now;
     res.json(out);
   } catch (e) {
