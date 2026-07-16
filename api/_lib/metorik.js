@@ -49,6 +49,13 @@ async function metGet(url, token, params) {
   if (!r.ok) throw new Error("Metorik API " + r.status);
   return r.json();
 }
+// Netto-omzet per maand (excl. verzending), voor 'kosten als % van omzet'.
+async function monthlyRevenue(token, start, end) {
+  const rev = await metGet(REVENUE, token, { group_by: "month", start_date: start, end_date: end });
+  const out = {};
+  (rev.data || []).forEach((rv) => { out[ym(rv.date)] = (rv.net || 0) - (rv.shipping || 0); });
+  return out;
+}
 async function ronadaData(token) {
   const today = new Date();
   const end = today.toISOString().slice(0, 10);
@@ -260,4 +267,4 @@ async function allData() {
   out.updatedAt = Date.now();
   return out;
 }
-module.exports = { allData, SHOPS, ronadaData, topProducts, topProductsPage, pricesBySku, stockData, stockDataAll, allProductsNL };
+module.exports = { allData, SHOPS, ronadaData, topProducts, topProductsPage, pricesBySku, stockData, stockDataAll, allProductsNL, monthlyRevenue };
