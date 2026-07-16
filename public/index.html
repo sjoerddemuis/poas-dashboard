@@ -1902,7 +1902,7 @@ function krender(){
     <div class="kcard"><div class="l">${focus?esc(kPost)+" — "+esc(last.label):"Totaal — "+esc(last.label)}</div><div class="v">${eur0(lastVal)}</div><div class="s">${prev?deltaHtml(lastVal,prevVal)+" t.o.v. "+esc(prev.label):"eerste maand"}</div></div>
     <div class="kcard"><div class="l">Gemiddeld per maand</div><div class="v">${eur0(avg)}</div><div class="s">over ${ms.length} maanden</div></div>
     <div class="kcard"><div class="l">Totaal periode</div><div class="v">${eur0(totalAll)}</div><div class="s">${esc(ms[0].label)} t/m ${esc(last.label)}</div></div>
-    ${pctRev!=null?`<div class="kcard"><div class="l">${focus?"Aandeel van omzet":"Kosten ÷ omzet"}</div><div class="v">${pct1(pctRev)}</div><div class="s">van ${eur0(revLast)} omzet in ${esc(last.label)}</div></div>`
+    ${pctRev!=null?`<div class="kcard"><div class="l">${focus?"Aandeel van omzet":"Kosten ÷ omzet"}</div><div class="v">${pct1(pctRev)}</div><div class="s" title="Netto-omzet uit Metorik, zelfde definitie als de Blended POAS-sectie">van ${eur0(revLast)} netto-omzet in ${esc(last.label)}</div></div>`
       :`<div class="kcard"><div class="l">Grootste post</div><div class="v" style="font-size:15px;margin-top:7px;line-height:1.3">${esc(top[0])}</div><div class="s">${eur0(top[1])} in ${esc(last.label)}</div></div>`}
   </div>`;
 
