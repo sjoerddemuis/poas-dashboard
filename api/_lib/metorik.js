@@ -49,6 +49,13 @@ async function metGet(url, token, params) {
   if (!r.ok) throw new Error("Metorik API " + r.status);
   return r.json();
 }
+// Advertentiekosten per maand (zoals in Metorik), om optioneel mee te tellen bij de kosten.
+async function monthlyAds(token, start, end) {
+  const rep = await metFetch(token, { start_date: start, end_date: end, group_by: "month" });
+  const out = {};
+  (rep.data || []).forEach((d) => { out[ym(d.date)] = d.advertising_cost || 0; });
+  return out;
+}
 // Netto-omzet per maand (excl. verzending), voor 'kosten als % van omzet'.
 async function monthlyRevenue(token, start, end) {
   const rev = await metGet(REVENUE, token, { group_by: "month", start_date: start, end_date: end });
@@ -267,4 +274,4 @@ async function allData() {
   out.updatedAt = Date.now();
   return out;
 }
-module.exports = { allData, SHOPS, ronadaData, topProducts, topProductsPage, pricesBySku, stockData, stockDataAll, allProductsNL, monthlyRevenue };
+module.exports = { allData, SHOPS, ronadaData, topProducts, topProductsPage, pricesBySku, stockData, stockDataAll, allProductsNL, monthlyRevenue, monthlyAds };
