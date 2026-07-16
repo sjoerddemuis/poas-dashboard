@@ -80,8 +80,12 @@ async function srcProbe(req, res) {
         eerste5: Array.isArray(data) ? data.slice(0, 5) : String(JSON.stringify(data)).slice(0, 250) };
     } catch (e) { out[name] = { error: e.message }; }
   }
-  await probe("sources-utms", "https://app.metorik.com/api/v1/store/reports/sources-utms", { start_date: start, end_date: end });
-  await probe("sources", "https://app.metorik.com/api/v1/store/reports/sources", { start_date: start, end_date: end });
+  const U = "https://app.metorik.com/api/v1/store/reports/sources-utms";
+  for (const st of ["utm_campaign", "utm_source", "utm_medium"]) {
+    await probe(st, U, { start_date: start, end_date: end, source_type: st });
+  }
+  // campagnes gefilterd op alleen Google-verkeer
+  await probe("utm_campaign+google", U, { start_date: start, end_date: end, source_type: "utm_campaign", utm_source: "google" });
   return res.json({ periode: start + " t/m " + end, out });
 }
 
