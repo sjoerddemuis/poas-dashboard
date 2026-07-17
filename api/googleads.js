@@ -166,9 +166,60 @@ async function profitView(req, res) {
   }
 }
 
+// ---- Diagnose: wijst precies aan welke schakel ontbreekt of stuk is.
+// Geeft NOOIT de waarde van een token terug — alleen of hij er staat en hoe lang hij is.
+// Alleen voor admin.
+async function diagView(req, res) {
+  const need = ["GOOGLE_ADS_DEVELOPER_TOKEN", "GOOGLE_ADS_CLIENT_ID", "GOOGLE_ADS_CLIENT_SECRET",
+    "GOOGLE_ADS_REFRESH_TOKEN", "GOOGLE_ADS_LOGIN_CUSTOMER_ID", "GOOGLE_ADS_CID_NL",
+    "GOOGLE_ADS_CID_DE", "GOOGLE_ADS_CID_FR"];
+  const env = {};
+  need.forEach((k) => {
+    const v = process.env[k];
+    env[k] = v ? { gezet: true, lengte: String(v).length } : { gezet: false };
+  });
+  const out = { env, stappen: {} };
+
+  // 1) Refresh token -> access token
+  let token = null;
+  try {
+    token = await getAccessToken();
+    out.stappen.oauth = { ok: true, uitleg: "Refresh token is geldig; access token opgehaald." };
+  } catch (e) {
+    out.stappen.oauth = { ok: false, fout: String(e.message).slice(0, 300),
+      uitleg: "Client id/secret of refresh token klopt niet, of de refresh token hoort bij een andere OAuth-client." };
+    return res.json(out);
+  }
+
+  // 2) Per shop een minimale query — de echte Google-fout komt terug.
+  out.stappen.shops = {};
+  for (const [k] of SHOPS) {
+    const cid = process.env["GOOGLE_ADS_CID_" + k];
+    if (!cid) { out.stappen.shops[k] = { ok: false, uitleg: "GOOGLE_ADS_CID_" + k + " staat niet in Vercel." }; continue; }
+    try {
+      const rows = await queryCustomer(cid, token, "2026-01-01", "2026-01-07");
+      out.stappen.shops[k] = { ok: true, dagenMetData: rows.length };
+    } catch (e) {
+      const msg = String(e.message);
+      let uitleg = "Onbekende fout — zie 'fout'.";
+      if (/DEVELOPER_TOKEN_NOT_APPROVED|test account/i.test(msg)) uitleg = "Developer token staat nog op testniveau. Vraag Basic access aan in het API Center van je MCC.";
+      else if (/DEVELOPER_TOKEN_PROHIBITED|invalid developer token|DEVELOPER_TOKEN_INVALID/i.test(msg)) uitleg = "Developer token wordt niet geaccepteerd. Hoort hij bij dit MCC-account?";
+      else if (/USER_PERMISSION_DENIED|not permitted/i.test(msg)) uitleg = "Het Google-account van de refresh token heeft geen toegang tot dit klant-id, of GOOGLE_ADS_LOGIN_CUSTOMER_ID is niet het MCC waar deze shop onder hangt.";
+      else if (/CUSTOMER_NOT_FOUND|INVALID_CUSTOMER_ID/i.test(msg)) uitleg = "Dit klant-id bestaat niet. Let op: gebruik het shop-id, niet het MCC-id.";
+      else if (/unsupported|version/i.test(msg)) uitleg = "API-versie klopt niet. Zet GOOGLE_ADS_API_VERSION op de versie die Google nu vraagt.";
+      out.stappen.shops[k] = { ok: false, fout: msg.slice(0, 300), uitleg };
+    }
+  }
+  res.json(out);
+}
+
 module.exports = async (req, res) => {
   const s = getSession(req);
   if (!s) return res.status(401).json({ error: "unauthorized" });
+  if (req.query && req.query.view === "diag") {
+    if (s.role !== "admin") return res.status(403).json({ error: "Alleen admin." });
+    return diagView(req, res);
+  }
   if (req.query && req.query.view === "profit") return profitView(req, res);
   if (!isConfigured()) return res.json({ configured: false });
 
