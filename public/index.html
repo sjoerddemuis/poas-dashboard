@@ -2282,6 +2282,7 @@ const knToday=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMon
 
 const KMET=[
   { id:"returning", label:"% returning customers", unit:"pct", color:"#2D6CDF", v:a=>a.orders>0?(1-a.newOrders/a.orders)*100:null },
+  { id:"conversie", label:"Conversie (orders / sessies)", unit:"pct", color:"#0EA5E9", v:a=>a.sessions>0?a.orders/a.sessions*100:null },
   { id:"orders", label:"Aantal orders", unit:"num", color:"#0F1411", v:a=>a.orders },
   { id:"ipo", label:"Items per order", unit:"ratio", color:"#8A5A00", v:a=>a.orders>0?a.items/a.orders:null },
   { id:"aon", label:"Gem. order netto", unit:"eur", color:"#00A0A0", v:a=>a.orders>0?a.net/a.orders:null },
@@ -2308,7 +2309,7 @@ function fmtU(v,unit){
   return Math.round(v).toLocaleString("nl-NL");
 }
 function aggregate(rows){
-  const a={net:0,orders:0,items:0,product:0,shipping:0,transaction:0,extra:0,advertising:0,operational:0,newOrders:0};
+  const a={net:0,orders:0,items:0,product:0,shipping:0,transaction:0,extra:0,advertising:0,operational:0,newOrders:0,sessions:0};
   rows.forEach(r=>{ for(const k in a) a[k]+=r[k]||0; });
   a.profit = a.net - (a.product+a.shipping+a.transaction+a.extra+a.advertising+a.operational);
   return a;
@@ -2318,7 +2319,7 @@ function rowsFor(land){
   if(land==="total"){
     const byd={};
     ["NL","DE","FR"].forEach(k=>{ const sh=KM.shops[k]; if(sh&&sh.rows)sh.rows.forEach(r=>{
-      const o=byd[r.d]||(byd[r.d]={d:r.d,net:0,orders:0,items:0,product:0,shipping:0,transaction:0,extra:0,advertising:0,operational:0,newOrders:0});
+      const o=byd[r.d]||(byd[r.d]={d:r.d,net:0,orders:0,items:0,product:0,shipping:0,transaction:0,extra:0,advertising:0,operational:0,newOrders:0,sessions:0});
       for(const f in o){ if(f!=="d")o[f]+=r[f]||0; }
     });});
     return Object.values(byd).sort((a,b)=>a.d<b.d?-1:1);
