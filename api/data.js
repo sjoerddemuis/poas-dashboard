@@ -12,12 +12,23 @@ function isDate(s) { return typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(
 function ymd(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
 function addD(dstr, n) { const d = new Date(dstr + "T00:00:00"); d.setDate(d.getDate() + n); return ymd(d); }
 
+// Metorik rate-limit't (429). We proberen het bij een 429 een paar keer opnieuw
+// met oplopende wachttijd, zodat brede vensterqueries alsnog compleet worden.
 async function metGet(token, url, params) {
   const u = new URL(url);
   Object.entries(params || {}).forEach(([k, v]) => u.searchParams.set(k, v));
-  const r = await fetch(u, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
-  if (!r.ok) throw new Error("Metorik " + r.status);
-  return r.json();
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const r = await fetch(u, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+    if (r.status === 429) {
+      const ra = parseInt(r.headers.get("retry-after") || "0", 10);
+      const wait = ra > 0 ? Math.min(ra * 1000, 6000) : Math.min(500 * Math.pow(2, attempt), 5000);
+      await new Promise((x) => setTimeout(x, wait));
+      continue;
+    }
+    if (!r.ok) throw new Error("Metorik " + r.status);
+    return r.json();
+  }
+  throw new Error("Metorik 429 (rate limit)");
 }
 
 // Winst-rapport per dag: alle bouwstenen voor de kerncijfers in één call.
