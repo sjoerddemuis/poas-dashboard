@@ -588,6 +588,7 @@ summary{border-radius:11px;font-weight:600}
   <div class="secnav" id="secnav">
     <button class="snav on" data-sec="poas">Blended POAS</button>
     <button class="snav" data-sec="kern">Kerncijfers</button>
+    <button class="snav" data-sec="prod">Productdata</button>
     <button class="snav" data-sec="ronada">Ronada-aandeel</button>
     <button class="snav" data-sec="prijs">Prijsmonitor</button>
     <button class="snav" data-sec="voorraad">Voorraad</button>
@@ -630,6 +631,46 @@ summary{border-radius:11px;font-weight:600}
     </div>
     <div id="kncontent"><div class="knloading">Kerncijfers laden uit Metorik…</div></div>
   </div><!-- /sec-kern -->
+
+  <div id="sec-prod" style="display:none">
+    <style>
+    .pdslots{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:16px 0}
+    .pdslot{border:1.5px solid var(--line);border-radius:12px;padding:11px 13px 13px;background:var(--card)}
+    .pdsel{width:100%;font-weight:600;font-size:12px;color:var(--mute);border:none;background:transparent;cursor:pointer;padding:0 0 6px;outline:none}
+    .pdnum{font-size:22px;font-weight:800;line-height:1.1}
+    .pdhead{display:flex;align-items:center;gap:12px;margin:6px 0 2px}
+    .pdimg{width:46px;height:46px;object-fit:contain;border-radius:8px;border:1px solid var(--line);background:#fff}
+    .pdmeta{font-size:13px;color:var(--mute);font-weight:500}
+    @media(max-width:900px){.pdslots{grid-template-columns:repeat(2,1fr)}}
+    </style>
+    <div class="knsub">Productdata per SKU — live uit Metorik + GA4. Kies een shop, tik een SKU in, en zet in elk van de 5 velden een cijfer naar keuze. De grafiek eronder toont ze over tijd. Een cijfer dat al ergens gekozen is, wordt grijs in de lijst.</div>
+    <div class="knbar">
+      <div class="knseg" id="pdshop">
+        <button data-s="NL" class="on">NL</button>
+        <button data-s="DE">DE</button>
+        <button data-s="FR">FR</button>
+      </div>
+      <input type="text" id="pdsku" class="kndate" placeholder="SKU (bijv. 1333)" style="width:150px">
+      <button id="pdgo" class="knref">Laden</button>
+      <span class="knsep"></span>
+      <div class="knseg" id="pdgran">
+        <button data-g="day">Dag</button>
+        <button data-g="week">Week</button>
+        <button data-g="month" class="on">Maand</button>
+      </div>
+      <span class="knlbl">van</span><input type="date" id="pdfrom" class="kndate">
+      <span class="knlbl">tot</span><input type="date" id="pdto" class="kndate">
+      <div class="knpreset" id="pdpreset">
+        <button data-d="30">30d</button>
+        <button data-d="90" class="on">90d</button>
+        <button data-d="365">1 jaar</button>
+        <button data-d="ytd">Dit jaar</button>
+      </div>
+      <span class="knsep"></span>
+      <button id="pdref" class="knref">↻ Ververs</button>
+    </div>
+    <div id="pdcontent"><div class="knloading">Tik een SKU in en klik op Laden.</div></div>
+  </div><!-- /sec-prod -->
 
   <div id="sec-ronada" style="display:none">
     <div class="rsub">Aandeel eigen huismerk (<b>Ronada + RTM</b>) t.o.v. alle overige merken — maand op maand, live uit Metorik. Omzet = excl. btw &amp; verzending.</div>
@@ -2444,16 +2485,119 @@ window.__kernLoad=function(){
   if(!KM)fetchMetrics(); else render();
 };
 })();
+/* ===== Productdata per SKU (Metorik sales + GA4 views) ===== */
+(function(){
+  const PMET=[
+    { id:"netSales", label:"Netto-omzet", unit:"eur", v:a=>a.netSales },
+    { id:"grossSales", label:"Bruto-omzet", unit:"eur", v:a=>a.grossSales },
+    { id:"profit", label:"Winst", unit:"eur", v:a=>a.profit },
+    { id:"cogs", label:"Productkosten (COGS)", unit:"eur", v:a=>a.cogs },
+    { id:"margin", label:"Marge", unit:"pct", v:a=>a.netSales>0?a.profit/a.netSales*100:null },
+    { id:"orders", label:"Orders", unit:"num", v:a=>a.orders },
+    { id:"netItems", label:"Stuks verkocht", unit:"num", v:a=>a.netItems },
+    { id:"grossItems", label:"Bruto stuks", unit:"num", v:a=>a.grossItems },
+    { id:"itemsRefunded", label:"Geretourneerde stuks", unit:"num", v:a=>a.itemsRefunded },
+    { id:"refunds", label:"Retouren", unit:"eur", v:a=>a.refunds },
+    { id:"aov", label:"Gem. orderwaarde", unit:"eur", v:a=>a.orders>0?a.netSales/a.orders:null },
+    { id:"ipo", label:"Stuks per order", unit:"ratio", v:a=>a.orders>0?a.netItems/a.orders:null },
+    { id:"avgprice", label:"Gem. verkoopprijs", unit:"eur", v:a=>a.netItems>0?a.netSales/a.netItems:null },
+    { id:"views", label:"Product-views (GA4)", unit:"num", v:a=>a.views },
+    { id:"conversie", label:"Conversie (orders/views)", unit:"pct", v:a=>a.views>0?a.orders/a.views*100:null },
+  ];
+  const PCOL=["#00A0A0","#009626","#9C27B0","#F06828","#2D6CDF"];
+  let PD=null, pdShop="NL", pdSku="", pdGran="month", pdFrom, pdTo, pdInited=false, pdChart=null;
+  let slots=["netSales","orders","netItems","views","conversie"];
+  const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+  function met(id){ return PMET.find(m=>m.id===id); }
+  function fmU(v,u){ if(v==null||!isFinite(v))return "—"; if(u==="pct")return v.toLocaleString("nl-NL",{maximumFractionDigits:1})+"%"; if(u==="ratio")return v.toLocaleString("nl-NL",{minimumFractionDigits:2,maximumFractionDigits:2}); if(u==="eur"){const dec=Math.abs(v)<100?2:0;return "€"+v.toLocaleString("nl-NL",{minimumFractionDigits:dec,maximumFractionDigits:dec});} return Math.round(v).toLocaleString("nl-NL"); }
+  function agg(rows){ const a={grossSales:0,netSales:0,grossItems:0,netItems:0,itemsRefunded:0,refunds:0,orders:0,cogs:0,profit:0,views:0}; rows.forEach(r=>{for(const k in a)a[k]+=r[k]||0;}); return a; }
+  function isoWeek(dstr){ const dt=new Date(dstr+"T00:00:00"); const t=new Date(Date.UTC(dt.getFullYear(),dt.getMonth(),dt.getDate())); const day=t.getUTCDay()||7; t.setUTCDate(t.getUTCDate()+4-day); const y0=new Date(Date.UTC(t.getUTCFullYear(),0,1)); const wk=Math.ceil(((t-y0)/864e5+1)/7); return t.getUTCFullYear()+"-W"+String(wk).padStart(2,"0"); }
+  const PMAB=["","jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
+  function bkey(d){ if(pdGran==="day")return d; if(pdGran==="week")return isoWeek(d); return d.slice(0,7); }
+  function blabel(k){ if(pdGran==="day"){const p=k.split("-");return p[2]+"/"+p[1];} if(pdGran==="week"){const p=k.split("-W");return "wk"+p[1]+" '"+p[0].slice(2);} const p=k.split("-");return PMAB[+p[1]]+" '"+p[0].slice(2); }
+  function buckets(rows){ const by={}; rows.forEach(r=>{const k=bkey(r.d);(by[k]||(by[k]=[])).push(r);}); return Object.keys(by).sort().map(k=>({key:k,label:blabel(k),agg:agg(by[k])})); }
+  function pdYmd(x){ return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); }
+  function setPreset(d){ const to=new Date(),from=new Date(); if(d==="ytd"){from.setMonth(0);from.setDate(1);} else {from.setDate(from.getDate()-(d-1));} pdFrom=pdYmd(from); pdTo=pdYmd(to); }
+  function drawChart(bks){
+    if(typeof Chart==="undefined")return;
+    const box=document.getElementById("pdchart"); if(!box)return;
+    if(pdChart){pdChart.destroy();pdChart=null;}
+    const series=slots.map((id,i)=>({id,i})).filter(s=>s.id&&met(s.id));
+    if(!series.length)return;
+    const labels=bks.map(b=>b.label);
+    const used=new Set(series.map(s=>met(s.id).unit));
+    const datasets=series.map(s=>{const m=met(s.id);return{ label:m.label, data:bks.map(b=>{const v=m.v(b.agg);return v==null?null:Math.round(v*100)/100;}), borderColor:PCOL[s.i], backgroundColor:PCOL[s.i]+"22", yAxisID:"y_"+m.unit, tension:.25, pointRadius:bks.length>40?0:3, borderWidth:2, spanGaps:true };});
+    const pos={eur:"left",pct:"right",num:"right",ratio:"right"}; const ttl={eur:"€",pct:"%",num:"aantal",ratio:"per order"};
+    const scales={x:{grid:{display:false}}};
+    [...used].forEach((u,i)=>{scales["y_"+u]={type:"linear",position:pos[u],title:{display:true,text:ttl[u]},grid:{drawOnChartArea:i===0},ticks:{callback:val=>fmU(val,u)}}; if(u==="pct")scales["y_"+u].suggestedMin=0;});
+    pdChart=new Chart(box,{type:"line",data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{position:"top",labels:{boxWidth:12,font:{size:11}}},tooltip:{callbacks:{label:ctx=>{const m=met(series[ctx.datasetIndex].id);return m.label+": "+fmU(ctx.parsed.y,m.unit);}}}},scales}});
+  }
+  function render(){
+    const c=document.getElementById("pdcontent"); if(!c)return;
+    if(!PD){ c.innerHTML='<div class="knloading">Tik een SKU in en klik op Laden.</div>'; return; }
+    if(PD.error){ c.innerHTML='<div class="knerr">'+esc(PD.error)+'</div>'; return; }
+    const rows=PD.rows||[], A=agg(rows), bks=buckets(rows), p=PD.product||{};
+    const gaNote = (PD.ga&&PD.ga.configured) ? (PD.ga.hasViews?'':' <span class="pdmeta">· geen GA4-views voor deze SKU</span>') : ' <span class="pdmeta">· GA4 niet gekoppeld</span>';
+    const head='<div class="pdhead">'+(p.image?'<img class="pdimg" src="'+esc(p.image)+'" onerror="this.style.display=\'none\'">':'')
+      +'<div><b>'+esc(p.title||"")+'</b><br><span class="pdmeta">SKU '+esc(PD.sku)+' · '+esc(PD.shop)+' · voorraad '+(p.stock!=null?p.stock:"?")+' · prijs '+fmU(p.currentPrice,"eur")+'</span>'+gaNote+'</div></div>';
+    const chosen=new Set(slots.filter(Boolean));
+    const slotHtml=slots.map((sid,i)=>{
+      const opts=['<option value="">— geen —</option>'].concat(PMET.map(m=>{
+        const takenElsewhere = chosen.has(m.id) && slots[i]!==m.id;
+        return '<option value="'+m.id+'"'+(slots[i]===m.id?' selected':'')+(takenElsewhere?' disabled':'')+'>'+m.label+(takenElsewhere?' (in gebruik)':'')+'</option>';
+      })).join("");
+      const m=sid?met(sid):null, val=m?fmU(m.v(A),m.unit):"—";
+      return '<div class="pdslot" style="border-top:3px solid '+PCOL[i]+'"><select class="pdsel" data-slot="'+i+'">'+opts+'</select><div class="pdnum">'+val+'</div></div>';
+    }).join("");
+    const anySlot=slots.some(Boolean);
+    c.innerHTML=head+'<div class="pdslots">'+slotHtml+'</div>'
+      +'<div class="knchartwrap"><div class="kncharthd">Grafiek — '+esc(p.title||PD.sku)+'</div>'
+      +'<div class="knchartsub">Per '+(pdGran==="day"?"dag":pdGran==="week"?"week":"maand")+' · kies per veld hierboven welk cijfer je wilt zien</div>'
+      +(anySlot?'<div class="knchartbox"><canvas id="pdchart"></canvas></div>':'<div class="knempty">Kies in de velden hierboven een cijfer om de grafiek te tonen.</div>')+'</div>';
+    if(anySlot)drawChart(bks);
+  }
+  async function fetchProduct(fresh){
+    const c=document.getElementById("pdcontent");
+    if(!pdSku){ c.innerHTML='<div class="knloading">Tik eerst een SKU in.</div>'; return; }
+    c.innerHTML='<div class="knloading">Productdata laden uit Metorik + GA4…</div>';
+    try{
+      const r=await fetch("/api/data?view=product&shop="+encodeURIComponent(pdShop)+"&sku="+encodeURIComponent(pdSku)+"&start="+encodeURIComponent(pdFrom)+"&end="+encodeURIComponent(pdTo)+(fresh?"&fresh=1":""),{cache:"no-store"});
+      if(r.status===401){location.href="/login.html";return;}
+      const d=await r.json(); if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
+      PD=d; if(d.start)pdFrom=d.start; if(d.end)pdTo=d.end;
+      const ff=document.getElementById("pdfrom"),tt=document.getElementById("pdto"); if(ff)ff.value=pdFrom; if(tt)tt.value=pdTo;
+      render();
+    }catch(e){ c.innerHTML='<div class="knerr">Kon productdata niet laden.<br><small>'+esc(e.message||e)+'</small></div>'; }
+  }
+  window.__prodLoad=function(){
+    if(pdInited)return;
+    pdInited=true;
+    setPreset(90);
+    document.getElementById("pdfrom").value=pdFrom; document.getElementById("pdto").value=pdTo;
+    const clr=()=>[...document.querySelectorAll("#pdpreset button")].forEach(x=>x.classList.remove("on"));
+    document.getElementById("pdshop").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;pdShop=b.dataset.s;[...document.querySelectorAll("#pdshop button")].forEach(x=>x.classList.toggle("on",x===b)); if(pdSku)fetchProduct();});
+    document.getElementById("pdgran").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;pdGran=b.dataset.g;[...document.querySelectorAll("#pdgran button")].forEach(x=>x.classList.toggle("on",x===b)); render();});
+    document.getElementById("pdpreset").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;[...document.querySelectorAll("#pdpreset button")].forEach(x=>x.classList.toggle("on",x===b)); setPreset(b.dataset.d==="ytd"?"ytd":+b.dataset.d); document.getElementById("pdfrom").value=pdFrom; document.getElementById("pdto").value=pdTo; if(pdSku)fetchProduct();});
+    document.getElementById("pdfrom").addEventListener("change",e=>{if(e.target.value){pdFrom=e.target.value;clr(); if(pdSku)fetchProduct();}});
+    document.getElementById("pdto").addEventListener("change",e=>{if(e.target.value){pdTo=e.target.value;clr(); if(pdSku)fetchProduct();}});
+    const go=()=>{const v=document.getElementById("pdsku").value.trim(); if(v){pdSku=v; fetchProduct();}};
+    document.getElementById("pdgo").addEventListener("click",go);
+    document.getElementById("pdsku").addEventListener("keydown",e=>{if(e.key==="Enter")go();});
+    document.getElementById("pdref").addEventListener("click",()=>{if(pdSku)fetchProduct(true);});
+    document.getElementById("pdcontent").addEventListener("change",e=>{const sel=e.target.closest(".pdsel");if(!sel)return; slots[+sel.dataset.slot]=sel.value||null; render();});
+  };
+})();
 /* ===== Sectienavigatie (onthoudt actieve tab via URL-hash) ===== */
 (function(){
   const nav=document.getElementById("secnav");
-  const SECS=["poas","kern","ronada","prijs","voorraad","ads","reviews","kosten"];
+  const SECS=["poas","kern","prod","ronada","prijs","voorraad","ads","reviews","kosten"];
   function activate(sec,updateHash){
     if(!SECS.includes(sec))sec="poas";
     const b=nav.querySelector('.snav[data-sec="'+sec+'"]');
     [...nav.querySelectorAll(".snav")].forEach(x=>x.classList.toggle("on",x===b));
     SECS.forEach(s=>{const el=document.getElementById("sec-"+s);if(el)el.style.display=s===sec?"":"none";});
     if(sec==="kern"&&window.__kernLoad)window.__kernLoad();
+    if(sec==="prod"&&window.__prodLoad)window.__prodLoad();
     if(sec==="ronada"&&window.__ronadaLoad)window.__ronadaLoad();
     if(sec==="prijs"&&window.__prijsLoad)window.__prijsLoad();
     if(sec==="voorraad"&&window.__voorraadLoad)window.__voorraadLoad();
