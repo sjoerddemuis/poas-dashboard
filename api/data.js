@@ -117,6 +117,117 @@ async function gaSessionsByDay(propId, token, start, end) {
   return byDay;
 }
 
+// ---- Productdata per SKU (1 shop): Metorik-verkoopcijfers per dag + GA4 product-views.
+const PSTORE = "https://app.metorik.com/api/v1/store";
+function shopToken(shop) {
+  const row = SHOPS.find((r) => r[0] === shop);
+  return row ? process.env[row[1]] : null;
+}
+// SKU -> product (id + statische velden zoals cogs/voorraad/prijs).
+async function resolveProduct(token, sku, start, end) {
+  const filters = JSON.stringify([{ field: "sku", operator: "eq", value: sku }]);
+  let rows = [];
+  try { const j = await metGet(token, PSTORE + "/products", { start_date: start, end_date: end, per_page: "5", filters }); rows = j.data || []; } catch (e) { rows = []; }
+  if (!rows.length) {
+    try { const j2 = await metGet(token, PSTORE + "/products", { start_date: start, end_date: end, per_page: "25", search: sku }); rows = (j2.data || []).filter((p) => String(p.sku) === String(sku)); } catch (e) { rows = []; }
+  }
+  return rows[0] || null;
+}
+// Verkoopcijfers per dag voor één product.
+async function productByDay(token, id, start, end) {
+  const out = {};
+  const rep = await metGet(token, PSTORE + "/products/" + id + "/by-date", { group_by: "day", start_date: start, end_date: end });
+  (rep.data || []).forEach((d) => {
+    const k = String(d.date).slice(0, 10);
+    out[k] = {
+      grossSales: d.gross_sales || 0, netSales: d.net_sales || 0,
+      grossItems: d.gross_items_sold || 0, netItems: d.net_items_sold || 0,
+      itemsRefunded: d.items_refunded || 0, refunds: d.total_refunds || 0,
+      orders: d.net_orders != null ? d.net_orders : (d.orders_count || 0),
+    };
+  });
+  return out;
+}
+// GA4 product-views per dag (item-scoped). We filteren op itemId = SKU of product-id,
+// want WooCommerce-GA4-koppelingen sturen soms de SKU en soms het product-id als item-id.
+async function gaItemViewsByDay(propId, token, start, end, ids) {
+  const id = String(propId).replace(/\D/g, "");
+  const r = await fetch("https://analyticsdata.googleapis.com/v1beta/properties/" + id + ":runReport", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      dateRanges: [{ startDate: start, endDate: end }],
+      dimensions: [{ name: "date" }, { name: "itemId" }],
+      metrics: [{ name: "itemsViewed" }],
+      dimensionFilter: { filter: { fieldName: "itemId", inListFilter: { values: ids.map(String) } } },
+      limit: 100000,
+    }),
+  });
+  if (!r.ok) { const t = await r.text().catch(() => ""); throw new Error("GA " + r.status + ": " + t.slice(0, 140)); }
+  const j = await r.json();
+  const byDay = {};
+  (j.rows || []).forEach((row) => {
+    const dv = (row.dimensionValues[0] || {}).value || "";
+    if (dv.length !== 8) return;
+    const k = dv.slice(0, 4) + "-" + dv.slice(4, 6) + "-" + dv.slice(6, 8);
+    byDay[k] = (byDay[k] || 0) + (+((row.metricValues[0] || {}).value) || 0);
+  });
+  return byDay;
+}
+async function productView(req, res) {
+  const q = req.query || {};
+  const shop = String(q.shop || "NL").toUpperCase();
+  const sku = String(q.sku || "").trim();
+  const today = ymd(new Date());
+  const d90 = new Date(); d90.setDate(d90.getDate() - 89);
+  let start = q.start || ymd(d90), end = q.end || today;
+  if (!isDate(start) || !isDate(end)) return res.status(400).json({ error: "ongeldige datum (YYYY-MM-DD)" });
+  if (start > end) { const t = start; start = end; end = t; }
+  const token = shopToken(shop);
+  if (!token) return res.status(400).json({ error: "onbekende shop" });
+  if (!sku) return res.status(400).json({ error: "geen SKU opgegeven" });
+
+  const key = "p_" + shop + "_" + sku + "_" + start + "_" + end;
+  const now = Date.now();
+  if (mCache[key] && now - mCache[key].at < MTTL && !q.fresh) return res.json(mCache[key].data);
+
+  try {
+    const prod = await resolveProduct(token, sku, start, end);
+    if (!prod) return res.json({ shop, sku, product: null, rows: [], error: "SKU '" + sku + "' niet gevonden in " + shop });
+    const [byDay, gaTok] = await Promise.all([
+      productByDay(token, prod.product_id, start, end),
+      gaConfigured() ? gaAccessToken().catch(() => null) : Promise.resolve(null),
+    ]);
+    let views = null, gaErr = null;
+    const propId = process.env[GA_PROP[shop]];
+    if (gaTok && propId) {
+      try { views = await gaItemViewsByDay(propId, gaTok, start, end, [sku, prod.product_id]); } catch (e) { gaErr = e.message; }
+    }
+    const cogsUnit = prod.cogs || 0;
+    const dates = new Set([...Object.keys(byDay), ...(views ? Object.keys(views) : [])]);
+    const rows = [...dates].sort().map((d) => {
+      const p = byDay[d] || {};
+      const netItems = p.netItems || 0, netSales = p.netSales || 0;
+      const cogs = cogsUnit * netItems;
+      return {
+        d, grossSales: p.grossSales || 0, netSales, grossItems: p.grossItems || 0, netItems,
+        itemsRefunded: p.itemsRefunded || 0, refunds: p.refunds || 0, orders: p.orders || 0,
+        cogs, profit: netSales - cogs, views: views ? (views[d] || 0) : 0,
+      };
+    });
+    const out = {
+      shop, sku,
+      product: { id: prod.product_id, title: prod.title, image: prod.image, currentPrice: prod.current_price, stock: prod.stock_quantity, cogsUnit },
+      rows, ga: { configured: gaConfigured(), hasViews: !!views, error: gaErr },
+      start, end, updated: new Date().toISOString(),
+    };
+    mCache[key] = { at: now, data: out };
+    res.json(out);
+  } catch (e) {
+    res.status(500).json({ error: e.message || "Productdata ophalen mislukt" });
+  }
+}
+
 // Kerncijfers per shop: dagelijkse rijen met alle rauwe bouwstenen.
 // De frontend bucketet naar dag/week/maand en rekent alle afgeleide metrics uit,
 // zodat het "totaal" simpelweg de som van de landen is.
@@ -175,6 +286,7 @@ module.exports = async (req, res) => {
   const s = getSession(req);
   if (!s) return res.status(401).json({ error: "unauthorized" });
   if (req.query && req.query.view === "metrics") return metricsView(req, res);
+  if (req.query && req.query.view === "product") return productView(req, res);
   const now = Date.now();
   if (cache && now - cacheAt < TTL) return res.json(cache);
   try {
