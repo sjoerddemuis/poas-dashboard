@@ -11,26 +11,36 @@ const TTL = 30 * 60 * 1000;
 async function probeView(req, res) {
   const token = process.env.METORIK_TOKEN_NL;
   if (!token) return res.status(400).json({ error: "geen NL-token" });
-  const start = "2026-06-01", end = "2026-06-07";
-  const reports = {
-    "profit-by-date": { group_by: "day", start_date: start, end_date: end },
-    "revenue-by-date": { group_by: "day", start_date: start, end_date: end },
-    "orders-by-date": { group_by: "day", start_date: start, end_date: end },
-    "customers-by-date": { group_by: "day", start_date: start, end_date: end },
+  const start = "2026-06-01", end = "2026-06-30";
+  const BASE = "https://app.metorik.com/api/v1/store/reports/orders-by-date";
+  async function ordersFor(extra) {
+    const u = new URL(BASE);
+    u.searchParams.set("group_by", "month");
+    u.searchParams.set("start_date", start);
+    u.searchParams.set("end_date", end);
+    Object.entries(extra || {}).forEach(([k, v]) => u.searchParams.set(k, v));
+    const r = await fetch(u, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+    const txt = await r.text();
+    if (!r.ok) return { status: r.status, body: txt.slice(0, 90) };
+    let j; try { j = JSON.parse(txt); } catch (e) { return { status: r.status, parse: "geen json" }; }
+    const orders = (j.data || []).reduce((s, d) => s + (d.orders || 0), 0);
+    return { status: r.status, orders };
+  }
+  const F = (arr) => JSON.stringify(arr);
+  const out = { baseline: await ordersFor() };
+  // Kandidaat-filters/params voor "nieuwe klant"-orders. We zien welke werkt + hoeveel minder orders.
+  const kandidaten = {
+    "param customer_type=new": { customer_type: "new" },
+    "param new_customers=true": { new_customers: "true" },
+    "filter first_time_customer": { filters: F([{ field: "first_time_customer", operator: "eq", value: true }]) },
+    "filter new_customer": { filters: F([{ field: "new_customer", operator: "eq", value: true }]) },
+    "filter customer_orders_count=1": { filters: F([{ field: "customer_orders_count", operator: "eq", value: 1 }]) },
+    "filter customer_new": { filters: F([{ field: "customer_new", operator: "eq", value: true }]) },
+    "filter lifetime_orders=1": { filters: F([{ field: "lifetime_orders", operator: "eq", value: 1 }]) },
   };
-  const out = {};
-  await Promise.all(Object.entries(reports).map(async ([name, params]) => {
-    try {
-      const u = new URL("https://app.metorik.com/api/v1/store/reports/" + name);
-      Object.entries(params).forEach(([k, v]) => u.searchParams.set(k, v));
-      const r = await fetch(u, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
-      const txt = await r.text();
-      if (!r.ok) { out[name] = { status: r.status, body: txt.slice(0, 120) }; return; }
-      let j; try { j = JSON.parse(txt); } catch (e) { out[name] = { status: r.status, parse: "geen json" }; return; }
-      const first = (j.data || [])[0] || {};
-      out[name] = { status: r.status, velden: Object.keys(first), totalsVelden: Object.keys(j.totals || {}), sample: first };
-    } catch (e) { out[name] = { error: String(e.message).slice(0, 120) }; }
-  }));
+  for (const [naam, extra] of Object.entries(kandidaten)) {
+    try { out[naam] = await ordersFor(extra); } catch (e) { out[naam] = { error: String(e.message).slice(0, 90) }; }
+  }
   res.json(out);
 }
 
