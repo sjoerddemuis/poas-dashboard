@@ -10,6 +10,7 @@ const MTTL = 15 * 60 * 1000;
 
 function isDate(s) { return typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s); }
 function ymd(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+function addD(dstr, n) { const d = new Date(dstr + "T00:00:00"); d.setDate(d.getDate() + n); return ymd(d); }
 
 async function metGet(token, url, params) {
   const u = new URL(url);
@@ -20,39 +21,54 @@ async function metGet(token, url, params) {
 }
 
 // Winst-rapport per dag: alle bouwstenen voor de kerncijfers in één call.
+// Metorik's dag-rapport geeft niets terug bij ranges > ~1 jaar, dus in vensters van 300 dagen.
 async function profitDays(token, start, end) {
-  const rep = await metGet(token, "https://app.metorik.com/api/v1/store/reports/profit-by-date",
-    { group_by: "day", start_date: start, end_date: end });
   const out = {};
-  (rep.data || []).forEach((d) => {
-    const k = String(d.date).slice(0, 10);
-    out[k] = {
-      net: d.net || 0, orders: d.orders || 0, items: d.items || 0,
-      product: d.product_cogs || 0, shipping: d.shipping_cogs || 0, transaction: d.transaction_cogs || 0,
-      extra: d.extra_cogs || 0, advertising: d.advertising_cost || 0, operational: d.operational_cost || 0,
-    };
-  });
+  let ws = start;
+  for (let i = 0; i < 20 && ws <= end; i++) {
+    let we = addD(ws, 299); if (we > end) we = end;
+    const rep = await metGet(token, "https://app.metorik.com/api/v1/store/reports/profit-by-date",
+      { group_by: "day", start_date: ws, end_date: we });
+    (rep.data || []).forEach((d) => {
+      const k = String(d.date).slice(0, 10);
+      out[k] = {
+        net: d.net || 0, orders: d.orders || 0, items: d.items || 0,
+        product: d.product_cogs || 0, shipping: d.shipping_cogs || 0, transaction: d.transaction_cogs || 0,
+        extra: d.extra_cogs || 0, advertising: d.advertising_cost || 0, operational: d.operational_cost || 0,
+      };
+    });
+    ws = addD(we, 1);
+  }
   return out;
 }
 
 // Nieuwe klanten per dag = klanten wiens EERSTE order in de periode valt.
-// Metorik geeft geen pagination.total, dus we pagineren en bucketen op first_order_date.
-// Cap op 60 pagina's (6000 nieuwe klanten/shop) om binnen de time-out te blijven.
-async function newCustomersByDay(token, start, end) {
-  const url = "https://app.metorik.com/api/v1/store/customers";
-  const filters = JSON.stringify([{ field: "first_order_date", operator: "between", value: [start, end] }]);
-  const byDay = {}; let capped = false, page = 1;
-  for (; page <= 60; page++) {
+// Metorik's klanten-endpoint kapt brede queries stilzwijgend af (~2400 records),
+// dus we knippen de periode in vensters van 30 dagen en pagineren op paginavulling
+// (doorgaan zolang een pagina 100 records geeft) i.p.v. op has_more_pages.
+const CUSTURL = "https://app.metorik.com/api/v1/store/customers";
+function addDays(dstr, n) { const d = new Date(dstr + "T00:00:00"); d.setDate(d.getDate() + n); return ymd(d); }
+async function newCustInWindow(token, ws, we, byDay) {
+  const filters = JSON.stringify([{ field: "first_order_date", operator: "between", value: [ws, we] }]);
+  let capped = false;
+  for (let page = 1; page <= 40; page++) {
     let j;
-    try { j = await metGet(token, url, { per_page: "100", page: String(page), filters }); }
+    try { j = await metGet(token, CUSTURL, { per_page: "100", page: String(page), filters }); }
     catch (e) { break; }
-    (j.data || []).forEach((c) => {
-      if (!c.first_order_date) return;
-      const k = String(c.first_order_date).slice(0, 10);
-      byDay[k] = (byDay[k] || 0) + 1;
-    });
-    if (!(j.pagination && j.pagination.has_more_pages)) break;
-    if (page === 60) capped = true;
+    const rows = j.data || [];
+    rows.forEach((c) => { if (c.first_order_date) { const k = String(c.first_order_date).slice(0, 10); byDay[k] = (byDay[k] || 0) + 1; } });
+    if (rows.length < 100) break;               // laatste (deels gevulde) pagina
+    if (page === 40) capped = true;             // venster > 4000 nieuwe klanten: aftoppen
+  }
+  return capped;
+}
+async function newCustomersByDay(token, start, end) {
+  const byDay = {}; let capped = false;
+  let ws = start;
+  for (let i = 0; i < 40 && ws <= end; i++) {   // max 40 vensters (~3,3 jaar)
+    let we = addDays(ws, 29); if (we > end) we = end;
+    if (await newCustInWindow(token, ws, we, byDay)) capped = true;
+    ws = addDays(we, 1);
   }
   return { byDay, capped };
 }
