@@ -425,6 +425,40 @@ details[open] summary::before{content:"▾ "}
 #apcontent .apwarn{background:#FFF1E5;border:1px solid var(--orange);border-radius:12px;padding:11px 14px;font-size:12.5px;line-height:1.55;margin-bottom:14px}
 #apcontent .apnomatch{color:var(--mute);font-style:italic}
 #apcontent .aphead{font-weight:700;font-size:14px;margin:16px 0 6px}
+/* ---- Kerncijfers-sectie ---- */
+#sec-kern .knsub{color:var(--mute);font-size:13px;margin:0 0 14px;line-height:1.5;max-width:860px}
+#sec-kern .knbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 12px;margin-bottom:16px;box-shadow:var(--shadow)}
+#sec-kern .knseg{display:inline-flex;border:1.5px solid var(--line);border-radius:9px;overflow:hidden}
+#sec-kern .knseg button{border:0;border-right:1px solid var(--line);background:var(--card);color:var(--ink);font-size:12px;font-weight:700;padding:7px 13px;cursor:pointer}
+#sec-kern .knseg button:last-child{border-right:0}
+#sec-kern .knseg button.on{background:var(--green);color:#fff}
+#sec-kern .knlbl{font-size:12px;color:var(--mute);font-weight:600}
+#sec-kern .kndate{border:1.5px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font-size:13px;padding:6px 9px;font-family:var(--mono)}
+#sec-kern .knpreset{display:inline-flex;gap:5px}
+#sec-kern .knpreset button{border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--mute);font-family:var(--mono);font-size:11px;font-weight:700;padding:6px 10px;cursor:pointer}
+#sec-kern .knpreset button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+#sec-kern .knsep{flex:1}
+#sec-kern .knref{border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--mute);font-family:var(--mono);font-size:11px;font-weight:700;padding:6px 10px;cursor:pointer}
+#sec-kern .knref:hover{border-color:var(--green);color:var(--greenDk)}
+#sec-kern .kncards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-bottom:18px}
+#sec-kern .kncard{position:relative;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:12px 13px;cursor:pointer;transition:border-color .12s,box-shadow .12s}
+#sec-kern .kncard:hover{border-color:var(--green)}
+#sec-kern .kncard.on{border-color:var(--green);box-shadow:0 0 0 1px var(--green) inset}
+#sec-kern .kncard .kndot{position:absolute;top:12px;right:12px;width:12px;height:12px;border-radius:50%;border:2px solid var(--line);background:transparent}
+#sec-kern .kncard.on .kndot{border-color:transparent}
+#sec-kern .kncard .knname{font-size:11.5px;color:var(--mute);font-weight:600;line-height:1.3;padding-right:20px;min-height:30px}
+#sec-kern .kncard .knval{font-size:23px;font-weight:800;line-height:1.05;margin-top:6px}
+#sec-kern .kncard .knsub2{font-size:11px;color:var(--mute);margin-top:3px;font-family:var(--mono)}
+#sec-kern .kncard .kntog{position:absolute;bottom:10px;right:11px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--mute);font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 7px;cursor:pointer}
+#sec-kern .kncard .kntog:hover{border-color:var(--green);color:var(--greenDk)}
+#sec-kern .knchartwrap{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow)}
+#sec-kern .kncharthd{font-weight:700;font-size:14px;margin-bottom:4px}
+#sec-kern .knchartsub{font-size:11.5px;color:var(--mute);margin-bottom:10px}
+#sec-kern .knchartbox{position:relative;height:340px}
+#sec-kern .knempty{color:var(--mute);font-size:13px;text-align:center;padding:60px 0}
+#sec-kern .knloading,#sec-kern .knerr{padding:40px;text-align:center;color:var(--mute)}
+#sec-kern .knerr{color:var(--red)}
+#sec-kern .knwarn{background:#FFF1E5;border:1px solid var(--orange);border-radius:10px;padding:9px 13px;font-size:12px;line-height:1.5;color:var(--ink);margin-bottom:14px}
 /* ---- Verkoopkosten-sectie ---- */
 #sec-kosten .kbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 12px;margin-bottom:14px;box-shadow:var(--shadow)}
 #sec-kosten select{font-size:14px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:9px;padding:8px 12px;cursor:pointer;font-weight:600;min-width:210px}
@@ -553,6 +587,7 @@ summary{border-radius:11px;font-weight:600}
   </div>
   <div class="secnav" id="secnav">
     <button class="snav on" data-sec="poas">Blended POAS</button>
+    <button class="snav" data-sec="kern">Kerncijfers</button>
     <button class="snav" data-sec="ronada">Ronada-aandeel</button>
     <button class="snav" data-sec="prijs">Prijsmonitor</button>
     <button class="snav" data-sec="voorraad">Voorraad</button>
@@ -566,6 +601,35 @@ summary{border-radius:11px;font-weight:600}
   <div id="view"></div>
   <div class="note" style="margin-top:24px">Blended POAS = winst vóór ads ÷ adspend, met winst vóór ads = omzet ex btw − product − verzend − transactie − verpakking − opex. AOV = netto-omzet ÷ orders (laatste 30 dagen) per land. Live uit Metorik. Marktplaatsen niet meegenomen (geen adspend).</div>
   </div><!-- /sec-poas -->
+
+  <div id="sec-kern" style="display:none">
+    <div class="knsub">Alle kerncijfers per land en totaal, live uit Metorik. Klik op een cijfer om het in de grafiek te zetten; klik meerdere aan om te vergelijken. Bij een percentage kun je togglen tussen % en €.</div>
+    <div class="knbar">
+      <div class="knseg" id="knland">
+        <button data-l="total" class="on">Totaal</button>
+        <button data-l="NL">NL</button>
+        <button data-l="DE">DE</button>
+        <button data-l="FR">FR</button>
+      </div>
+      <div class="knseg" id="kngran">
+        <button data-g="day">Dag</button>
+        <button data-g="week">Week</button>
+        <button data-g="month" class="on">Maand</button>
+      </div>
+      <span class="knlbl">van</span><input type="date" id="knfrom" class="kndate">
+      <span class="knlbl">tot</span><input type="date" id="knto" class="kndate">
+      <div class="knpreset" id="knpreset">
+        <button data-d="30">30d</button>
+        <button data-d="90" class="on">90d</button>
+        <button data-d="365">1 jaar</button>
+        <button data-d="ytd">Dit jaar</button>
+      </div>
+      <span class="knsep"></span>
+      <span class="knlbl" id="knupd"></span>
+      <button id="knref" class="knref">↻ Ververs</button>
+    </div>
+    <div id="kncontent"><div class="knloading">Kerncijfers laden uit Metorik…</div></div>
+  </div><!-- /sec-kern -->
 
   <div id="sec-ronada" style="display:none">
     <div class="rsub">Aandeel eigen huismerk (<b>Ronada + RTM</b>) t.o.v. alle overige merken — maand op maand, live uit Metorik. Omzet = excl. btw &amp; verzending.</div>
@@ -2207,15 +2271,188 @@ window.__kostenLoad=function(){
   if(!(K.months||[]).length)kload(false);else krender();
 };
 })();
+/* ===== Sectie: Kerncijfers (key metrics) — per land + totaal, dag/week/maand ===== */
+(function(){
+"use strict";
+let KM=null, knInited=false, knLand="total", knGran="month", knFrom="", knTo="", knChart=null;
+const chartOn={ margin:true }, pctMode={};
+const kesc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+const KMAB=["","jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
+const knToday=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
+
+const KMET=[
+  { id:"returning", label:"% returning customers", unit:"pct", color:"#2D6CDF", v:a=>a.orders>0?(1-a.newOrders/a.orders)*100:null },
+  { id:"orders", label:"Aantal orders", unit:"num", color:"#0F1411", v:a=>a.orders },
+  { id:"ipo", label:"Items per order", unit:"ratio", color:"#8A5A00", v:a=>a.orders>0?a.items/a.orders:null },
+  { id:"aon", label:"Gem. order netto", unit:"eur", color:"#00A0A0", v:a=>a.orders>0?a.net/a.orders:null },
+  { id:"appo", label:"Gem. winst / order (netto)", unit:"eur", color:"#009626", v:a=>a.orders>0?a.profit/a.orders:null },
+  { id:"margin", label:"Gem. nettomarge", unit:"pct", color:"#00C030", v:a=>a.net>0?a.profit/a.net*100:null },
+  { id:"profit", label:"Totale winst", unit:"eur", color:"#006B3C", v:a=>a.profit },
+  { id:"product", label:"Productkosten", cost:"product", color:"#E5484D" },
+  { id:"shipping", label:"Verzendkosten", cost:"shipping", color:"#F06828" },
+  { id:"transaction", label:"Transactiekosten", cost:"transaction", color:"#B58900" },
+  { id:"advertising", label:"Advertentiekosten", cost:"advertising", color:"#9C27B0" },
+  { id:"operational", label:"Operationele kosten", cost:"operational", color:"#607D8B" },
+  { id:"extra", label:"Extra kosten", cost:"extra", color:"#795548" },
+];
+function mUnit(m){ return m.cost ? (pctMode[m.id]===false?"eur":"pct") : m.unit; }
+function mVal(m,a){
+  if(m.cost){ return pctMode[m.id]===false ? a[m.cost] : (a.net>0?a[m.cost]/a.net*100:null); }
+  return m.v(a);
+}
+function fmtU(v,unit){
+  if(v==null||!isFinite(v))return "—";
+  if(unit==="pct")return v.toLocaleString("nl-NL",{maximumFractionDigits:1})+"%";
+  if(unit==="ratio")return v.toLocaleString("nl-NL",{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(unit==="eur"){ const dec=Math.abs(v)<100?2:0; return "€"+v.toLocaleString("nl-NL",{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
+  return Math.round(v).toLocaleString("nl-NL");
+}
+function aggregate(rows){
+  const a={net:0,orders:0,items:0,product:0,shipping:0,transaction:0,extra:0,advertising:0,operational:0,newOrders:0};
+  rows.forEach(r=>{ for(const k in a) a[k]+=r[k]||0; });
+  a.profit = a.net - (a.product+a.shipping+a.transaction+a.extra+a.advertising+a.operational);
+  return a;
+}
+function rowsFor(land){
+  if(!KM||!KM.shops)return [];
+  if(land==="total"){
+    const byd={};
+    ["NL","DE","FR"].forEach(k=>{ const sh=KM.shops[k]; if(sh&&sh.rows)sh.rows.forEach(r=>{
+      const o=byd[r.d]||(byd[r.d]={d:r.d,net:0,orders:0,items:0,product:0,shipping:0,transaction:0,extra:0,advertising:0,operational:0,newOrders:0});
+      for(const f in o){ if(f!=="d")o[f]+=r[f]||0; }
+    });});
+    return Object.values(byd).sort((a,b)=>a.d<b.d?-1:1);
+  }
+  const sh=KM.shops[land]; return sh&&sh.rows?sh.rows.slice():[];
+}
+function isoWeek(dstr){
+  const dt=new Date(dstr+"T00:00:00");
+  const t=new Date(Date.UTC(dt.getFullYear(),dt.getMonth(),dt.getDate()));
+  const day=t.getUTCDay()||7; t.setUTCDate(t.getUTCDate()+4-day);
+  const y0=new Date(Date.UTC(t.getUTCFullYear(),0,1));
+  const wk=Math.ceil(((t-y0)/864e5+1)/7);
+  return t.getUTCFullYear()+"-W"+String(wk).padStart(2,"0");
+}
+function bkey(d){ if(knGran==="day")return d; if(knGran==="week")return isoWeek(d); return d.slice(0,7); }
+function blabel(k){
+  if(knGran==="day"){ const p=k.split("-"); return p[2]+"/"+p[1]; }
+  if(knGran==="week"){ const p=k.split("-W"); return "wk"+p[1]+" '"+p[0].slice(2); }
+  const p=k.split("-"); return KMAB[+p[1]]+" '"+p[0].slice(2);
+}
+function buckets(rows){
+  const by={};
+  rows.forEach(r=>{ const k=bkey(r.d); (by[k]||(by[k]=[])).push(r); });
+  return Object.keys(by).sort().map(k=>({ key:k, label:blabel(k), agg:aggregate(by[k]) }));
+}
+function granWord(){ return knGran==="day"?"dag":knGran==="week"?"week":"maand"; }
+function landName(){ return {total:"Totaal (alle shops)",NL:"Ongediertewinkel.nl",DE:"Ungeziefershop.de",FR:"Boutiqueantinuisibles.fr"}[knLand]; }
+function setUpd(){ const el=document.getElementById("knupd"); if(el&&KM)el.textContent="Periode "+KM.start+" t/m "+KM.end; }
+
+function drawChart(bks){
+  if(typeof Chart==="undefined")return;
+  const active=KMET.filter(m=>chartOn[m.id]);
+  const box=document.getElementById("knchart"); if(!box)return;
+  if(knChart){ knChart.destroy(); knChart=null; }
+  if(!active.length)return;
+  const labels=bks.map(b=>b.label);
+  const used=new Set(active.map(m=>mUnit(m)));
+  const datasets=active.map(m=>{ const u=mUnit(m); return {
+    label:m.label+(m.cost?(u==="eur"?" (€)":" (%)"):""),
+    data:bks.map(b=>{ const v=mVal(m,b.agg); return v==null?null:Math.round(v*100)/100; }),
+    borderColor:m.color, backgroundColor:m.color+"22", yAxisID:"y_"+u,
+    tension:.25, pointRadius:bks.length>40?0:3, borderWidth:2, spanGaps:true,
+  };});
+  const pos={eur:"left",pct:"right",num:"right",ratio:"right"};
+  const ttl={eur:"€",pct:"%",num:"aantal",ratio:"items/order"};
+  const scales={ x:{ grid:{display:false} } };
+  [...used].forEach((u,i)=>{ scales["y_"+u]={ type:"linear", position:pos[u],
+    title:{display:true,text:ttl[u]}, grid:{drawOnChartArea:i===0},
+    ticks:{ callback:val=>fmtU(val,u) } }; if(u==="pct")scales["y_"+u].suggestedMin=0; });
+  knChart=new Chart(box,{ type:"line", data:{labels,datasets},
+    options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:"index",intersect:false},
+      plugins:{ legend:{position:"top",labels:{boxWidth:12,font:{size:11}}},
+        tooltip:{ callbacks:{ label:ctx=>{ const m=active[ctx.datasetIndex]; return m.label+": "+fmtU(ctx.parsed.y,mUnit(m)); } } } },
+      scales } });
+}
+function render(){
+  const c=document.getElementById("kncontent"); if(!c)return;
+  if(!KM){ c.innerHTML='<div class="knloading">Kerncijfers laden…</div>'; return; }
+  if(KM.error){ c.innerHTML='<div class="knerr">'+kesc(KM.error)+'</div>'; return; }
+  const rows=rowsFor(knLand), agg=aggregate(rows), bks=buckets(rows);
+  const capped = knLand==="total" ? ["NL","DE","FR"].some(k=>KM.shops[k]&&KM.shops[k].newCapped) : (KM.shops[knLand]&&KM.shops[knLand].newCapped);
+  const cards=KMET.map(m=>{
+    const u=mUnit(m), v=mVal(m,agg);
+    const tog=m.cost?'<button class="kntog" data-tog="'+m.id+'">'+(u==="pct"?"toon €":"toon %")+'</button>':'';
+    return '<div class="kncard'+(chartOn[m.id]?' on':'')+'" data-m="'+m.id+'">'
+      +'<span class="kndot" style="'+(chartOn[m.id]?'background:'+m.color+';border-color:'+m.color:'')+'"></span>'
+      +'<div class="knname">'+m.label+'</div>'
+      +'<div class="knval" style="'+(chartOn[m.id]?'color:'+m.color:'')+'">'+fmtU(v,u)+'</div>'
+      +tog+'</div>';
+  }).join("");
+  const anyOn=KMET.some(m=>chartOn[m.id]);
+  c.innerHTML=(capped?'<div class="knwarn">Let op: er zijn heel veel nieuwe klanten in deze periode; de returning-berekening is afgetopt en kan licht afwijken. Kies eventueel een kortere periode.</div>':'')
+    +'<div class="kncards">'+cards+'</div>'
+    +'<div class="knchartwrap"><div class="kncharthd">Grafiek — '+kesc(landName())+'</div>'
+    +'<div class="knchartsub">Per '+granWord()+' · klik kerncijfers hierboven aan/uit om te vergelijken</div>'
+    +(anyOn?'<div class="knchartbox"><canvas id="knchart"></canvas></div>':'<div class="knempty">Klik hierboven op één of meer kerncijfers om ze in de grafiek te zetten.</div>')
+    +'</div>';
+  setUpd();
+  if(anyOn)drawChart(bks);
+}
+async function fetchMetrics(fresh){
+  const c=document.getElementById("kncontent"); c.innerHTML='<div class="knloading">Kerncijfers laden uit Metorik…</div>';
+  try{
+    const r=await fetch("/api/data?view=metrics&start="+encodeURIComponent(knFrom)+"&end="+encodeURIComponent(knTo)+(fresh?"&fresh=1":""),{cache:"no-store"});
+    if(r.status===401){location.href="/login.html";return;}
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
+    KM=d; if(d.start)knFrom=d.start; if(d.end)knTo=d.end;
+    const ff=document.getElementById("knfrom"), tt=document.getElementById("knto");
+    if(ff)ff.value=knFrom; if(tt)tt.value=knTo;
+    render();
+  }catch(e){ document.getElementById("kncontent").innerHTML='<div class="knerr">Kon kerncijfers niet laden.<br><small>'+kesc(e.message||e)+'</small></div>'; }
+}
+function setPreset(d){
+  const to=new Date(), from=new Date();
+  if(d==="ytd"){ from.setMonth(0); from.setDate(1); }
+  else { from.setDate(from.getDate()-(d-1)); }
+  const y=x=>x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0");
+  knFrom=y(from); knTo=y(to);
+}
+function clearPreset(){ [...document.querySelectorAll("#knpreset button")].forEach(x=>x.classList.remove("on")); }
+
+window.__kernLoad=function(){
+  if(!knInited){ knInited=true;
+    setPreset(90);
+    document.getElementById("knfrom").value=knFrom;
+    document.getElementById("knto").value=knTo;
+    document.getElementById("knland").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b)return; knLand=b.dataset.l; [...document.querySelectorAll("#knland button")].forEach(x=>x.classList.toggle("on",x===b)); render(); });
+    document.getElementById("kngran").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b)return; knGran=b.dataset.g; [...document.querySelectorAll("#kngran button")].forEach(x=>x.classList.toggle("on",x===b)); render(); });
+    document.getElementById("knpreset").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b)return; [...document.querySelectorAll("#knpreset button")].forEach(x=>x.classList.toggle("on",x===b)); setPreset(b.dataset.d==="ytd"?"ytd":+b.dataset.d); document.getElementById("knfrom").value=knFrom; document.getElementById("knto").value=knTo; fetchMetrics(); });
+    document.getElementById("knfrom").addEventListener("change",e=>{ if(e.target.value){ knFrom=e.target.value; clearPreset(); fetchMetrics(); } });
+    document.getElementById("knto").addEventListener("change",e=>{ if(e.target.value){ knTo=e.target.value; clearPreset(); fetchMetrics(); } });
+    document.getElementById("knref").addEventListener("click",()=>fetchMetrics(true));
+    document.getElementById("kncontent").addEventListener("click",e=>{
+      const tog=e.target.closest(".kntog");
+      if(tog){ e.stopPropagation(); pctMode[tog.dataset.tog]=!(pctMode[tog.dataset.tog]===false)?false:true; render(); return; }
+      const card=e.target.closest(".kncard"); if(!card)return;
+      const id=card.dataset.m; chartOn[id]=!chartOn[id]; render();
+    });
+    fetchMetrics(); return;
+  }
+  if(!KM)fetchMetrics(); else render();
+};
+})();
 /* ===== Sectienavigatie (onthoudt actieve tab via URL-hash) ===== */
 (function(){
   const nav=document.getElementById("secnav");
-  const SECS=["poas","ronada","prijs","voorraad","ads","reviews","kosten"];
+  const SECS=["poas","kern","ronada","prijs","voorraad","ads","reviews","kosten"];
   function activate(sec,updateHash){
     if(!SECS.includes(sec))sec="poas";
     const b=nav.querySelector('.snav[data-sec="'+sec+'"]');
     [...nav.querySelectorAll(".snav")].forEach(x=>x.classList.toggle("on",x===b));
     SECS.forEach(s=>{const el=document.getElementById("sec-"+s);if(el)el.style.display=s===sec?"":"none";});
+    if(sec==="kern"&&window.__kernLoad)window.__kernLoad();
     if(sec==="ronada"&&window.__ronadaLoad)window.__ronadaLoad();
     if(sec==="prijs"&&window.__prijsLoad)window.__prijsLoad();
     if(sec==="voorraad"&&window.__voorraadLoad)window.__voorraadLoad();
