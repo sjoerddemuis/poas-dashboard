@@ -68,6 +68,55 @@ async function newReturningByDay(token, start, end) {
   return { byDay, capped: false };
 }
 
+// GA4-sessies per shop (optioneel, voor conversie = orders / sessies).
+// Hergebruikt de OAuth-client van Google Ads; vereist een refresh-token met de
+// analytics.readonly-scope (GA_REFRESH_TOKEN) en GA_PROPERTY_ID_NL/_DE/_FR.
+const GA_PROP = { NL: "GA_PROPERTY_ID_NL", DE: "GA_PROPERTY_ID_DE", FR: "GA_PROPERTY_ID_FR" };
+function gaConfigured() {
+  return !!(process.env.GA_REFRESH_TOKEN &&
+    (process.env.GA_CLIENT_ID || process.env.GOOGLE_ADS_CLIENT_ID) &&
+    (process.env.GA_CLIENT_SECRET || process.env.GOOGLE_ADS_CLIENT_SECRET));
+}
+let gaTok = null, gaTokAt = 0;
+async function gaAccessToken() {
+  if (gaTok && Date.now() - gaTokAt < 50 * 60 * 1000) return gaTok;
+  const body = new URLSearchParams({
+    client_id: process.env.GA_CLIENT_ID || process.env.GOOGLE_ADS_CLIENT_ID,
+    client_secret: process.env.GA_CLIENT_SECRET || process.env.GOOGLE_ADS_CLIENT_SECRET,
+    refresh_token: process.env.GA_REFRESH_TOKEN,
+    grant_type: "refresh_token",
+  });
+  const r = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body,
+  });
+  if (!r.ok) { const t = await r.text().catch(() => ""); throw new Error("GA OAuth " + r.status + ": " + t.slice(0, 140)); }
+  const j = await r.json(); gaTok = j.access_token; gaTokAt = Date.now(); return gaTok;
+}
+// Sessies per dag via GA4 Data API (runReport): één call per property voor de hele range.
+async function gaSessionsByDay(propId, token, start, end) {
+  const id = String(propId).replace(/\D/g, "");
+  const r = await fetch("https://analyticsdata.googleapis.com/v1beta/properties/" + id + ":runReport", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      dateRanges: [{ startDate: start, endDate: end }],
+      dimensions: [{ name: "date" }],
+      metrics: [{ name: "sessions" }],
+      limit: 100000,
+    }),
+  });
+  if (!r.ok) { const t = await r.text().catch(() => ""); throw new Error("GA " + r.status + ": " + t.slice(0, 140)); }
+  const j = await r.json();
+  const byDay = {};
+  (j.rows || []).forEach((row) => {
+    const dv = (row.dimensionValues[0] || {}).value || "";     // YYYYMMDD
+    if (dv.length !== 8) return;
+    const k = dv.slice(0, 4) + "-" + dv.slice(4, 6) + "-" + dv.slice(6, 8);
+    byDay[k] = (byDay[k] || 0) + (+((row.metricValues[0] || {}).value) || 0);
+  });
+  return byDay;
+}
+
 // Kerncijfers per shop: dagelijkse rijen met alle rauwe bouwstenen.
 // De frontend bucketet naar dag/week/maand en rekent alle afgeleide metrics uit,
 // zodat het "totaal" simpelweg de som van de landen is.
@@ -84,13 +133,23 @@ async function metricsView(req, res) {
   if (mCache[key] && now - mCache[key].at < MTTL && !q.fresh) return res.json(mCache[key].data);
 
   try {
+    // GA4-token eenmalig ophalen (best-effort). Faalt dit, dan gewoon geen sessies/conversie.
+    let gaToken = null, gaErr = null;
+    if (gaConfigured()) {
+      try { gaToken = await gaAccessToken(); } catch (e) { gaErr = e.message; }
+    }
     const shops = {};
     await Promise.all(SHOPS.map(async ([code, envName]) => {
       const token = process.env[envName];
       if (!token) { shops[code] = { rows: [], error: "geen token" }; return; }
       try {
-        const [pd, nc] = await Promise.all([profitDays(token, start, end), newReturningByDay(token, start, end)]);
-        const dates = new Set([...Object.keys(pd), ...Object.keys(nc.byDay)]);
+        const propId = process.env[GA_PROP[code]];
+        const [pd, nc, ga] = await Promise.all([
+          profitDays(token, start, end),
+          newReturningByDay(token, start, end),
+          (gaToken && propId) ? gaSessionsByDay(propId, gaToken, start, end).catch(() => null) : Promise.resolve(null),
+        ]);
+        const dates = new Set([...Object.keys(pd), ...Object.keys(nc.byDay), ...(ga ? Object.keys(ga) : [])]);
         const rows = [...dates].sort().map((d) => {
           const p = pd[d] || {};
           return {
@@ -98,12 +157,13 @@ async function metricsView(req, res) {
             product: p.product || 0, shipping: p.shipping || 0, transaction: p.transaction || 0,
             extra: p.extra || 0, advertising: p.advertising || 0, operational: p.operational || 0,
             newOrders: nc.byDay[d] || 0,
+            sessions: ga ? (ga[d] || 0) : 0,
           };
         });
-        shops[code] = { rows, newCapped: nc.capped };
+        shops[code] = { rows, newCapped: nc.capped, hasSessions: !!ga };
       } catch (e) { shops[code] = { rows: [], error: e.message }; }
     }));
-    const out = { start, end, shops, updated: new Date().toISOString() };
+    const out = { start, end, shops, ga: { configured: gaConfigured(), error: gaErr }, updated: new Date().toISOString() };
     mCache[key] = { at: now, data: out };
     res.json(out);
   } catch (e) {
