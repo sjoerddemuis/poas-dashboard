@@ -53,35 +53,19 @@ async function profitDays(token, start, end) {
   return out;
 }
 
-// Nieuwe klanten per dag = klanten wiens EERSTE order in de periode valt.
-// Metorik's klanten-endpoint kapt brede queries stilzwijgend af (~2400 records),
-// dus we knippen de periode in vensters van 30 dagen en pagineren op paginavulling
-// (doorgaan zolang een pagina 100 records geeft) i.p.v. op has_more_pages.
-const CUSTURL = "https://app.metorik.com/api/v1/store/customers";
-function addDays(dstr, n) { const d = new Date(dstr + "T00:00:00"); d.setDate(d.getDate() + n); return ymd(d); }
-async function newCustInWindow(token, ws, we, byDay) {
-  const filters = JSON.stringify([{ field: "first_order_date", operator: "between", value: [ws, we] }]);
-  let capped = false;
-  for (let page = 1; page <= 40; page++) {
-    let j;
-    try { j = await metGet(token, CUSTURL, { per_page: "100", page: String(page), filters }); }
-    catch (e) { break; }
-    const rows = j.data || [];
-    rows.forEach((c) => { if (c.first_order_date) { const k = String(c.first_order_date).slice(0, 10); byDay[k] = (byDay[k] || 0) + 1; } });
-    if (rows.length < 100) break;               // laatste (deels gevulde) pagina
-    if (page === 40) capped = true;             // venster > 4000 nieuwe klanten: aftoppen
-  }
-  return capped;
-}
-async function newCustomersByDay(token, start, end) {
-  const byDay = {}; let capped = false;
-  let ws = start;
-  for (let i = 0; i < 40 && ws <= end; i++) {   // max 40 vensters (~3,3 jaar)
-    let we = addDays(ws, 29); if (we > end) we = end;
-    if (await newCustInWindow(token, ws, we, byDay)) capped = true;
-    ws = addDays(we, 1);
-  }
-  return { byDay, capped };
+// Nieuwe vs. terugkerende orders per dag komen uit Metorik's eigen rapport
+// (orders-new-returning-customers-by-date): één call voor de hele periode,
+// gecapt op 1500 periodes. Dit vervangt de trage/onbetrouwbare klanten-paginatie:
+// geen 30-dagen-vensters, geen ~2400-cap en geen timeout bij brede ranges.
+async function newReturningByDay(token, start, end) {
+  const byDay = {};
+  const rep = await metGet(token, "https://app.metorik.com/api/v1/store/reports/orders-new-returning-customers-by-date",
+    { group_by: "day", start_date: start, end_date: end });
+  (rep.data || []).forEach((d) => {
+    const k = String(d.date).slice(0, 10);
+    byDay[k] = d.new_orders || 0;               // eerste-order (= nieuwe klant) orders die dag
+  });
+  return { byDay, capped: false };
 }
 
 // Kerncijfers per shop: dagelijkse rijen met alle rauwe bouwstenen.
@@ -105,7 +89,7 @@ async function metricsView(req, res) {
       const token = process.env[envName];
       if (!token) { shops[code] = { rows: [], error: "geen token" }; return; }
       try {
-        const [pd, nc] = await Promise.all([profitDays(token, start, end), newCustomersByDay(token, start, end)]);
+        const [pd, nc] = await Promise.all([profitDays(token, start, end), newReturningByDay(token, start, end)]);
         const dates = new Set([...Object.keys(pd), ...Object.keys(nc.byDay)]);
         const rows = [...dates].sort().map((d) => {
           const p = pd[d] || {};
