@@ -22,26 +22,22 @@ async function probeView(req, res) {
     return { status: r.status, j };
   }
   const F = (arr) => JSON.stringify(arr);
-  const out = {};
-  // 1) Klanten-endpoint: welke velden? (zoek orders_count / first_order-datum)
-  const cust = await call("https://app.metorik.com/api/v1/store/customers", { per_page: "1" });
-  if (cust.j) {
-    const first = (cust.j.data || [])[0] || {};
-    out.customers = { status: cust.status, velden: Object.keys(first), sample: first, paginatie: cust.j.pagination };
-  } else out.customers = cust;
-  // 2) Klanten met eerste order in juni = nieuwe klanten. Test date-range betekenis + count.
-  const custRange = await call("https://app.metorik.com/api/v1/store/customers",
-    { per_page: "1", start_date: start, end_date: end, order_by: "first_order_at" });
-  out.customersInRange = custRange.j ? { status: custRange.status, totaal: custRange.j.pagination && custRange.j.pagination.total, sample1: (custRange.j.data || [])[0] } : custRange;
-  // 3) orders-by-date met customer_type in de filters-array (nieuw/terugkerend).
-  const ordBase = "https://app.metorik.com/api/v1/store/reports/orders-by-date";
-  async function ordCount(extra) {
-    const c = await call(ordBase, Object.assign({ group_by: "month", start_date: start, end_date: end }, extra));
-    return c.j ? (c.j.data || []).reduce((s, d) => s + (d.orders || 0), 0) : c;
+  const CU = "https://app.metorik.com/api/v1/store/customers";
+  async function custTotal(params) {
+    const c = await call(CU, Object.assign({ per_page: "1" }, params));
+    if (!c.j) return c;
+    const p = c.j.pagination || {};
+    const rec = (c.j.data || [])[0] || {};
+    return { status: c.status, total: p.total != null ? p.total : (p.has_more_pages ? "onbekend" : (c.j.data || []).length), eersteDatum: rec.first_order_date };
   }
-  out.ordersBaseline = await ordCount({});
-  out.ordersFilterTypeNew = await ordCount({ filters: F([{ field: "customer_type", operator: "eq", value: "new" }]) });
-  out.ordersFilterTypeReturning = await ordCount({ filters: F([{ field: "customer_type", operator: "eq", value: "returning" }]) });
+  const out = {};
+  // Baseline: alle klanten (geen filter).
+  out.alleKlanten = await custTotal({});
+  // Nieuwe klanten in juni = first_order_date in juni. Test operators.
+  out["filter between"] = await custTotal({ filters: F([{ field: "first_order_date", operator: "between", value: [start, end] }]) });
+  out["filter gte+lte"] = await custTotal({ filters: F([{ field: "first_order_date", operator: "gte", value: start }, { field: "first_order_date", operator: "lte", value: end }]) });
+  out["filter after+before"] = await custTotal({ filters: F([{ field: "first_order_date", operator: "after", value: start }, { field: "first_order_date", operator: "before", value: end }]) });
+  out["param date-range"] = await custTotal({ start_date: start, end_date: end });
   res.json(out);
 }
 
