@@ -435,6 +435,8 @@ details[open] summary::before{content:"▾ "}
 #sec-kern .knseg button.on{background:var(--green);color:#fff}
 #sec-kern .knlbl{font-size:12px;color:var(--mute);font-weight:600}
 #sec-kern .kndate{border:1.5px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font-size:13px;padding:6px 9px;font-family:var(--mono)}
+#sec-kern .kndow{border:1.5px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font-size:12px;font-weight:700;padding:7px 9px;cursor:pointer;outline:none}
+#sec-kern .kndow:focus{border-color:var(--green)}
 #sec-kern .knpreset{display:inline-flex;gap:5px}
 #sec-kern .knpreset button{border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--mute);font-family:var(--mono);font-size:11px;font-weight:700;padding:6px 10px;cursor:pointer}
 #sec-kern .knpreset button.on{background:var(--ink);border-color:var(--ink);color:#fff}
@@ -618,6 +620,16 @@ summary{border-radius:11px;font-weight:600}
         <button data-g="week">Week</button>
         <button data-g="month" class="on">Maand</button>
       </div>
+      <select id="kndow" class="kndow" title="Filter op weekdag">
+        <option value="all">Alle dagen</option>
+        <option value="1">Alleen maandag</option>
+        <option value="2">Alleen dinsdag</option>
+        <option value="3">Alleen woensdag</option>
+        <option value="4">Alleen donderdag</option>
+        <option value="5">Alleen vrijdag</option>
+        <option value="6">Alleen zaterdag</option>
+        <option value="0">Alleen zondag</option>
+      </select>
       <span class="knlbl">van</span><input type="date" id="knfrom" class="kndate">
       <span class="knlbl">tot</span><input type="date" id="knto" class="kndate">
       <div class="knpreset" id="knpreset">
@@ -2345,7 +2357,7 @@ window.__kostenLoad=function(){
 /* ===== Sectie: Kerncijfers (key metrics) — per land + totaal, dag/week/maand ===== */
 (function(){
 "use strict";
-let KM=null, knInited=false, knLand="total", knGran="month", knFrom="", knTo="", knChart=null;
+let KM=null, knInited=false, knLand="total", knGran="month", knDow="all", knFrom="", knTo="", knChart=null;
 const chartOn={ margin:true }, pctMode={};
 const kesc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
 const KMAB=["","jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
@@ -2450,7 +2462,7 @@ function render(){
   const c=document.getElementById("kncontent"); if(!c)return;
   if(!KM){ c.innerHTML='<div class="knloading">Kerncijfers laden…</div>'; return; }
   if(KM.error){ c.innerHTML='<div class="knerr">'+kesc(KM.error)+'</div>'; return; }
-  const rows=rowsFor(knLand), agg=aggregate(rows), bks=buckets(rows);
+  let rows=rowsFor(knLand); if(knDow!=="all")rows=rows.filter(r=>new Date(r.d+"T00:00:00").getDay()===+knDow); const agg=aggregate(rows), bks=buckets(rows);
   const capped = knLand==="total" ? ["NL","DE","FR"].some(k=>KM.shops[k]&&KM.shops[k].newCapped) : (KM.shops[knLand]&&KM.shops[knLand].newCapped);
   const cards=KMET.map(m=>{
     const u=mUnit(m), v=mVal(m,agg);
@@ -2500,6 +2512,7 @@ window.__kernLoad=function(){
     document.getElementById("knto").value=knTo;
     document.getElementById("knland").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b)return; knLand=b.dataset.l; [...document.querySelectorAll("#knland button")].forEach(x=>x.classList.toggle("on",x===b)); render(); });
     document.getElementById("kngran").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b)return; knGran=b.dataset.g; [...document.querySelectorAll("#kngran button")].forEach(x=>x.classList.toggle("on",x===b)); render(); });
+    document.getElementById("kndow").addEventListener("change",e=>{ knDow=e.target.value; render(); });
     document.getElementById("knpreset").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b)return; [...document.querySelectorAll("#knpreset button")].forEach(x=>x.classList.toggle("on",x===b)); setPreset(b.dataset.d==="ytd"?"ytd":+b.dataset.d); document.getElementById("knfrom").value=knFrom; document.getElementById("knto").value=knTo; fetchMetrics(); });
     document.getElementById("knfrom").addEventListener("change",e=>{ if(e.target.value){ knFrom=e.target.value; clearPreset(); fetchMetrics(); } });
     document.getElementById("knto").addEventListener("change",e=>{ if(e.target.value){ knTo=e.target.value; clearPreset(); fetchMetrics(); } });
