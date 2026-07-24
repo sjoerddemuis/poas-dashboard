@@ -48,7 +48,30 @@ function merge(catalog, store) {
   return products;
 }
 
+async function cronRun(res) {
+  let store = null; try { store = await getKey("pricing2"); } catch (e) {}
+  if (!store || !store.comp) return res.status(200).json({ ok: true, note: "geen data" });
+  const comp = store.comp, tasks = [];
+  Object.keys(comp).forEach((sku) => (comp[sku] || []).forEach((c) => {
+    if (!c.url) return;
+    tasks.push((async () => {
+      const r = await scrapePrice(c.url);
+      if (r.price != null) { c.price = r.price; c.date = Date.now(); delete c.err; }
+      else { c.err = r.error; }
+    })());
+  }));
+  await Promise.all(tasks);
+  let scraped = 0, failed = 0;
+  Object.keys(comp).forEach((sku) => (comp[sku] || []).forEach((c) => { if (c.url) (c.err ? failed++ : scraped++); }));
+  const d = new Date();
+  store.updated = d.toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" }) + " " + d.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+  store.comp = comp; try { await setKey("pricing2", store); } catch (e) {}
+  return res.status(200).json({ ok: true, scraped, failed });
+}
+
 module.exports = async (req, res) => {
+  // Dagelijkse Vercel-cron: scrape alle concurrentprijzen zonder login (Authorization: Bearer CRON_SECRET).
+  if (process.env.CRON_SECRET && req.headers.authorization === "Bearer " + process.env.CRON_SECRET) return cronRun(res);
   const s = getSession(req);
   if (!s) return res.status(401).json({ error: "unauthorized" });
 
