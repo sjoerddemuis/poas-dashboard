@@ -2,6 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "functions": {
-    "api/**/*.js": { "maxDuration": 30 }
-  }
+    "api/**/*.js": { "maxDuration": 60 }
+  },
+  "crons": [
+    { "path": "/api/pricing", "schedule": "0 6 * * *" }
+  ]
 }
