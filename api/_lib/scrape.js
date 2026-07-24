@@ -104,39 +104,72 @@ function browserHeaders(url) {
   if (ref) h["Referer"] = ref;
   return h;
 }
-async function fetchHtml(url) {
+// Directe fetch (gratis). Snel, maar wordt geblokkeerd door bot-protection.
+async function fetchDirect(url) {
   const ctrl = new AbortController();
   const to = setTimeout(() => ctrl.abort(), 12000);
   try {
     const r = await fetch(url, { headers: browserHeaders(url), redirect: "follow", signal: ctrl.signal });
     clearTimeout(to);
-    if (!r.ok) return { error: "HTTP " + r.status };
-    return { html: await r.text() };
+    return { ok: r.ok, status: r.status, html: r.ok ? await r.text() : "" };
   } catch (e) {
     clearTimeout(to);
-    return { error: (e && e.name === "AbortError") ? "time-out" : (e.message || "kon pagina niet ophalen") };
+    return { ok: false, status: 0, html: "", err: (e && e.name === "AbortError") ? "time-out" : (e.message || "fetch-fout") };
   }
+}
+// Herkent een blokkade / challenge-pagina (Cloudflare, DataDome, PerimeterX, lege JS-shell).
+function looksBlocked(status, html) {
+  if (status === 401 || status === 403 || status === 429 || status === 503) return true;
+  if (!html || html.length < 200) return true;
+  return /Just a moment\.\.\.|cf-browser-verification|Checking your browser|Attention Required!|cf_chl_|challenge-platform|Enable JavaScript and cookies|px-captcha|_px|datadome|captcha-delivery|Access denied|Request unsuccessful/i.test(html);
+}
+// ScrapingBee: residential proxies + JS-rendering + (optioneel) stealth om bot-protection te passeren.
+const BEE = "https://app.scrapingbee.com/api/v1/";
+function beeConfigured() { return !!process.env.SCRAPER_API_KEY; }
+async function fetchBee(url, opt) {
+  const p = new URLSearchParams({ api_key: process.env.SCRAPER_API_KEY, url, render_js: "true", country_code: process.env.SCRAPER_COUNTRY || "nl", block_ads: "true" });
+  if (opt && opt.stealth) p.set("stealth_proxy", "true");
+  else if (opt && opt.premium) p.set("premium_proxy", "true");
+  const ctrl = new AbortController();
+  const to = setTimeout(() => ctrl.abort(), 22000);
+  try {
+    const r = await fetch(BEE + "?" + p.toString(), { signal: ctrl.signal });
+    clearTimeout(to);
+    if (!r.ok) { const t = await r.text().catch(() => ""); return { ok: false, html: "", err: "scraper " + r.status + ": " + t.slice(0, 120) }; }
+    return { ok: true, html: await r.text() };
+  } catch (e) {
+    clearTimeout(to);
+    return { ok: false, html: "", err: (e && e.name === "AbortError") ? "scraper time-out" : (e.message || "scraper-fout") };
+  }
+}
+// Haalt HTML op: eerst gratis direct; bij blokkade oplopend via de scraping-API
+// (goedkoop -> duur), zodat eenvoudige sites gratis blijven en alleen zware
+// bot-protection de betaalde stappen raakt.
+async function getHtml(url) {
+  const d = await fetchDirect(url);
+  if (d.ok && d.html && !looksBlocked(d.status, d.html)) return { html: d.html, via: "direct" };
+  if (!beeConfigured()) return { html: d.html || "", via: "direct", err: d.err || ("geblokkeerd (HTTP " + d.status + ")") };
+  const b1 = await fetchBee(url, {});                         // JS-render (5 cr)
+  if (b1.ok && b1.html && !looksBlocked(200, b1.html)) return { html: b1.html, via: "scraper-js" };
+  const b2 = await fetchBee(url, { premium: true });          // residential proxy (25 cr)
+  if (b2.ok && b2.html && !looksBlocked(200, b2.html)) return { html: b2.html, via: "scraper-premium" };
+  if (process.env.SCRAPER_STEALTH === "1") {                  // stealth (75 cr), alleen indien aangezet
+    const b3 = await fetchBee(url, { stealth: true });
+    if (b3.ok && b3.html) return { html: b3.html, via: "scraper-stealth" };
+  }
+  return { html: b2.html || b1.html || "", via: "scraper", err: b2.err || b1.err || "scraper geblokkeerd" };
 }
 // Haalt prijs én productnaam op uit één URL (voor 'plak alleen een link').
 async function scrapeInfo(url) {
-  const r = await fetchHtml(url);
-  if (r.error) return { price: null, title: "", error: r.error };
-  const price = parsePrice(r.html);
-  const title = parseTitle(r.html);
-  return { price, title, error: (price == null && !title) ? "geen prijs/naam gevonden" : null };
+  const g = await getHtml(url);
+  if (!g.html) return { price: null, title: "", error: g.err || "kon pagina niet ophalen" };
+  const price = parsePrice(g.html);
+  const title = parseTitle(g.html);
+  return { price, title, via: g.via, error: (price == null && !title) ? "geen prijs/naam gevonden" : null };
 }
 async function scrapePrice(url) {
-  try {
-    const ctrl = new AbortController();
-    const to = setTimeout(() => ctrl.abort(), 12000);
-    const r = await fetch(url, { headers: browserHeaders(url), redirect: "follow", signal: ctrl.signal });
-    clearTimeout(to);
-    if (!r.ok) return { price: null, error: "HTTP " + r.status };
-    const html = await r.text();
-    const price = parsePrice(html);
-    return price != null ? { price } : { price: null, error: "geen prijs gevonden in pagina" };
-  } catch (e) {
-    return { price: null, error: (e && e.name === "AbortError") ? "time-out" : (e.message || "kon pagina niet ophalen") };
-  }
+  const g = await getHtml(url);
+  if (g.html) { const price = parsePrice(g.html); if (price != null) return { price, via: g.via }; }
+  return { price: null, via: g.via, error: g.err || "geen prijs gevonden in pagina" };
 }
 module.exports = { scrapePrice, scrapeInfo, parsePrice, parseTitle, normNum };
