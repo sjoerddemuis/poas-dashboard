@@ -166,7 +166,7 @@ details[open] summary::before{content:"▾ "}
 #sec-prijs .pcprice .pcd{min-width:66px;text-align:right;display:inline-block}
 #sec-prijs .pcprice .cheap{color:var(--greenDk);font-weight:800}
 #sec-prijs .pceur{color:var(--mute);font-weight:700}
-#sec-prijs .pcwarn{color:var(--orange);font-weight:800;cursor:help;margin-left:3px}
+#sec-prijs .pcwarn{display:inline-block;width:15px;text-align:center;flex:none;color:var(--orange);font-weight:800;cursor:help;font-size:12px}
 #sec-prijs .pcpe{width:54px;text-align:right;border:1px solid var(--line);border-radius:6px;padding:3px 5px;font-size:12.5px;font-weight:700;font-family:var(--mono);background:var(--card);color:var(--ink);outline:none}
 #sec-prijs .pcpe:focus{border-color:var(--green)}
 #sec-prijs .pcpe::placeholder{color:var(--orange)}
@@ -1236,7 +1236,7 @@ function comprows(it,pi){
     const deltaHtml=`<span class="pcd ${dcls}" title="concurrent t.o.v. jouw prijs">${deltaTxt}</span>`;
     // Prijs inline bewerkbaar voor admin (niet onze eigen rij) — zo kun je bij een geblokkeerde link (403) alsnog handmatig invullen.
     let priceCell;
-    const warn=r.err?'<span class="pcwarn" title="'+esc("Niet ververst bij laatste verversing: "+r.err)+'">⚠</span>':"";
+    const warn='<span class="pcwarn"'+(r.err?' title="'+esc("Niet ververst bij laatste verversing: "+r.err)+'"':'')+'>'+(r.err?'⚠':'')+'</span>';
     if(isAdmin()&&!r.us){
       const val=has?String(r.price).replace(".",","):"";
       priceCell=`<span class="pcprice"><span class="pceur">€</span><input class="pcpe" data-pi="${pi}" data-ci="${r.ci}" value="${val}" inputmode="decimal" placeholder="${r.err?"?":"—"}" title="${r.err?esc(r.err)+" — vul prijs handmatig in":"prijs bewerken"}">${warn}${deltaHtml}</span>`;
