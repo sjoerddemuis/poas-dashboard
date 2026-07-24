@@ -2367,6 +2367,7 @@ const KMET=[
   { id:"returning", label:"% returning customers", unit:"pct", color:"#2D6CDF", v:a=>a.orders>0?(1-a.newOrders/a.orders)*100:null },
   { id:"conversie", label:"Conversie (orders / sessies)", unit:"pct", color:"#0EA5E9", v:a=>a.sessions>0?a.orders/a.sessions*100:null },
   { id:"orders", label:"Aantal orders", unit:"num", color:"#0F1411", v:a=>a.orders },
+  { id:"net", label:"Netto-omzet", unit:"eur", color:"#0A6CCB", v:a=>a.net },
   { id:"ipo", label:"Items per order", unit:"ratio", color:"#8A5A00", v:a=>a.orders>0?a.items/a.orders:null },
   { id:"aon", label:"Gem. order netto", unit:"eur", color:"#00A0A0", v:a=>a.orders>0?a.net/a.orders:null },
   { id:"appo", label:"Gem. winst / order (netto)", unit:"eur", color:"#009626", v:a=>a.orders>0?a.profit/a.orders:null },
