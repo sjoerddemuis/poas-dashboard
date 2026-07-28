@@ -737,20 +737,15 @@ summary{border-radius:11px;font-weight:600}
     #sec-market th:first-child,#sec-market td:first-child{text-align:left}
     #sec-market td{padding:8px 10px;text-align:right;border-top:1px solid var(--line);white-space:nowrap}
     #sec-market .mnote{font-size:12px;color:var(--mute);margin-top:10px}
+    #sec-market .usrow td{background:rgba(1,181,45,.08);font-weight:600}
+    #sec-market .usrow td:first-child{color:var(--greenDk)}
     </style>
-    <div class="knsub">Groeimodel per marktaandeel-niveau, live uit je Google Sheet "kostenplanning". Kies de marge-aanname; de grafiek toont omzet (balk) en restmarge — winst na alle afdelingsbudgetten (lijn) — per niveau.</div>
+    <div class="knsub">Marktaandeel op basis van reviewgroei: per maand het daggemiddelde nieuwe reviews per concurrent. Jouw aandeel = ongediertewinkel.nl gedeeld door alle gevolgde shops samen. Kies <b>Marktaandeel %</b> voor het aandeel, of <b>Reviews/dag</b> voor de absolute snelheid.</div>
     <div class="knbar">
-      <span class="knlbl">Marge</span>
-      <div class="knseg" id="mkmargin">
-        <button data-m="20">20%</button>
-        <button data-m="25">25%</button>
-        <button data-m="30" class="on">30%</button>
-        <button data-m="35">35%</button>
-      </div>
-      <span class="knlbl">Periode</span>
-      <div class="knseg" id="mkper">
-        <button data-p="month" class="on">Per maand</button>
-        <button data-p="year">Per jaar</button>
+      <span class="knlbl">Weergave</span>
+      <div class="knseg" id="mkmode">
+        <button data-x="share" class="on">Marktaandeel %</button>
+        <button data-x="abs">Reviews/dag</button>
       </div>
       <span class="knsep"></span>
       <span class="knlbl" id="mkupd"></span>
@@ -2678,37 +2673,53 @@ window.__kernLoad=function(){
     document.getElementById("pdcontent").addEventListener("change",e=>{const sel=e.target.closest(".pdsel");if(!sel)return; slots[+sel.dataset.slot]=sel.value||null; render();});
   };
 })();
-/* ===== Marktaandeel (groeimodel uit Google Sheet) ===== */
+/* ===== Marktaandeel (reviewgroei-tracker uit Google Sheet) ===== */
 (function(){
-  let MK=null, mkMargin=30, mkPer="month", mkInited=false, mkChart=null;
+  let MK=null, mkMode="share", mkInited=false, mkChart=null;
+  const COLORS=["#01B52D","#0A6CCB","#E8710A","#8E44AD","#C0392B","#16A085","#D4A017","#7F8C8D"];
   const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
-  function eur(v){ if(v==null||!isFinite(v))return "—"; return "€"+Math.round(v).toLocaleString("nl-NL"); }
-  function restFor(ms){ const rows=ms.rows||[]; let r=rows.find(x=>x.margin===mkMargin); if(!r)r=rows[0]; return r?r.restEur:null; }
-  function mult(){ return mkPer==="year"?12:1; }
-  function drawChart(){
-    if(typeof Chart==="undefined")return; const box=document.getElementById("mkchart"); if(!box||!MK)return;
+  function fmt(v,share){ if(v==null||!isFinite(v))return "—"; return share?(Math.round(v*10)/10).toLocaleString("nl-NL")+"%":(Math.round(v*10)/10).toLocaleString("nl-NL"); }
+  // Marktaandeel per periode: bedrijf.avg[i] / som van alle bedrijven op periode i.
+  function shareSeries(){
+    const P=(MK.periods||[]).length, comp=MK.companies||[];
+    const tot=[]; for(let i=0;i<P;i++){ let s=0; comp.forEach(c=>{ const v=c.avg[i]; if(v!=null&&isFinite(v))s+=v; }); tot.push(s); }
+    return comp.map(c=>({ name:c.name, us:c.us, vals:c.avg.map((v,i)=>{ if(v==null||!tot[i])return null; return mkMode==="share"?v/tot[i]*100:v; }) }));
+  }
+  function drawChart(series){
+    if(typeof Chart==="undefined")return; const box=document.getElementById("mkchart"); if(!box)return;
     if(mkChart){mkChart.destroy();mkChart=null;}
-    const ms=MK.milestones||[]; const labels=ms.map(m=>m.label); const k=mult();
-    const omzet=ms.map(m=>Math.round((m.omzet||0)*k)); const rest=ms.map(m=>{const r=restFor(m);return r==null?null:Math.round(r*k);});
-    mkChart=new Chart(box,{ data:{labels, datasets:[
-      {type:"bar", label:"Omzet", data:omzet, backgroundColor:"rgba(10,108,203,.20)", borderColor:"#0A6CCB", borderWidth:1.5, yAxisID:"y"},
-      {type:"line", label:"Restmarge (winst)", data:rest, borderColor:"#01B52D", backgroundColor:"rgba(1,181,45,.13)", borderWidth:2, tension:.25, pointRadius:4, yAxisID:"y", spanGaps:true},
-    ]}, options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:"index",intersect:false},
-      plugins:{ legend:{position:"top",labels:{boxWidth:12,font:{size:11}}}, tooltip:{callbacks:{label:ctx=>ctx.dataset.label+": "+eur(ctx.parsed.y)}} },
-      scales:{ x:{grid:{display:false}}, y:{type:"logarithmic", title:{display:true,text:"€ per "+(mkPer==="year"?"jaar":"maand")+" (log)"}, ticks:{callback:v=>eur(v)}} } } });
+    const labels=MK.periods||[];
+    const ds=series.map((s,i)=>{ const us=s.us; return {
+      label:s.name, data:s.vals, borderColor:us?"#01B52D":COLORS[(i+1)%COLORS.length],
+      backgroundColor:"transparent", borderWidth:us?3.5:1.8, tension:.3,
+      pointRadius:us?4:2.5, pointHoverRadius:5, spanGaps:true, order:us?0:1 }; });
+    mkChart=new Chart(box,{ type:"line", data:{labels, datasets:ds}, options:{ responsive:true, maintainAspectRatio:false,
+      interaction:{mode:"index",intersect:false},
+      plugins:{ legend:{position:"top",labels:{boxWidth:12,font:{size:11}}},
+        tooltip:{callbacks:{label:ctx=>ctx.dataset.label+": "+fmt(ctx.parsed.y,mkMode==="share")}} },
+      scales:{ x:{grid:{display:false}},
+        y:{ beginAtZero:true, title:{display:true,text:mkMode==="share"?"marktaandeel %":"nieuwe reviews / dag"},
+          ticks:{callback:v=>mkMode==="share"?v+"%":v} } } } });
   }
   function render(){
     const c=document.getElementById("mkcontent"); if(!c)return;
     if(!MK){ c.innerHTML='<div class="knloading">Marktaandeel laden…</div>'; return; }
-    const ms=MK.milestones||[]; const k=mult(), per=mkPer==="year"?"jaar":"maand";
-    const rows=ms.map(m=>{ const rest=restFor(m); return '<tr><td><b>'+esc(m.label)+'</b></td><td>'+(m.orders!=null?Math.round(m.orders*k).toLocaleString("nl-NL"):"—")+'</td><td>'+eur((m.omzet||0)*k)+'</td><td>'+(rest==null?"—":eur(rest*k))+'</td></tr>'; }).join("");
+    const series=shareSeries(); const P=(MK.periods||[]).length;
+    const us=series.find(s=>s.us); const lastIdx=P-1;
+    let head=""; if(us){ const now=us.vals[lastIdx]; head='<span style="font-weight:800;font-size:19px;color:var(--greenDk)">'+fmt(now,mkMode==="share")+'</span> <span style="color:var(--mute);font-size:12px">ongediertewinkel.nl in '+esc(MK.periods[lastIdx]||"")+'</span>'; }
+    // Tabel: bedrijven × perioden.
+    const th='<tr><th>Concurrent</th>'+(MK.periods||[]).map(p=>'<th>'+esc(p)+'</th>').join("")+'</tr>';
+    const body=series.map(s=>'<tr class="'+(s.us?'usrow':'')+'"><td><b>'+esc(s.name)+'</b></td>'+s.vals.map(v=>'<td>'+fmt(v,mkMode==="share")+'</td>').join("")+'</tr>').join("");
     const src = MK.source==="sheet" ? "live uit sheet" : "snapshot (sheet nog niet deelbaar)";
-    c.innerHTML='<div class="knchartwrap"><div class="kncharthd">Groeiladder marktaandeel</div>'
-      +'<div class="knchartsub">Omzet (balk) en restmarge/winst (lijn) per '+per+', bij '+mkMargin+'% marge · logaritmische schaal · '+esc(src)+'</div>'
+    const sub = mkMode==="share"
+      ? "Aandeel per concurrent in het totaal van gevolgde shops, per maand · "
+      : "Absoluut daggemiddelde nieuwe reviews per concurrent, per maand · ";
+    c.innerHTML='<div class="knchartwrap"><div class="kncharthd">Marktaandeel via reviewgroei &nbsp; '+head+'</div>'
+      +'<div class="knchartsub">'+sub+esc(src)+' · ongediertewinkel.nl uitgelicht (dik groen)</div>'
       +'<div class="knchartbox"><canvas id="mkchart"></canvas></div></div>'
-      +'<div class="mtbl"><table><thead><tr><th>Niveau</th><th>Orders / '+per+'</th><th>Omzet / '+per+'</th><th>Restmarge / '+per+'</th></tr></thead><tbody>'+rows+'</tbody></table>'
+      +'<div class="mtbl"><table><thead>'+th+'</thead><tbody>'+body+'</tbody></table>'
       +(MK.note?'<div class="mnote">'+esc(MK.note)+'</div>':'')+'</div>';
-    drawChart();
+    drawChart(series);
   }
   async function fetchMarket(fresh){
     const c=document.getElementById("mkcontent"); c.innerHTML='<div class="knloading">Marktaandeel laden uit sheet…</div>';
@@ -2724,8 +2735,7 @@ window.__kernLoad=function(){
   }
   window.__marketLoad=function(){
     if(!mkInited){ mkInited=true;
-      document.getElementById("mkmargin").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;mkMargin=+b.dataset.m;[...document.querySelectorAll("#mkmargin button")].forEach(x=>x.classList.toggle("on",x===b));render();});
-      document.getElementById("mkper").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;mkPer=b.dataset.p;[...document.querySelectorAll("#mkper button")].forEach(x=>x.classList.toggle("on",x===b));render();});
+      document.getElementById("mkmode").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;mkMode=b.dataset.x;[...document.querySelectorAll("#mkmode button")].forEach(x=>x.classList.toggle("on",x===b));render();});
       document.getElementById("mkref").addEventListener("click",()=>fetchMarket(true));
       fetchMarket(); return;
     }
