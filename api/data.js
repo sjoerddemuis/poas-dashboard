@@ -228,49 +228,60 @@ async function productView(req, res) {
   }
 }
 
-// ---- Marktaandeel: groeimodel uit de Google Sheet "kostenplanning".
-// Live via gviz-JSON (typed values), met een ingebouwde snapshot als de sheet
-// niet publiek deelbaar is. Kolommen: 0 orders, 2 omzet, 3 marge%, 22 restmarge€.
-const MARKET_SHEET = process.env.MARKET_SHEET_ID || "1Eofb5gTMm_Rp7LRWdzi6Pp_APSYvYSwPGOmKnK89l5w";
-const MARKET_TAB = process.env.MARKET_SHEET_TAB || "Blad1";
+// ---- Marktaandeel: reviewgroei-tracker per concurrent uit de Google Sheet.
+// Per maand het daggemiddelde (nieuwe reviews/dag) per shop; marktaandeel = aandeel
+// in de som van alle shops. Live via gviz-JSON; snapshot als de sheet niet deelbaar is.
+const MARKET_SHEET = process.env.MARKET_SHEET_ID || "1d7BsqR49SH1CjnYGHxNHWhVQoFsJhZjMuxSnS4BdRtg";
 const MARKET_SNAPSHOT = {
   source: "snapshot",
-  milestones: [
-    { label: "Huidig", orders: 22, omzet: 671, rows: [{ margin: 17, restEur: 3, restPer: 0.14 }] },
-    { label: "Per 1.000 orders", orders: 1000, omzet: 40000, rows: [{ margin: 20, restEur: 587, restPer: 0.59 }, { margin: 25, restEur: 1253, restPer: 1.25 }, { margin: 30, restEur: 1920, restPer: 1.92 }, { margin: 35, restEur: 2587, restPer: 2.59 }] },
-    { label: "20% NL", orders: 6000, omzet: 240000, rows: [{ margin: 20, restEur: 3520, restPer: 0.59 }, { margin: 25, restEur: 7520, restPer: 1.25 }, { margin: 30, restEur: 11520, restPer: 1.92 }, { margin: 35, restEur: 15520, restPer: 2.59 }] },
-    { label: "20% NL + DE", orders: 30000, omzet: 1200000, rows: [{ margin: 20, restEur: 17600, restPer: 0.59 }, { margin: 25, restEur: 37600, restPer: 1.25 }, { margin: 30, restEur: 57600, restPer: 1.92 }, { margin: 35, restEur: 77600, restPer: 2.59 }] },
-    { label: "30% EU", orders: 150000, omzet: 6000000, rows: [{ margin: 20, restEur: 88000, restPer: 0.59 }, { margin: 25, restEur: 188000, restPer: 1.25 }, { margin: 30, restEur: 288000, restPer: 1.92 }, { margin: 35, restEur: 388000, restPer: 2.59 }] },
-    { label: "30% EU + USA", orders: 300000, omzet: 12000000, rows: [{ margin: 20, restEur: 176000, restPer: 0.59 }, { margin: 25, restEur: 376000, restPer: 1.25 }, { margin: 30, restEur: 576000, restPer: 1.92 }, { margin: 35, restEur: 776000, restPer: 2.59 }] },
-    { label: "Endgame", orders: 900000, omzet: 36000000, rows: [{ margin: 20, restEur: 528000, restPer: 0.59 }, { margin: 25, restEur: 1128000, restPer: 1.25 }, { margin: 30, restEur: 1728000, restPer: 1.92 }, { margin: 35, restEur: 2328000, restPer: 2.59 }, { margin: 40, restEur: 2928000, restPer: 3.25 }, { margin: 45, restEur: 3528000, restPer: 3.92 }, { margin: 50, restEur: 4128000, restPer: 4.59 }] },
+  periods: ["oktober", "november", "december", "januari", "februari", "maart", "april & mei", "juni"],
+  companies: [
+    { name: "ongediertewinkel.nl", us: true, avg: [195.1, 187.3, 164, 144.7, 126.6, 134.2, 152.9, 150.6] },
+    { name: "allestegenongedierte.nl", us: false, avg: [186, 219.8, 183.3, 168.1, 188.1, 210.7, 270.4, 260.5] },
+    { name: "ongedierteproducten.nl", us: false, avg: [94.3, 80.4, 75.1, 70.1, 62.2, 62.2, 68.5, 81.8] },
+    { name: "budgetongediertebestrijden.nl", us: false, avg: [64.7, 75.5, 60.5, 50.7, 60.2, 68.5, 86.1, 93.5] },
+    { name: "pestor.nl", us: false, avg: [13.4, 12.7, 9.8, 10.6, 14.1, 11.4, 20.3, 25.3] },
+    { name: "verminbuster.nl", us: false, avg: [2.2, 3.1, 2.8, 2.7, 2.1, 2.6, 4.4, 0] },
   ],
 };
+function cleanName(s) {
+  s = String(s || "").trim();
+  s = s.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
+  return s;
+}
 async function fetchMarketSheet() {
-  const url = "https://docs.google.com/spreadsheets/d/" + MARKET_SHEET + "/gviz/tq?tqx=out:json&sheet=" + encodeURIComponent(MARKET_TAB);
+  const url = "https://docs.google.com/spreadsheets/d/" + MARKET_SHEET + "/gviz/tq?tqx=out:json&headers=1";
   const r = await fetch(url);
   if (!r.ok) throw new Error("sheet " + r.status);
   const t = await r.text();
   const m = t.match(/setResponse\(([\s\S]*?)\);?\s*$/);
   if (!m) throw new Error("geen gviz-json (sheet niet deelbaar?)");
   const j = JSON.parse(m[1]);
-  const rows = (j.table && j.table.rows) || [];
-  const num = (c) => (c && c.v != null && typeof c.v === "number") ? c.v : (c && c.v != null && !isNaN(parseFloat(c.v)) ? parseFloat(c.v) : null);
-  const groups = []; let cur = null;
-  rows.forEach((row) => {
-    const c = row.c || [];
-    const first = c[0] && c[0].v;
-    if (typeof first === "string" && first.trim() && !/^orders/i.test(first)) { cur = { label: first.trim(), rows: [] }; groups.push(cur); return; }
-    if (typeof first === "number") {
-      if (!cur) { cur = { label: "?", rows: [] }; groups.push(cur); }
-      cur.rows.push({ orders: first, omzet: num(c[2]), margin: num(c[3]), restEur: num(c[22]), restPer: num(c[23]) });
+  if (!j.table || !j.table.cols) throw new Error("sheet niet leesbaar");
+  const cols = j.table.cols;
+  const avgIdx = []; const periods = [];
+  cols.forEach((c, i) => {
+    const lab = String((c && c.label) || "");
+    if (/gemiddelde|dagelijks/i.test(lab)) {
+      avgIdx.push(i);
+      periods.push(lab.replace(/gemiddelde\s*/i, "").replace(/dagelijks\s*/i, "").trim());
     }
   });
-  const milestones = groups.filter((g) => g.rows.length).map((g) => ({
-    label: g.label, orders: g.rows[0].orders, omzet: g.rows[0].omzet,
-    rows: g.rows.map((r) => ({ margin: r.margin, restEur: r.restEur, restPer: r.restPer })),
-  }));
-  if (milestones.length < 3) throw new Error("te weinig data uit sheet");
-  return { source: "sheet", milestones };
+  if (avgIdx.length < 2) throw new Error("geen gemiddelde-kolommen gevonden");
+  const num = (c) => (c && c.v != null && typeof c.v === "number") ? c.v : (c && c.v != null && !isNaN(parseFloat(c.v)) ? parseFloat(c.v) : null);
+  const companies = [];
+  (j.table.rows || []).forEach((row) => {
+    const c = row.c || [];
+    const nm = c[0] && c[0].v;
+    if (typeof nm !== "string" || !nm.trim()) return;
+    if (/totaal|gemiddeld/i.test(nm)) return;
+    const avg = avgIdx.map((i) => { const v = num(c[i]); return (v == null || v < 0) ? null : Math.round(v * 10) / 10; });
+    if (avg.every((x) => x == null)) return;
+    const clean = cleanName(nm);
+    companies.push({ name: clean, us: /ongediertewinkel/i.test(clean), avg });
+  });
+  if (companies.length < 2) throw new Error("te weinig bedrijven uit sheet");
+  return { source: "sheet", periods, companies };
 }
 async function marketView(req, res) {
   const now = Date.now();
