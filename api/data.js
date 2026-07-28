@@ -228,6 +228,62 @@ async function productView(req, res) {
   }
 }
 
+// ---- Marktaandeel: groeimodel uit de Google Sheet "kostenplanning".
+// Live via gviz-JSON (typed values), met een ingebouwde snapshot als de sheet
+// niet publiek deelbaar is. Kolommen: 0 orders, 2 omzet, 3 marge%, 22 restmarge€.
+const MARKET_SHEET = process.env.MARKET_SHEET_ID || "1Eofb5gTMm_Rp7LRWdzi6Pp_APSYvYSwPGOmKnK89l5w";
+const MARKET_TAB = process.env.MARKET_SHEET_TAB || "Blad1";
+const MARKET_SNAPSHOT = {
+  source: "snapshot",
+  milestones: [
+    { label: "Huidig", orders: 22, omzet: 671, rows: [{ margin: 17, restEur: 3, restPer: 0.14 }] },
+    { label: "Per 1.000 orders", orders: 1000, omzet: 40000, rows: [{ margin: 20, restEur: 587, restPer: 0.59 }, { margin: 25, restEur: 1253, restPer: 1.25 }, { margin: 30, restEur: 1920, restPer: 1.92 }, { margin: 35, restEur: 2587, restPer: 2.59 }] },
+    { label: "20% NL", orders: 6000, omzet: 240000, rows: [{ margin: 20, restEur: 3520, restPer: 0.59 }, { margin: 25, restEur: 7520, restPer: 1.25 }, { margin: 30, restEur: 11520, restPer: 1.92 }, { margin: 35, restEur: 15520, restPer: 2.59 }] },
+    { label: "20% NL + DE", orders: 30000, omzet: 1200000, rows: [{ margin: 20, restEur: 17600, restPer: 0.59 }, { margin: 25, restEur: 37600, restPer: 1.25 }, { margin: 30, restEur: 57600, restPer: 1.92 }, { margin: 35, restEur: 77600, restPer: 2.59 }] },
+    { label: "30% EU", orders: 150000, omzet: 6000000, rows: [{ margin: 20, restEur: 88000, restPer: 0.59 }, { margin: 25, restEur: 188000, restPer: 1.25 }, { margin: 30, restEur: 288000, restPer: 1.92 }, { margin: 35, restEur: 388000, restPer: 2.59 }] },
+    { label: "30% EU + USA", orders: 300000, omzet: 12000000, rows: [{ margin: 20, restEur: 176000, restPer: 0.59 }, { margin: 25, restEur: 376000, restPer: 1.25 }, { margin: 30, restEur: 576000, restPer: 1.92 }, { margin: 35, restEur: 776000, restPer: 2.59 }] },
+    { label: "Endgame", orders: 900000, omzet: 36000000, rows: [{ margin: 20, restEur: 528000, restPer: 0.59 }, { margin: 25, restEur: 1128000, restPer: 1.25 }, { margin: 30, restEur: 1728000, restPer: 1.92 }, { margin: 35, restEur: 2328000, restPer: 2.59 }, { margin: 40, restEur: 2928000, restPer: 3.25 }, { margin: 45, restEur: 3528000, restPer: 3.92 }, { margin: 50, restEur: 4128000, restPer: 4.59 }] },
+  ],
+};
+async function fetchMarketSheet() {
+  const url = "https://docs.google.com/spreadsheets/d/" + MARKET_SHEET + "/gviz/tq?tqx=out:json&sheet=" + encodeURIComponent(MARKET_TAB);
+  const r = await fetch(url);
+  if (!r.ok) throw new Error("sheet " + r.status);
+  const t = await r.text();
+  const m = t.match(/setResponse\(([\s\S]*?)\);?\s*$/);
+  if (!m) throw new Error("geen gviz-json (sheet niet deelbaar?)");
+  const j = JSON.parse(m[1]);
+  const rows = (j.table && j.table.rows) || [];
+  const num = (c) => (c && c.v != null && typeof c.v === "number") ? c.v : (c && c.v != null && !isNaN(parseFloat(c.v)) ? parseFloat(c.v) : null);
+  const groups = []; let cur = null;
+  rows.forEach((row) => {
+    const c = row.c || [];
+    const first = c[0] && c[0].v;
+    if (typeof first === "string" && first.trim() && !/^orders/i.test(first)) { cur = { label: first.trim(), rows: [] }; groups.push(cur); return; }
+    if (typeof first === "number") {
+      if (!cur) { cur = { label: "?", rows: [] }; groups.push(cur); }
+      cur.rows.push({ orders: first, omzet: num(c[2]), margin: num(c[3]), restEur: num(c[22]), restPer: num(c[23]) });
+    }
+  });
+  const milestones = groups.filter((g) => g.rows.length).map((g) => ({
+    label: g.label, orders: g.rows[0].orders, omzet: g.rows[0].omzet,
+    rows: g.rows.map((r) => ({ margin: r.margin, restEur: r.restEur, restPer: r.restPer })),
+  }));
+  if (milestones.length < 3) throw new Error("te weinig data uit sheet");
+  return { source: "sheet", milestones };
+}
+async function marketView(req, res) {
+  const now = Date.now();
+  if (mCache.market && now - mCache.market.at < MTTL && !(req.query && req.query.fresh)) return res.json(mCache.market.data);
+  let out;
+  try { out = await fetchMarketSheet(); }
+  catch (e) { out = Object.assign({}, MARKET_SNAPSHOT, { note: "live-sheet niet gelezen: " + (e.message || e) }); }
+  out.sheetUrl = "https://docs.google.com/spreadsheets/d/" + MARKET_SHEET + "/edit";
+  out.updated = new Date().toISOString();
+  mCache.market = { at: now, data: out };
+  res.json(out);
+}
+
 // Kerncijfers per shop: dagelijkse rijen met alle rauwe bouwstenen.
 // De frontend bucketet naar dag/week/maand en rekent alle afgeleide metrics uit,
 // zodat het "totaal" simpelweg de som van de landen is.
@@ -287,6 +343,7 @@ module.exports = async (req, res) => {
   if (!s) return res.status(401).json({ error: "unauthorized" });
   if (req.query && req.query.view === "metrics") return metricsView(req, res);
   if (req.query && req.query.view === "product") return productView(req, res);
+  if (req.query && req.query.view === "market") return marketView(req, res);
   const now = Date.now();
   if (cache && now - cacheAt < TTL) return res.json(cache);
   try {
