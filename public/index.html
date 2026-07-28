@@ -740,12 +740,12 @@ summary{border-radius:11px;font-weight:600}
     #sec-market .usrow td{background:rgba(1,181,45,.08);font-weight:600}
     #sec-market .usrow td:first-child{color:var(--greenDk)}
     </style>
-    <div class="knsub">Marktaandeel op basis van reviewgroei: per maand het daggemiddelde nieuwe reviews per concurrent. Jouw aandeel = ongediertewinkel.nl gedeeld door alle gevolgde shops samen. Kies <b>Marktaandeel %</b> voor het aandeel, of <b>Reviews/dag</b> voor de absolute snelheid.</div>
+    <div class="knsub">Marktaandeel op basis van verkoopgroei: per maand het daggemiddelde aantal verkopen per concurrent. Jouw aandeel = ongediertewinkel.nl gedeeld door alle gevolgde shops samen. Kies <b>Marktaandeel %</b> voor het aandeel, of <b>Sales/dag</b> voor de absolute snelheid.</div>
     <div class="knbar">
       <span class="knlbl">Weergave</span>
       <div class="knseg" id="mkmode">
         <button data-x="share" class="on">Marktaandeel %</button>
-        <button data-x="abs">Reviews/dag</button>
+        <button data-x="abs">Sales/dag</button>
       </div>
       <span class="knsep"></span>
       <span class="knlbl" id="mkupd"></span>
@@ -2698,7 +2698,7 @@ window.__kernLoad=function(){
       plugins:{ legend:{position:"top",labels:{boxWidth:12,font:{size:11}}},
         tooltip:{callbacks:{label:ctx=>ctx.dataset.label+": "+fmt(ctx.parsed.y,mkMode==="share")}} },
       scales:{ x:{grid:{display:false}},
-        y:{ beginAtZero:true, title:{display:true,text:mkMode==="share"?"marktaandeel %":"nieuwe reviews / dag"},
+        y:{ beginAtZero:true, title:{display:true,text:mkMode==="share"?"marktaandeel %":"verkopen / dag"},
           ticks:{callback:v=>mkMode==="share"?v+"%":v} } } } });
   }
   function render(){
@@ -2713,8 +2713,8 @@ window.__kernLoad=function(){
     const src = MK.source==="sheet" ? "live uit sheet" : "snapshot (sheet nog niet deelbaar)";
     const sub = mkMode==="share"
       ? "Aandeel per concurrent in het totaal van gevolgde shops, per maand · "
-      : "Absoluut daggemiddelde nieuwe reviews per concurrent, per maand · ";
-    c.innerHTML='<div class="knchartwrap"><div class="kncharthd">Marktaandeel via reviewgroei &nbsp; '+head+'</div>'
+      : "Absoluut daggemiddelde verkopen per concurrent, per maand · ";
+    c.innerHTML='<div class="knchartwrap"><div class="kncharthd">Marktaandeel via verkoopgroei &nbsp; '+head+'</div>'
       +'<div class="knchartsub">'+sub+esc(src)+' · ongediertewinkel.nl uitgelicht (dik groen)</div>'
       +'<div class="knchartbox"><canvas id="mkchart"></canvas></div></div>'
       +'<div class="mtbl"><table><thead>'+th+'</thead><tbody>'+body+'</tbody></table>'
