@@ -739,6 +739,10 @@ summary{border-radius:11px;font-weight:600}
     #sec-market .mnote{font-size:12px;color:var(--mute);margin-top:10px}
     #sec-market .usrow td{background:rgba(1,181,45,.08);font-weight:600}
     #sec-market .usrow td:first-child{color:var(--greenDk)}
+    #sec-market .mkd{display:block;font-size:10.5px;font-weight:700;margin-top:2px;letter-spacing:.2px}
+    #sec-market .mkd.up{color:var(--green)}
+    #sec-market .mkd.dn{color:#C0392B}
+    #sec-market .mkd.zero{color:var(--mute);font-weight:600}
     </style>
     <div class="knsub">Marktaandeel op basis van verkoopgroei: per maand het daggemiddelde aantal verkopen per concurrent. Jouw aandeel = ongediertewinkel.nl gedeeld door alle gevolgde shops samen. Kies <b>Marktaandeel %</b> voor het aandeel, of <b>Sales/dag</b> voor de absolute snelheid.</div>
     <div class="knbar">
@@ -2707,13 +2711,28 @@ window.__kernLoad=function(){
     const series=shareSeries(); const P=(MK.periods||[]).length;
     const us=series.find(s=>s.us); const lastIdx=P-1;
     let head=""; if(us){ const now=us.vals[lastIdx]; head='<span style="font-weight:800;font-size:19px;color:var(--greenDk)">'+fmt(now,mkMode==="share")+'</span> <span style="color:var(--mute);font-size:12px">ongediertewinkel.nl in '+esc(MK.periods[lastIdx]||"")+'</span>'; }
-    // Tabel: bedrijven × perioden.
+    // Groei/daling per maand t.o.v. de vorige maand. In aandeel-modus tonen we
+    // procentpunten (pp), in sales-modus de relatieve % groei/daling.
+    const unit = mkMode==="share" ? "pp" : "%";
+    function dchip(v,prev){
+      if(v==null||prev==null||!isFinite(v)||!isFinite(prev))return '';
+      const dv = mkMode==="share" ? (v-prev) : (prev? (v-prev)/prev*100 : null);
+      if(dv==null||!isFinite(dv))return '';
+      const cls = dv>0.05?"up":(dv<-0.05?"dn":"zero");
+      const arr = dv>0.05?"▲":(dv<-0.05?"▼":"–");
+      const val = (Math.round(Math.abs(dv)*10)/10).toLocaleString("nl-NL");
+      return '<span class="mkd '+cls+'">'+arr+' '+val+unit+'</span>';
+    }
+    // Tabel: bedrijven × perioden, met groei/daling per maand.
     const th='<tr><th>Concurrent</th>'+(MK.periods||[]).map(p=>'<th>'+esc(p)+'</th>').join("")+'</tr>';
-    const body=series.map(s=>'<tr class="'+(s.us?'usrow':'')+'"><td><b>'+esc(s.name)+'</b></td>'+s.vals.map(v=>'<td>'+fmt(v,mkMode==="share")+'</td>').join("")+'</tr>').join("");
+    const body=series.map(s=>{
+      const cells=s.vals.map((v,i)=>'<td>'+fmt(v,mkMode==="share")+(i>0?dchip(v,s.vals[i-1]):'')+'</td>').join("");
+      return '<tr class="'+(s.us?'usrow':'')+'"><td><b>'+esc(s.name)+'</b></td>'+cells+'</tr>';
+    }).join("");
     const src = MK.source==="sheet" ? "live uit sheet" : "snapshot (sheet nog niet deelbaar)";
     const sub = mkMode==="share"
-      ? "Aandeel per concurrent in het totaal van gevolgde shops, per maand · "
-      : "Absoluut daggemiddelde verkopen per concurrent, per maand · ";
+      ? "Aandeel per concurrent in het totaal van gevolgde shops, per maand · groei/daling in procentpunten (pp) t.o.v. vorige maand · "
+      : "Absoluut daggemiddelde verkopen per concurrent, per maand · groei/daling in % t.o.v. vorige maand · ";
     c.innerHTML='<div class="knchartwrap"><div class="kncharthd">Marktaandeel via verkoopgroei &nbsp; '+head+'</div>'
       +'<div class="knchartsub">'+sub+esc(src)+' · ongediertewinkel.nl uitgelicht (dik groen)</div>'
       +'<div class="knchartbox"><canvas id="mkchart"></canvas></div></div>'
