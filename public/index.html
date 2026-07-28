@@ -592,6 +592,7 @@ summary{border-radius:11px;font-weight:600}
     <button class="snav on" data-sec="poas">Blended POAS</button>
     <button class="snav" data-sec="kern">Kerncijfers</button>
     <button class="snav" data-sec="prod">Productdata</button>
+    <button class="snav" data-sec="market">Marktaandeel</button>
     <button class="snav" data-sec="ronada">Ronada-aandeel</button>
     <button class="snav" data-sec="prijs">Prijsmonitor</button>
     <button class="snav" data-sec="voorraad">Voorraad</button>
@@ -712,6 +713,52 @@ summary{border-radius:11px;font-weight:600}
     </div>
     <div id="pdcontent"><div class="knloading">Tik een SKU in en klik op Laden.</div></div>
   </div><!-- /sec-prod -->
+
+  <div id="sec-market" style="display:none">
+    <style>
+    #sec-market .knsub{color:var(--mute);font-size:13px;margin:0 0 14px;line-height:1.5;max-width:900px}
+    #sec-market .knbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 12px;margin-bottom:16px;box-shadow:var(--shadow)}
+    #sec-market .knseg{display:inline-flex;border:1.5px solid var(--line);border-radius:9px;overflow:hidden}
+    #sec-market .knseg button{border:0;border-right:1px solid var(--line);background:var(--card);color:var(--ink);font-size:12px;font-weight:700;padding:7px 13px;cursor:pointer}
+    #sec-market .knseg button:last-child{border-right:0}
+    #sec-market .knseg button.on{background:var(--green);color:#fff}
+    #sec-market .knlbl{font-size:12px;color:var(--mute);font-weight:600}
+    #sec-market .knsep{flex:1}
+    #sec-market .knref{border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--mute);font-family:var(--mono);font-size:11px;font-weight:700;padding:7px 12px;cursor:pointer;text-decoration:none}
+    #sec-market .knref:hover{border-color:var(--green);color:var(--greenDk)}
+    #sec-market .knchartwrap{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);margin-bottom:16px}
+    #sec-market .kncharthd{font-weight:700;font-size:14px;margin-bottom:4px}
+    #sec-market .knchartsub{font-size:11.5px;color:var(--mute);margin-bottom:10px}
+    #sec-market .knchartbox{position:relative;height:360px}
+    #sec-market .knloading,#sec-market .knerr{padding:40px;text-align:center;color:var(--mute)}
+    #sec-market .mtbl{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:4px 14px 12px;box-shadow:var(--shadow)}
+    #sec-market table{width:100%;border-collapse:collapse;font-size:13px}
+    #sec-market th{color:var(--mute);font-weight:600;font-size:11px;text-align:right;padding:8px 10px;border-bottom:1px solid var(--line)}
+    #sec-market th:first-child,#sec-market td:first-child{text-align:left}
+    #sec-market td{padding:8px 10px;text-align:right;border-top:1px solid var(--line);white-space:nowrap}
+    #sec-market .mnote{font-size:12px;color:var(--mute);margin-top:10px}
+    </style>
+    <div class="knsub">Groeimodel per marktaandeel-niveau, live uit je Google Sheet "kostenplanning". Kies de marge-aanname; de grafiek toont omzet (balk) en restmarge — winst na alle afdelingsbudgetten (lijn) — per niveau.</div>
+    <div class="knbar">
+      <span class="knlbl">Marge</span>
+      <div class="knseg" id="mkmargin">
+        <button data-m="20">20%</button>
+        <button data-m="25">25%</button>
+        <button data-m="30" class="on">30%</button>
+        <button data-m="35">35%</button>
+      </div>
+      <span class="knlbl">Periode</span>
+      <div class="knseg" id="mkper">
+        <button data-p="month" class="on">Per maand</button>
+        <button data-p="year">Per jaar</button>
+      </div>
+      <span class="knsep"></span>
+      <span class="knlbl" id="mkupd"></span>
+      <a class="knref" id="mksheet" target="_blank" rel="noopener">Open sheet ↗</a>
+      <button id="mkref" class="knref">↻ Ververs</button>
+    </div>
+    <div id="mkcontent"><div class="knloading">Marktaandeel laden…</div></div>
+  </div><!-- /sec-market -->
 
   <div id="sec-ronada" style="display:none">
     <div class="rsub">Aandeel eigen huismerk (<b>Ronada + RTM</b>) t.o.v. alle overige merken — maand op maand, live uit Metorik. Omzet = excl. btw &amp; verzending.</div>
@@ -2631,10 +2678,64 @@ window.__kernLoad=function(){
     document.getElementById("pdcontent").addEventListener("change",e=>{const sel=e.target.closest(".pdsel");if(!sel)return; slots[+sel.dataset.slot]=sel.value||null; render();});
   };
 })();
+/* ===== Marktaandeel (groeimodel uit Google Sheet) ===== */
+(function(){
+  let MK=null, mkMargin=30, mkPer="month", mkInited=false, mkChart=null;
+  const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+  function eur(v){ if(v==null||!isFinite(v))return "—"; return "€"+Math.round(v).toLocaleString("nl-NL"); }
+  function restFor(ms){ const rows=ms.rows||[]; let r=rows.find(x=>x.margin===mkMargin); if(!r)r=rows[0]; return r?r.restEur:null; }
+  function mult(){ return mkPer==="year"?12:1; }
+  function drawChart(){
+    if(typeof Chart==="undefined")return; const box=document.getElementById("mkchart"); if(!box||!MK)return;
+    if(mkChart){mkChart.destroy();mkChart=null;}
+    const ms=MK.milestones||[]; const labels=ms.map(m=>m.label); const k=mult();
+    const omzet=ms.map(m=>Math.round((m.omzet||0)*k)); const rest=ms.map(m=>{const r=restFor(m);return r==null?null:Math.round(r*k);});
+    mkChart=new Chart(box,{ data:{labels, datasets:[
+      {type:"bar", label:"Omzet", data:omzet, backgroundColor:"rgba(10,108,203,.20)", borderColor:"#0A6CCB", borderWidth:1.5, yAxisID:"y"},
+      {type:"line", label:"Restmarge (winst)", data:rest, borderColor:"#01B52D", backgroundColor:"rgba(1,181,45,.13)", borderWidth:2, tension:.25, pointRadius:4, yAxisID:"y", spanGaps:true},
+    ]}, options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:"index",intersect:false},
+      plugins:{ legend:{position:"top",labels:{boxWidth:12,font:{size:11}}}, tooltip:{callbacks:{label:ctx=>ctx.dataset.label+": "+eur(ctx.parsed.y)}} },
+      scales:{ x:{grid:{display:false}}, y:{type:"logarithmic", title:{display:true,text:"€ per "+(mkPer==="year"?"jaar":"maand")+" (log)"}, ticks:{callback:v=>eur(v)}} } } });
+  }
+  function render(){
+    const c=document.getElementById("mkcontent"); if(!c)return;
+    if(!MK){ c.innerHTML='<div class="knloading">Marktaandeel laden…</div>'; return; }
+    const ms=MK.milestones||[]; const k=mult(), per=mkPer==="year"?"jaar":"maand";
+    const rows=ms.map(m=>{ const rest=restFor(m); return '<tr><td><b>'+esc(m.label)+'</b></td><td>'+(m.orders!=null?Math.round(m.orders*k).toLocaleString("nl-NL"):"—")+'</td><td>'+eur((m.omzet||0)*k)+'</td><td>'+(rest==null?"—":eur(rest*k))+'</td></tr>'; }).join("");
+    const src = MK.source==="sheet" ? "live uit sheet" : "snapshot (sheet nog niet deelbaar)";
+    c.innerHTML='<div class="knchartwrap"><div class="kncharthd">Groeiladder marktaandeel</div>'
+      +'<div class="knchartsub">Omzet (balk) en restmarge/winst (lijn) per '+per+', bij '+mkMargin+'% marge · logaritmische schaal · '+esc(src)+'</div>'
+      +'<div class="knchartbox"><canvas id="mkchart"></canvas></div></div>'
+      +'<div class="mtbl"><table><thead><tr><th>Niveau</th><th>Orders / '+per+'</th><th>Omzet / '+per+'</th><th>Restmarge / '+per+'</th></tr></thead><tbody>'+rows+'</tbody></table>'
+      +(MK.note?'<div class="mnote">'+esc(MK.note)+'</div>':'')+'</div>';
+    drawChart();
+  }
+  async function fetchMarket(fresh){
+    const c=document.getElementById("mkcontent"); c.innerHTML='<div class="knloading">Marktaandeel laden uit sheet…</div>';
+    try{
+      const r=await fetch("/api/data?view=market"+(fresh?"&fresh=1":""),{cache:"no-store"});
+      if(r.status===401){location.href="/login.html";return;}
+      const d=await r.json(); if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
+      MK=d;
+      const s=document.getElementById("mksheet"); if(s&&d.sheetUrl)s.href=d.sheetUrl;
+      const u=document.getElementById("mkupd"); if(u)u.textContent=d.source==="sheet"?"live uit sheet":"snapshot";
+      render();
+    }catch(e){ document.getElementById("mkcontent").innerHTML='<div class="knerr">Kon marktaandeel niet laden.<br><small>'+esc(e.message||e)+'</small></div>'; }
+  }
+  window.__marketLoad=function(){
+    if(!mkInited){ mkInited=true;
+      document.getElementById("mkmargin").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;mkMargin=+b.dataset.m;[...document.querySelectorAll("#mkmargin button")].forEach(x=>x.classList.toggle("on",x===b));render();});
+      document.getElementById("mkper").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;mkPer=b.dataset.p;[...document.querySelectorAll("#mkper button")].forEach(x=>x.classList.toggle("on",x===b));render();});
+      document.getElementById("mkref").addEventListener("click",()=>fetchMarket(true));
+      fetchMarket(); return;
+    }
+    if(!MK)fetchMarket(); else render();
+  };
+})();
 /* ===== Sectienavigatie (onthoudt actieve tab via URL-hash) ===== */
 (function(){
   const nav=document.getElementById("secnav");
-  const SECS=["poas","kern","prod","ronada","prijs","voorraad","ads","reviews","kosten"];
+  const SECS=["poas","kern","prod","market","ronada","prijs","voorraad","ads","reviews","kosten"];
   function activate(sec,updateHash){
     if(!SECS.includes(sec))sec="poas";
     const b=nav.querySelector('.snav[data-sec="'+sec+'"]');
@@ -2642,6 +2743,7 @@ window.__kernLoad=function(){
     SECS.forEach(s=>{const el=document.getElementById("sec-"+s);if(el)el.style.display=s===sec?"":"none";});
     if(sec==="kern"&&window.__kernLoad)window.__kernLoad();
     if(sec==="prod"&&window.__prodLoad)window.__prodLoad();
+    if(sec==="market"&&window.__marketLoad)window.__marketLoad();
     if(sec==="ronada"&&window.__ronadaLoad)window.__ronadaLoad();
     if(sec==="prijs"&&window.__prijsLoad)window.__prijsLoad();
     if(sec==="voorraad"&&window.__voorraadLoad)window.__voorraadLoad();
