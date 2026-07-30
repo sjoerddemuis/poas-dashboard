@@ -123,7 +123,7 @@ module.exports = async (req, res) => {
     // dagen, zodat dag-, week- en maandweergave nooit uit elkaar kunnen lopen.
     // revByLand = netto-omzet PER LAND per maand. Nodig om de (bedrijfsbrede)
     // verkoopkosten proportioneel aan elk land toe te rekenen op basis van omzetaandeel.
-    const days = {}, revenue = {}, ads = {}, revByLand = {};
+    const days = {}, revenue = {}, ads = {}, revByLand = {}, adsByLand = {}, transByLand = {};
     try {
       const start = months[0].key + "-01";
       const end = new Date().toISOString().slice(0, 10);
@@ -134,12 +134,16 @@ module.exports = async (req, res) => {
         return { code, map };
       }));
       per.forEach(({ code, map }) => {
-        const lm = revByLand[code] || (revByLand[code] = {});
+        const lmR = revByLand[code] || (revByLand[code] = {});
+        const lmA = adsByLand[code] || (adsByLand[code] = {});
+        const lmT = transByLand[code] || (transByLand[code] = {});
         Object.entries(map).forEach(([d, v]) => {
           const o = days[d] || (days[d] = { net: 0, ads: 0 });
           o.net += v.net || 0; o.ads += v.ads || 0;
           const k = d.slice(0, 7);
-          lm[k] = (lm[k] || 0) + (v.net || 0);
+          lmR[k] = (lmR[k] || 0) + (v.net || 0);
+          lmA[k] = (lmA[k] || 0) + (v.ads || 0);
+          lmT[k] = (lmT[k] || 0) + (v.trans || 0);      // transactiekosten per land per maand
         });
       });
       Object.entries(days).forEach(([d, v]) => {
@@ -150,7 +154,7 @@ module.exports = async (req, res) => {
     } catch (e) { /* optioneel */ }
 
     const landen = SHOPS.map(([code, , label]) => ({ code, label }));
-    const out = { months, names, revenue, ads, days, revByLand, landen, sheetId: SHEET_ID, tabs: tabs.length, updated: new Date().toISOString() };
+    const out = { months, names, revenue, ads, days, revByLand, adsByLand, transByLand, landen, sheetId: SHEET_ID, tabs: tabs.length, updated: new Date().toISOString() };
     cache = out; cacheAt = now;
     res.json(out);
   } catch (e) {
