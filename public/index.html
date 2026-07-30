@@ -2239,33 +2239,50 @@ function krenderLand(){
   const c=document.getElementById("kcontent");
   const ms=view();
   if(!ms.length){c.innerHTML='<div class="kerr">Geen maanden gevonden in de sheet.</div>';return;}
-  const upd=document.getElementById("kupd"); if(upd)upd.textContent=`${K.months.length} maanden · verkoopkosten als % van omzet`;
+  const upd=document.getElementById("kupd"); if(upd)upd.textContent=`${K.months.length} maanden · verkoopkosten % van omzet per land`;
   const sheetLink=document.getElementById("ksheet"); if(sheetLink&&K.sheetId)sheetLink.href="https://docs.google.com/spreadsheets/d/"+K.sheetId+"/edit";
   const landen=(K.landen&&K.landen.length)?K.landen:[{code:"NL",label:"Nederland"},{code:"DE",label:"Duitsland"},{code:"FR",label:"Frankrijk"}];
-  const rbl=K.revByLand||{};
+  const rbl=K.revByLand||{}, adsBy=K.adsByLand||{}, transBy=K.transByLand||{};
+  const transInSheet=(K.names||[]).some(n=>/transactie|transaction|payment|betaal|mollie|ideal|psp/i.test(n));
+  const isAll=kPost==="__all", isAds=kPost===ADSNAME;
   const rows=ms.map(m=>{
-    const cost=valOf(m,kPost);
     const revT=(K.revenue&&K.revenue[m.key])||0;
+    const base=isAds?0:(isAll?(m.total||0):(m.items[kPost]||0));
     const parts={};
-    landen.forEach(L=>{ const rev=(rbl[L.code]&&rbl[L.code][m.key])||0; const cst=revT>0?cost*rev/revT:null; parts[L.code]={rev,cost:cst,pct:(rev>0&&cst!=null)?cst/rev*100:null}; });
-    return {key:m.key,label:m.label,cost,revT,pct:revT>0?cost/revT*100:null,parts};
+    landen.forEach(L=>{
+      const rev=(rbl[L.code]&&rbl[L.code][m.key])||0;
+      const share=revT>0?rev/revT:null;
+      let cst=null, adsL=0, trL=0;
+      if(share!=null){
+        if(isAds){ cst=(adsBy[L.code]&&adsBy[L.code][m.key])||0; adsL=cst; }
+        else{
+          adsL=(isAll&&kAds)?((adsBy[L.code]&&adsBy[L.code][m.key])||0):0;
+          trL=(isAll&&!transInSheet)?((transBy[L.code]&&transBy[L.code][m.key])||0):0;
+          cst=base*share+adsL+trL;
+        }
+      }
+      parts[L.code]={rev,cost:cst,ads:adsL,trans:trL,pct:(rev>0&&cst!=null)?cst/rev*100:null};
+    });
+    let mCost=0,any=false; landen.forEach(L=>{if(parts[L.code].cost!=null){mCost+=parts[L.code].cost;any=true;}});
+    return {key:m.key,label:m.label,cost:any?mCost:null,revT,pct:(revT>0&&any)?mCost/revT*100:null,parts};
   });
   if(!rows.some(r=>r.revT>0)){c.innerHTML='<div class="kerr">Geen omzet per land uit Metorik in dit bereik, dus geen % te berekenen.</div>';return;}
   const totLand={}; landen.forEach(L=>totLand[L.code]=0); let grand=0,grandRev=0;
-  rows.forEach(r=>{ if(r.revT>0){grand+=r.cost; grandRev+=r.revT;} landen.forEach(L=>{const cc=r.parts[L.code].cost; if(cc!=null)totLand[L.code]+=cc;}); });
+  rows.forEach(r=>{ if(r.revT>0&&r.cost!=null){grand+=r.cost; grandRev+=r.revT;} landen.forEach(L=>{const cc=r.parts[L.code].cost; if(cc!=null)totLand[L.code]+=cc;}); });
   const last=[...rows].reverse().find(r=>r.revT>0)||rows[rows.length-1];
   const focus=kPost!=="__all";
   const compPct=grandRev>0?grand/grandRev*100:null;
+  const extra=isAll?("incl. echte "+(kAds?"ads + ":"")+(transInSheet?"":"transactiekosten ")+"per land uit Metorik"):"";
   const cards=`<div class="kcards">`+landen.map(L=>{
-    const clr=LANDCLR[L.code]||"#6b7280", lc=last.parts[L.code];
-    return `<div class="kcard"><div class="l" style="color:${clr}">${esc(L.label)} — ${esc(last.label)}</div><div class="v">${lc.pct!=null?pct1(lc.pct):"—"}</div><div class="s">${lc.cost!=null?eur0(lc.cost):"—"} kosten ÷ ${eur0(lc.rev)} omzet</div></div>`;
+    const clr=LANDCLR[L.code]||"#6b7280", lc=last.parts[L.code], tot=totLand[L.code];
+    return `<div class="kcard"><div class="l" style="color:${clr}">${esc(L.label)} — ${esc(last.label)}</div><div class="v">${lc.pct!=null?pct1(lc.pct):"—"}</div><div class="s">${lc.cost!=null?eur0(lc.cost):"—"} kosten ÷ ${eur0(lc.rev)} omzet · ${eur0(tot)} periode</div></div>`;
   }).join("")+`</div>`;
-  const chart=`<div class="kpanel"><div class="kh">${focus?esc(kPost):"Verkoopkosten"} als % van netto-omzet</div>
-    <div class="ksub">Per maand: ${focus?"deze kostenpost":"de totale verkoopkosten"} gedeeld door de netto-omzet. Omdat je de kosten naar rato van omzet toerekent, is dit % voor elk land gelijk (= totaal ÷ totaal), dus één lijn. De tabel toont per land wél de kosten in euro's. Altijd per maand.</div>
+  const chart=`<div class="kpanel"><div class="kh">${focus?esc(kPost):"Verkoopkosten"} als % van omzet, per land</div>
+    <div class="ksub">Per maand per land: kosten ÷ netto-omzet. De sheetkosten reken ik naar rato van omzet toe; advertentie- en transactiekosten komen echt per land uit Metorik. Daardoor verschilt het % nu per land. ${extra?"("+extra+".) ":""}Altijd per maand.</div>
     <div class="kchartbox"><canvas id="kchart"></canvas></div></div>`;
   const th=`<tr><th>Maand</th>`+landen.map(L=>`<th>${esc(L.label)}</th>`).join("")+`<th>Kosten</th><th>Omzet</th><th>% van omzet</th></tr>`;
-  const body=rows.map(r=>`<tr><td>${esc(r.label)}</td>`+landen.map(L=>{const p=r.parts[L.code];return `<td>${p.cost!=null?eur0(p.cost):'<span class="kflat">—</span>'}</td>`;}).join("")+`<td>${eur0(r.cost)}</td><td>${r.revT>0?eur0(r.revT):"—"}</td><td><b>${r.pct!=null?pct1(r.pct):"—"}</b></td></tr>`).join("");
-  const tfoot=`<tr><td>Totaal</td>`+landen.map(L=>`<td>${eur0(totLand[L.code])}</td>`).join("")+`<td>${eur0(grand)}</td><td>${eur0(grandRev)}</td><td><b>${compPct!=null?pct1(compPct):"—"}</b></td></tr>`;
+  const body=rows.map(r=>`<tr><td>${esc(r.label)}</td>`+landen.map(L=>{const p=r.parts[L.code];return `<td>${p.pct!=null?pct1(p.pct):'<span class="kflat">—</span>'}${p.cost!=null?`<div class="khint" style="margin:2px 0 0">${eur0(p.cost)}</div>`:""}</td>`;}).join("")+`<td>${r.cost!=null?eur0(r.cost):"—"}</td><td>${r.revT>0?eur0(r.revT):"—"}</td><td><b>${r.pct!=null?pct1(r.pct):"—"}</b></td></tr>`).join("");
+  const tfoot=`<tr><td>Totaal</td>`+landen.map(L=>{const p=grandRev>0?totLand[L.code]:0;return `<td>${eur0(totLand[L.code])}</td>`;}).join("")+`<td>${eur0(grand)}</td><td>${eur0(grandRev)}</td><td><b>${compPct!=null?pct1(compPct):"—"}</b></td></tr>`;
   const tbl=`<div class="kpanel" style="padding:0;overflow:hidden"><table><thead>${th}</thead><tbody>${body}</tbody><tfoot>${tfoot}</tfoot></table></div>`;
   c.innerHTML=cards+chart+tbl;
   drawKLand(rows,landen);
@@ -2275,10 +2292,10 @@ function drawKLand(rows,landen){
   const ctx=document.getElementById("kchart");if(!ctx)return;
   if(kChart)kChart.destroy();
   const labels=rows.map(r=>r.label);
-  const data=rows.map(r=>r.pct!=null?Math.round(r.pct*10)/10:null);
-  kChart=new Chart(ctx,{type:"line",data:{labels,datasets:[{label:"% van netto-omzet",data,borderColor:"#01B52D",backgroundColor:"rgba(1,181,45,.12)",fill:true,tension:.25,borderWidth:2.6,pointRadius:rows.length>24?0:3,spanGaps:true}]},options:{responsive:true,maintainAspectRatio:false,
+  const ds=landen.map(L=>{const clr=LANDCLR[L.code]||"#6b7280";return {label:L.label,data:rows.map(r=>r.parts[L.code].pct!=null?Math.round(r.parts[L.code].pct*10)/10:null),borderColor:clr,backgroundColor:"transparent",fill:false,tension:.25,borderWidth:2.4,pointRadius:rows.length>24?0:3,spanGaps:true};});
+  kChart=new Chart(ctx,{type:"line",data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,
     interaction:{mode:"index",intersect:false},
-    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>"Verkoopkosten: "+pct1(c.parsed.y)+" van omzet"}}},
+    plugins:{legend:{position:"top",labels:{boxWidth:12,font:{size:11}}},tooltip:{callbacks:{label:c=>c.dataset.label+": "+pct1(c.parsed.y)+" van omzet"}}},
     scales:{y:{beginAtZero:true,ticks:{callback:v=>v+"%"}},x:{ticks:{maxTicksLimit:14,autoSkip:true}}}}});
 }
 function krender(){
