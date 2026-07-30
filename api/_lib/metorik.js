@@ -57,7 +57,7 @@ async function netAndAdsBy(token, start, end, groupBy) {
   const out = {};
   (rep.data || []).forEach((d) => {
     const k = (groupBy === "day") ? String(d.date).slice(0, 10) : ym(d.date);
-    out[k] = { net: d.net || 0, ads: d.advertising_cost || 0 };
+    out[k] = { net: d.net || 0, ads: d.advertising_cost || 0, trans: d.transaction_cogs || 0 };
   });
   return out;
 }
