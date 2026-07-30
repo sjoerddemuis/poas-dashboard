@@ -121,19 +121,27 @@ module.exports = async (req, res) => {
     // Metorik: netto-omzet + advertentiekosten PER DAG (alle shops samen).
     // Zelfde bron/definitie als de POAS-sectie. De maandtotalen leiden we af uit de
     // dagen, zodat dag-, week- en maandweergave nooit uit elkaar kunnen lopen.
-    const days = {}, revenue = {}, ads = {};
+    // revByLand = netto-omzet PER LAND per maand. Nodig om de (bedrijfsbrede)
+    // verkoopkosten proportioneel aan elk land toe te rekenen op basis van omzetaandeel.
+    const days = {}, revenue = {}, ads = {}, revByLand = {};
     try {
       const start = months[0].key + "-01";
       const end = new Date().toISOString().slice(0, 10);
-      const per = await Promise.all(SHOPS.map(async ([, envKey]) => {
+      const per = await Promise.all(SHOPS.map(async ([code, envKey]) => {
         const token = process.env[envKey];
-        if (!token) return {};
-        return await netAndAdsBy(token, start, end, "day").catch(() => ({}));
+        if (!token) return { code, map: {} };
+        const map = await netAndAdsBy(token, start, end, "day").catch(() => ({}));
+        return { code, map };
       }));
-      per.forEach((map) => Object.entries(map).forEach(([d, v]) => {
-        const o = days[d] || (days[d] = { net: 0, ads: 0 });
-        o.net += v.net || 0; o.ads += v.ads || 0;
-      }));
+      per.forEach(({ code, map }) => {
+        const lm = revByLand[code] || (revByLand[code] = {});
+        Object.entries(map).forEach(([d, v]) => {
+          const o = days[d] || (days[d] = { net: 0, ads: 0 });
+          o.net += v.net || 0; o.ads += v.ads || 0;
+          const k = d.slice(0, 7);
+          lm[k] = (lm[k] || 0) + (v.net || 0);
+        });
+      });
       Object.entries(days).forEach(([d, v]) => {
         const k = d.slice(0, 7);
         revenue[k] = (revenue[k] || 0) + v.net;
@@ -141,7 +149,8 @@ module.exports = async (req, res) => {
       });
     } catch (e) { /* optioneel */ }
 
-    const out = { months, names, revenue, ads, days, sheetId: SHEET_ID, tabs: tabs.length, updated: new Date().toISOString() };
+    const landen = SHOPS.map(([code, , label]) => ({ code, label }));
+    const out = { months, names, revenue, ads, days, revByLand, landen, sheetId: SHEET_ID, tabs: tabs.length, updated: new Date().toISOString() };
     cache = out; cacheAt = now;
     res.json(out);
   } catch (e) {
