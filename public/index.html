@@ -2237,7 +2237,7 @@ function deltaHtml(cur,prev){
 // verdeeld over NL/DE/FR naar rato van het netto-omzetaandeel van dat land die maand.
 function krenderLand(){
   const c=document.getElementById("kcontent");
-  const ms=view();
+  const ms=(K.months||[]);   // per land: altijd de volledige maandhistorie (dag/week/datumfilter geldt hier niet)
   if(!ms.length){c.innerHTML='<div class="kerr">Geen maanden gevonden in de sheet.</div>';return;}
   const upd=document.getElementById("kupd"); if(upd)upd.textContent=`${K.months.length} maanden · verkoopkosten % van omzet per land`;
   const sheetLink=document.getElementById("ksheet"); if(sheetLink&&K.sheetId)sheetLink.href="https://docs.google.com/spreadsheets/d/"+K.sheetId+"/edit";
@@ -2278,7 +2278,7 @@ function krenderLand(){
     return `<div class="kcard"><div class="l" style="color:${clr}">${esc(L.label)} — ${esc(last.label)}</div><div class="v">${lc.pct!=null?pct1(lc.pct):"—"}</div><div class="s">${lc.cost!=null?eur0(lc.cost):"—"} kosten ÷ ${eur0(lc.rev)} omzet · ${eur0(tot)} periode</div></div>`;
   }).join("")+`</div>`;
   const chart=`<div class="kpanel"><div class="kh">${focus?esc(kPost):"Verkoopkosten"} als % van omzet, per land</div>
-    <div class="ksub">Per maand per land: kosten ÷ netto-omzet. De sheetkosten reken ik naar rato van omzet toe; advertentie- en transactiekosten komen echt per land uit Metorik. Daardoor verschilt het % nu per land. ${extra?"("+extra+".) ":""}Altijd per maand.</div>
+    <div class="ksub">Per maand per land: kosten ÷ netto-omzet. De sheetkosten reken ik naar rato van omzet toe; advertentie- en transactiekosten komen echt per land uit Metorik. Daardoor verschilt het % nu per land. ${extra?"("+extra+".) ":""}Deze weergave toont altijd alle maanden; het dag/week- en datumfilter geldt hier niet.</div>
     <div class="kchartbox"><canvas id="kchart"></canvas></div></div>`;
   const th=`<tr><th>Maand</th>`+landen.map(L=>`<th>${esc(L.label)}</th>`).join("")+`<th>Kosten</th><th>Omzet</th><th>% van omzet</th></tr>`;
   const body=rows.map(r=>`<tr><td>${esc(r.label)}</td>`+landen.map(L=>{const p=r.parts[L.code];return `<td>${p.pct!=null?pct1(p.pct):'<span class="kflat">—</span>'}${p.cost!=null?`<div class="khint" style="margin:2px 0 0">${eur0(p.cost)}</div>`:""}</td>`;}).join("")+`<td>${r.cost!=null?eur0(r.cost):"—"}</td><td>${r.revT>0?eur0(r.revT):"—"}</td><td><b>${r.pct!=null?pct1(r.pct):"—"}</b></td></tr>`).join("");
