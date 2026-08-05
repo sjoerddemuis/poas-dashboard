@@ -599,6 +599,7 @@ summary{border-radius:11px;font-weight:600}
     <button class="snav" data-sec="ads">Google Ads</button>
     <button class="snav" data-sec="reviews">Reviews</button>
     <button class="snav" data-sec="kosten">Verkoopkosten</button>
+    <button class="snav" data-sec="forecast">Prognose</button>
   </div>
   <div id="sec-poas">
   <div class="refresh"><span class="dot" id="dot"></span><span id="status">Laden…</span><button class="btn" id="reloadBtn" style="margin-left:auto">↻ Ververs</button></div>
@@ -895,6 +896,52 @@ summary{border-radius:11px;font-weight:600}
     </div>
     <div id="kcontent"><div class="kloading">Kosten laden uit de sheet…</div></div>
   </div><!-- /sec-kosten -->
+
+  <div id="sec-forecast" style="display:none">
+    <style>
+    #sec-forecast .fsub{color:var(--mute);font-size:13px;margin:0 0 14px;line-height:1.5;max-width:920px}
+    #sec-forecast .fbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 12px;margin-bottom:16px;box-shadow:var(--shadow)}
+    #sec-forecast .fseg{display:inline-flex;border:1.5px solid var(--line);border-radius:9px;overflow:hidden}
+    #sec-forecast .fseg button{border:0;border-right:1px solid var(--line);background:var(--card);color:var(--ink);font-size:12px;font-weight:700;padding:7px 13px;cursor:pointer}
+    #sec-forecast .fseg button:last-child{border-right:0}
+    #sec-forecast .fseg button.on{background:var(--green);color:#fff}
+    #sec-forecast .flbl{font-size:12px;color:var(--mute);font-weight:600}
+    #sec-forecast .fsep{flex:1}
+    #sec-forecast .fref{border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--mute);font-family:var(--mono);font-size:11px;font-weight:700;padding:7px 12px;cursor:pointer}
+    #sec-forecast .fref:hover{border-color:var(--green);color:var(--greenDk)}
+    #sec-forecast .fph{font-weight:700;font-size:15px;margin:2px 0 3px}
+    #sec-forecast .fpsub{font-size:12px;color:var(--mute);margin-bottom:12px;line-height:1.5}
+    #sec-forecast .fcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px}
+    #sec-forecast .fcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow)}
+    #sec-forecast .fcard.hl{border-color:var(--green);box-shadow:0 0 0 1px var(--green) inset,var(--shadow)}
+    #sec-forecast .fcard .l{font-size:9.5px;letter-spacing:.4px;text-transform:uppercase;color:var(--mute);font-weight:700}
+    #sec-forecast .fcard .v{font-size:23px;font-weight:700;line-height:1.1;margin-top:3px;letter-spacing:-.5px}
+    #sec-forecast .fcard .s{font-size:11px;color:var(--mute);margin-top:2px}
+    #sec-forecast .fpanel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:0;overflow:hidden;box-shadow:var(--shadow);margin-bottom:18px}
+    #sec-forecast .fpanel .hd{padding:13px 16px 4px}
+    #sec-forecast table{width:100%;border-collapse:collapse;font-size:13px}
+    #sec-forecast th{color:var(--mute);font-weight:600;font-size:10px;letter-spacing:.3px;text-transform:uppercase;text-align:right;padding:9px 12px;border-bottom:1px solid var(--line)}
+    #sec-forecast th:first-child,#sec-forecast td:first-child{text-align:left}
+    #sec-forecast td{padding:9px 12px;text-align:right;border-top:1px solid var(--line);white-space:nowrap}
+    #sec-forecast tbody tr.us td{background:rgba(1,181,45,.06)}
+    #sec-forecast tfoot td{font-weight:700;border-top:2px solid var(--line)}
+    #sec-forecast .floading,#sec-forecast .ferr{padding:40px;text-align:center;color:var(--mute)}
+    </style>
+    <div class="fsub">Prognose op basis van je <b>7-daags daggemiddelde</b>, doorgetrokken naar de lopende maand, plus de <b>jaarcijfers tot nu toe</b>. Bron: Metorik — winst = netto-omzet minus alle kosten uit het winstrapport (inkoop, verzending, transactie, ads, operationeel).</div>
+    <div class="fbar">
+      <span class="flbl">Metriek</span>
+      <div class="fseg" id="fmet">
+        <button data-m="omzet" class="on">Omzet</button>
+        <button data-m="orders">Orders</button>
+        <button data-m="winst">Winst</button>
+      </div>
+      <span class="fsep"></span>
+      <span class="flbl" id="fupd"></span>
+      <button id="fref" class="fref">↻ Ververs</button>
+    </div>
+    <div id="fccontent"><div class="floading">Prognose laden…</div></div>
+  </div><!-- /sec-forecast -->
+
   <div id="kmodal" class="omodal"><div class="opanel" id="kmodalbody"></div></div>
 </div>
 
@@ -2836,10 +2883,65 @@ window.__kernLoad=function(){
     if(!MK)fetchMarket(); else render();
   };
 })();
+/* ===== Prognose (7-daags run-rate naar maand + jaarcijfers YTD) ===== */
+(function(){
+  let FC=null, fInit=false, fMet="omzet";
+  const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+  const eur0=n=>(n==null||!isFinite(n))?"—":"€"+Math.round(n).toLocaleString("nl-NL");
+  const int0=n=>(n==null||!isFinite(n))?"—":Math.round(n).toLocaleString("nl-NL");
+  const pct1=n=>(n==null||!isFinite(n))?"—":Number(n).toLocaleString("nl-NL",{minimumFractionDigits:1,maximumFractionDigits:1})+"%";
+  const METS={omzet:{label:"Omzet",f:eur0},orders:{label:"Orders",f:int0},winst:{label:"Winst",f:eur0}};
+  const mv=o=>o?o[fMet]:null;
+  function render(){
+    const c=document.getElementById("fccontent"); if(!c)return;
+    if(!FC){c.innerHTML='<div class="floading">Prognose laden…</div>';return;}
+    const M=METS[fMet], landen=FC.landen||[], t=FC.total;
+    const cards=`<div class="fcards">`
+      +`<div class="fcard"><div class="l">7-daags gem. / dag</div><div class="v">${M.f(mv(t.avg7))}</div><div class="s">gem. ${esc(FC.last7.start)} t/m ${esc(FC.last7.end)}</div></div>`
+      +`<div class="fcard"><div class="l">Deze maand tot nu (dag ${FC.dayOfMonth})</div><div class="v">${M.f(mv(t.mtd))}</div><div class="s">t/m ${esc(FC.today)}</div></div>`
+      +`<div class="fcard hl"><div class="l">Prognose ${esc(FC.monthLabel)}</div><div class="v">${M.f(mv(t.proj))}</div><div class="s">tot nu + ${FC.daysRemaining} dagen × 7-daags gem.</div></div>`
+      +`</div>`;
+    const mrows=landen.map(L=>{const s=FC.shops[L.code]||{};return `<tr class="${L.code==="NL"?"us":""}"><td><b>${esc(L.label)}</b></td><td>${M.f(mv(s.avg7))}</td><td>${M.f(mv(s.mtd))}</td><td><b>${M.f(mv(s.proj))}</b></td></tr>`;}).join("");
+    const mtbl=`<div class="fpanel"><div class="hd"><div class="fph">Maandprognose per land — ${esc(FC.monthLabel)}</div><div class="fpsub">Het 7-daags daggemiddelde doorgetrokken: wat deze maand tot nu toe is gerealiseerd, plus ${FC.daysRemaining} resterende dagen aan het huidige daggemiddelde.</div></div>`
+      +`<table><thead><tr><th>Land</th><th>7-daags / dag</th><th>Deze maand tot nu</th><th>Prognose maand</th></tr></thead><tbody>${mrows}</tbody>`
+      +`<tfoot><tr><td>Totaal</td><td>${M.f(mv(t.avg7))}</td><td>${M.f(mv(t.mtd))}</td><td>${M.f(mv(t.proj))}</td></tr></tfoot></table></div>`;
+    const yc=`<div class="fcards">`
+      +`<div class="fcard"><div class="l">Omzet ${FC.year} YTD</div><div class="v">${eur0(t.ytd.omzet)}</div></div>`
+      +`<div class="fcard"><div class="l">Orders ${FC.year} YTD</div><div class="v">${int0(t.ytd.orders)}</div></div>`
+      +`<div class="fcard"><div class="l">Winst ${FC.year} YTD</div><div class="v">${eur0(t.ytd.winst)}</div></div>`
+      +`<div class="fcard"><div class="l">Marge YTD</div><div class="v">${pct1(t.ytd.omzet>0?t.ytd.winst/t.ytd.omzet*100:null)}</div></div>`
+      +`</div>`;
+    const yrows=landen.map(L=>{const s=(FC.shops[L.code]||{}).ytd||{omzet:0,orders:0,winst:0};const mar=s.omzet>0?s.winst/s.omzet*100:null;return `<tr class="${L.code==="NL"?"us":""}"><td><b>${esc(L.label)}</b></td><td>${eur0(s.omzet)}</td><td>${int0(s.orders)}</td><td>${eur0(s.winst)}</td><td>${pct1(mar)}</td></tr>`;}).join("");
+    const ymar=t.ytd.omzet>0?t.ytd.winst/t.ytd.omzet*100:null;
+    const ytbl=`<div class="fpanel"><div class="hd"><div class="fph">Jaarcijfers ${FC.year} — tot nu toe (t/m ${esc(FC.today)})</div><div class="fpsub">Cumulatief dit kalenderjaar per land. Winst = netto-omzet minus alle kosten uit het Metorik-winstrapport.</div></div>`
+      +`<table><thead><tr><th>Land</th><th>Omzet</th><th>Orders</th><th>Winst</th><th>Marge</th></tr></thead><tbody>${yrows}</tbody>`
+      +`<tfoot><tr><td>Totaal</td><td>${eur0(t.ytd.omzet)}</td><td>${int0(t.ytd.orders)}</td><td>${eur0(t.ytd.winst)}</td><td>${pct1(ymar)}</td></tr></tfoot></table></div>`;
+    c.innerHTML=cards+mtbl+`<div class="fph" style="margin:22px 0 2px">Jaaroverzicht</div>`+yc+ytbl;
+  }
+  async function load(fresh){
+    const c=document.getElementById("fccontent"); c.innerHTML='<div class="floading">Prognose laden…</div>';
+    try{
+      const r=await fetch("/api/data?view=forecast"+(fresh?"&fresh=1":""),{cache:"no-store"});
+      if(r.status===401){location.href="/login.html";return;}
+      const d=await r.json(); if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
+      FC=d;
+      const u=document.getElementById("fupd"); if(u)u.textContent="prognose "+d.monthLabel;
+      render();
+    }catch(e){ document.getElementById("fccontent").innerHTML='<div class="ferr">Kon prognose niet laden.<br><small>'+esc(e.message||e)+'</small></div>'; }
+  }
+  window.__forecastLoad=function(){
+    if(!fInit){ fInit=true;
+      document.getElementById("fmet").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;fMet=b.dataset.m;[...document.querySelectorAll("#fmet button")].forEach(x=>x.classList.toggle("on",x===b));render();});
+      document.getElementById("fref").addEventListener("click",()=>load(true));
+      load(); return;
+    }
+    if(!FC)load(); else render();
+  };
+})();
 /* ===== Sectienavigatie (onthoudt actieve tab via URL-hash) ===== */
 (function(){
   const nav=document.getElementById("secnav");
-  const SECS=["poas","kern","prod","market","ronada","prijs","voorraad","ads","reviews","kosten"];
+  const SECS=["poas","kern","prod","market","ronada","prijs","voorraad","ads","reviews","kosten","forecast"];
   function activate(sec,updateHash){
     if(!SECS.includes(sec))sec="poas";
     const b=nav.querySelector('.snav[data-sec="'+sec+'"]');
@@ -2854,6 +2956,7 @@ window.__kernLoad=function(){
     if(sec==="ads"&&window.__adsLoad)window.__adsLoad();
     if(sec==="reviews"&&window.__reviewsLoad)window.__reviewsLoad();
     if(sec==="kosten"&&window.__kostenLoad)window.__kostenLoad();
+    if(sec==="forecast"&&window.__forecastLoad)window.__forecastLoad();
     if(updateHash&&location.hash!=="#"+sec)history.replaceState(null,"","#"+sec);
     window.dispatchEvent(new Event("resize")); // charts hersizen na tab-wissel
   }
