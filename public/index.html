@@ -685,15 +685,23 @@ summary{border-radius:11px;font-weight:600}
     #sec-prod .pdnum{font-size:24px;font-weight:800;line-height:1.1;margin-top:8px}
     @media(max-width:1000px){#sec-prod .pdslots{grid-template-columns:repeat(3,1fr)}}
     @media(max-width:640px){#sec-prod .pdslots{grid-template-columns:repeat(2,1fr)}}
+    #sec-prod .pdbookbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:16px}
+    #sec-prod .pdbmchip{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1.5px solid var(--line);border-radius:20px;padding:4px 6px 4px 12px;font-size:12px;font-weight:700;color:var(--ink);box-shadow:var(--shadow)}
+    #sec-prod .pdbmchip:hover{border-color:var(--green)}
+    #sec-prod .pdbmgo{cursor:pointer}
+    #sec-prod .pdbmdel{cursor:pointer;width:18px;height:18px;line-height:16px;text-align:center;border-radius:50%;color:var(--mute);font-weight:700}
+    #sec-prod .pdbmdel:hover{background:#C0392B;color:#fff}
+    #sec-prod #pdbmsave{background:var(--ink);border-color:var(--ink);color:#fff}
+    #sec-prod #pdbmsave:hover{opacity:.9}
     </style>
-    <div class="knsub">Productdata per SKU — live uit Metorik + GA4. Kies een shop, tik een SKU in, en zet in elk van de 5 velden een cijfer naar keuze. De grafiek eronder toont ze over tijd. Een cijfer dat al ergens gekozen is, wordt grijs in de lijst.</div>
+    <div class="knsub">Productdata per SKU — live uit Metorik + GA4. Kies een shop en tik één SKU in, of <b>meerdere SKU's gescheiden met een komma</b> (bijv. <span style="font-family:var(--mono)">1333, 1420, 1500</span>) voor een gecombineerde weergave (alle data opgeteld). Zet in elk van de 5 velden een cijfer naar keuze; de grafiek toont ze over tijd. Bewaar een selectie als bookmark om er snel op terug te komen.</div>
     <div class="knbar">
       <div class="knseg" id="pdshop">
         <button data-s="NL" class="on">NL</button>
         <button data-s="DE">DE</button>
         <button data-s="FR">FR</button>
       </div>
-      <input type="text" id="pdsku" class="kndate" placeholder="SKU (bijv. 1333)" style="width:150px">
+      <input type="text" id="pdsku" class="kndate" placeholder="SKU('s), komma-gescheiden" style="width:210px">
       <button id="pdgo" class="knref">Laden</button>
       <span class="knsep"></span>
       <div class="knseg" id="pdgran">
@@ -712,7 +720,13 @@ summary{border-radius:11px;font-weight:600}
       <span class="knsep"></span>
       <button id="pdref" class="knref">↻ Ververs</button>
     </div>
-    <div id="pdcontent"><div class="knloading">Tik een SKU in en klik op Laden.</div></div>
+    <div class="pdbookbar">
+      <input type="text" id="pdbmname" class="kndate" placeholder="Bookmark-naam (optioneel)" style="width:180px">
+      <button id="pdbmsave" class="knref">★ Bewaar selectie</button>
+      <span class="knlbl">Bookmarks:</span>
+      <span class="pdbmlist" id="pdbmlist" style="display:inline-flex;flex-wrap:wrap;gap:8px"></span>
+    </div>
+    <div id="pdcontent"><div class="knloading">Tik een SKU in (of meerdere met komma's) en klik op Laden.</div></div>
   </div><!-- /sec-prod -->
 
   <div id="sec-market" style="display:none">
@@ -2761,6 +2775,30 @@ window.__kernLoad=function(){
   let slots=["netSales","orders","netItems","views","conversie"];
   const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
   function met(id){ return PMET.find(m=>m.id===id); }
+  // ---- Bookmarks (per browser, localStorage) ----
+  const BMKEY="pd_bookmarks_v1";
+  function loadBM(){ try{ return JSON.parse(localStorage.getItem(BMKEY)||"[]"); }catch(e){ return []; } }
+  function saveBMlist(l){ try{ localStorage.setItem(BMKEY, JSON.stringify(l)); }catch(e){} }
+  function renderBM(){
+    const el=document.getElementById("pdbmlist"); if(!el)return;
+    const list=loadBM();
+    el.innerHTML = list.length ? list.map((b,i)=>'<span class="pdbmchip"><span class="pdbmgo" data-go="'+i+'" title="'+esc(b.shop+": "+b.sku)+'">'+esc(b.name)+'</span><span class="pdbmdel" data-del="'+i+'" title="Verwijderen">×</span></span>').join('') : '<span class="pdmeta">nog geen bookmarks</span>';
+  }
+  function addBM(){
+    if(!pdSku){ alert("Laad eerst een SKU (of meerdere) voordat je een bookmark bewaart."); return; }
+    const nameEl=document.getElementById("pdbmname");
+    const name=(nameEl.value.trim()) || (pdShop+": "+pdSku);
+    const list=loadBM(); list.push({ name, shop:pdShop, sku:pdSku }); saveBMlist(list);
+    nameEl.value=""; renderBM();
+  }
+  function applyBM(i){
+    const b=loadBM()[i]; if(!b)return;
+    pdShop=b.shop; pdSku=b.sku;
+    [...document.querySelectorAll("#pdshop button")].forEach(x=>x.classList.toggle("on",x.dataset.s===pdShop));
+    document.getElementById("pdsku").value=pdSku;
+    fetchProduct();
+  }
+  function delBM(i){ const list=loadBM(); list.splice(i,1); saveBMlist(list); renderBM(); }
   function fmU(v,u){ if(v==null||!isFinite(v))return "—"; if(u==="pct")return v.toLocaleString("nl-NL",{maximumFractionDigits:1})+"%"; if(u==="ratio")return v.toLocaleString("nl-NL",{minimumFractionDigits:2,maximumFractionDigits:2}); if(u==="eur"){const dec=Math.abs(v)<100?2:0;return "€"+v.toLocaleString("nl-NL",{minimumFractionDigits:dec,maximumFractionDigits:dec});} return Math.round(v).toLocaleString("nl-NL"); }
   function agg(rows){ const a={grossSales:0,netSales:0,grossItems:0,netItems:0,itemsRefunded:0,refunds:0,orders:0,cogs:0,profit:0,views:0}; rows.forEach(r=>{for(const k in a)a[k]+=r[k]||0;}); return a; }
   function isoWeek(dstr){ const dt=new Date(dstr+"T00:00:00"); const t=new Date(Date.UTC(dt.getFullYear(),dt.getMonth(),dt.getDate())); const day=t.getUTCDay()||7; t.setUTCDate(t.getUTCDate()+4-day); const y0=new Date(Date.UTC(t.getUTCFullYear(),0,1)); const wk=Math.ceil(((t-y0)/864e5+1)/7); return t.getUTCFullYear()+"-W"+String(wk).padStart(2,"0"); }
@@ -2789,9 +2827,14 @@ window.__kernLoad=function(){
     if(!PD){ c.innerHTML='<div class="knloading">Tik een SKU in en klik op Laden.</div>'; return; }
     if(PD.error){ c.innerHTML='<div class="knerr">'+esc(PD.error)+'</div>'; return; }
     const rows=PD.rows||[], A=agg(rows), bks=buckets(rows), p=PD.product||{};
-    const gaNote = (PD.ga&&PD.ga.configured) ? (PD.ga.hasViews?'':' <span class="pdmeta">· geen GA4-views voor deze SKU</span>') : ' <span class="pdmeta">· GA4 niet gekoppeld</span>';
+    const gaNote = (PD.ga&&PD.ga.configured) ? (PD.ga.hasViews?'':' <span class="pdmeta">· geen GA4-views voor deze selectie</span>') : ' <span class="pdmeta">· GA4 niet gekoppeld</span>';
+    const skusStr=(PD.skus||[]).join(", ");
+    const missNote=(PD.missing&&PD.missing.length)?' <span class="pdmeta" style="color:var(--orange)">· niet gevonden: '+esc(PD.missing.join(", "))+'</span>':'';
+    let metaLine;
+    if(p.combined){ metaLine='SKU\'s: '+esc(skusStr)+' · '+esc(PD.shop)+' · '+p.count+' producten · voorraad totaal '+(p.stock!=null?p.stock:"?"); }
+    else { metaLine='SKU '+esc(skusStr||PD.sku)+' · '+esc(PD.shop)+' · voorraad '+(p.stock!=null?p.stock:"?")+' · prijs '+fmU(p.currentPrice,"eur"); }
     const head='<div class="pdhead">'+(p.image?'<img class="pdimg" src="'+esc(p.image)+'" onerror="this.style.display=\'none\'">':'')
-      +'<div><b>'+esc(p.title||"")+'</b><br><span class="pdmeta">SKU '+esc(PD.sku)+' · '+esc(PD.shop)+' · voorraad '+(p.stock!=null?p.stock:"?")+' · prijs '+fmU(p.currentPrice,"eur")+'</span>'+gaNote+'</div></div>';
+      +'<div><b>'+esc(p.title||"")+'</b><br><span class="pdmeta">'+metaLine+'</span>'+gaNote+missNote+'</div></div>';
     const chosen=new Set(slots.filter(Boolean));
     const slotHtml=slots.map((sid,i)=>{
       const opts=['<option value="">— geen —</option>'].concat(PMET.map(m=>{
@@ -2837,6 +2880,11 @@ window.__kernLoad=function(){
     document.getElementById("pdsku").addEventListener("keydown",e=>{if(e.key==="Enter")go();});
     document.getElementById("pdref").addEventListener("click",()=>{if(pdSku)fetchProduct(true);});
     document.getElementById("pdcontent").addEventListener("change",e=>{const sel=e.target.closest(".pdsel");if(!sel)return; slots[+sel.dataset.slot]=sel.value||null; render();});
+    // Bookmarks
+    renderBM();
+    document.getElementById("pdbmsave").addEventListener("click",addBM);
+    document.getElementById("pdbmname").addEventListener("keydown",e=>{if(e.key==="Enter")addBM();});
+    document.getElementById("pdbmlist").addEventListener("click",e=>{const del=e.target.closest(".pdbmdel"); if(del){delBM(+del.dataset.del);return;} const go=e.target.closest(".pdbmgo"); if(go)applyBM(+go.dataset.go);});
   };
 })();
 /* ===== Marktaandeel (reviewgroei-tracker uit Google Sheet) ===== */
