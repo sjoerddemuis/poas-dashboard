@@ -926,6 +926,17 @@ summary{border-radius:11px;font-weight:600}
     #sec-forecast tbody tr.us td{background:rgba(1,181,45,.06)}
     #sec-forecast tfoot td{font-weight:700;border-top:2px solid var(--line)}
     #sec-forecast .floading,#sec-forecast .ferr{padding:40px;text-align:center;color:var(--mute)}
+    #sec-forecast .scpanel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);margin-bottom:14px}
+    #sec-forecast .scpresets{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+    #sec-forecast .scgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+    #sec-forecast .scfld{display:flex;flex-direction:column;font-size:11px;color:var(--mute);font-weight:600;gap:4px}
+    #sec-forecast .scfld input{font-size:14px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:7px 9px;font-weight:700}
+    #sec-forecast .scfld input:focus{outline:none;border-color:var(--green)}
+    #sec-forecast .scwarnbox{background:#FFF1E5;border:1px solid #F0C9A0;color:#8a4b0a;border-radius:12px;padding:11px 14px;font-size:12.5px;margin-bottom:14px;line-height:1.5}
+    #sec-forecast .scchartbox{position:relative;height:320px}
+    #sec-forecast .fnote{font-size:11px;color:var(--mute);margin-top:12px;line-height:1.6;max-width:920px}
+    #sec-forecast .chg{font-size:11px;font-weight:700;display:block;margin-top:2px}
+    #sec-forecast .chg.up{color:var(--green)} #sec-forecast .chg.dn{color:#C0392B}
     </style>
     <div class="fsub">Prognose op basis van je <b>7-daags daggemiddelde</b>, doorgetrokken naar de lopende maand, plus de <b>jaarcijfers tot nu toe</b>. Bron: Metorik — winst = netto-omzet minus alle kosten uit het winstrapport (inkoop, verzending, transactie, ads, operationeel).</div>
     <div class="fbar">
@@ -935,11 +946,40 @@ summary{border-radius:11px;font-weight:600}
         <button data-m="orders">Orders</button>
         <button data-m="winst">Winst</button>
       </div>
+      <span class="flbl">Basis</span>
+      <div class="fseg" id="fbasis">
+        <button data-b="blend" class="on">Realisatie + run-rate</button>
+        <button data-b="runrate">Puur run-rate</button>
+      </div>
       <span class="fsep"></span>
       <span class="flbl" id="fupd"></span>
       <button id="fref" class="fref">↻ Ververs</button>
     </div>
     <div id="fccontent"><div class="floading">Prognose laden…</div></div>
+
+    <div class="fph" style="margin:26px 0 2px">Jaarprognose 2026 — scenario's</div>
+    <div class="fpsub" style="max-width:920px">Interactieve doorrekening voor heel 2026. H1 (jan–jul) staat vast op werkelijke cijfers; aug–dec wordt geprojecteerd op je aannames. Alle bedragen ex btw. Winst = omzet × (variabele marge − refunds/kortingen% − verkoopkosten%).</div>
+    <div class="scpanel">
+      <div class="scpresets">
+        <span class="flbl">Scenario</span>
+        <div class="fseg" id="scpreset">
+          <button data-p="voorzichtig">Voorzichtig</button>
+          <button data-p="basis" class="on">Basis</button>
+          <button data-p="optimistisch">Optimistisch</button>
+        </div>
+      </div>
+      <div class="scgrid">
+        <label class="scfld">Groei NL H2 (%)<input type="number" id="sc_gnl" step="1"></label>
+        <label class="scfld">Groei DE H2 (%)<input type="number" id="sc_gde" step="1"></label>
+        <label class="scfld">FR run-rate (€/mnd)<input type="number" id="sc_fr" step="500"></label>
+        <label class="scfld">Verkoopkosten (%)<input type="number" id="sc_vk" step="1" min="15" max="40"></label>
+        <label class="scfld">Var. marge NL (%)<input type="number" id="sc_mnl" step="0.1"></label>
+        <label class="scfld">Var. marge DE (%)<input type="number" id="sc_mde" step="0.1"></label>
+        <label class="scfld">Var. marge FR (%)<input type="number" id="sc_mfr" step="0.1"></label>
+      </div>
+    </div>
+    <div id="scwarn"></div>
+    <div id="scout"></div>
   </div><!-- /sec-forecast -->
 
   <div id="kmodal" class="omodal"><div class="opanel" id="kmodalbody"></div></div>
@@ -2885,13 +2925,14 @@ window.__kernLoad=function(){
 })();
 /* ===== Prognose (7-daags run-rate naar maand + jaarcijfers YTD) ===== */
 (function(){
-  let FC=null, fInit=false, fMet="omzet";
+  let FC=null, fInit=false, fMet="omzet", fBasis="blend";
   const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
   const eur0=n=>(n==null||!isFinite(n))?"—":"€"+Math.round(n).toLocaleString("nl-NL");
   const int0=n=>(n==null||!isFinite(n))?"—":Math.round(n).toLocaleString("nl-NL");
   const pct1=n=>(n==null||!isFinite(n))?"—":Number(n).toLocaleString("nl-NL",{minimumFractionDigits:1,maximumFractionDigits:1})+"%";
   const METS={omzet:{label:"Omzet",f:eur0},orders:{label:"Orders",f:int0},winst:{label:"Winst",f:eur0}};
   const mv=o=>o?o[fMet]:null;
+  const projOf=o=>{ if(!o)return null; return fBasis==="runrate" ? (o.avg7?o.avg7[fMet]*FC.daysInMonth:null) : (o.proj?o.proj[fMet]:null); };
   function render(){
     const c=document.getElementById("fccontent"); if(!c)return;
     if(!FC){c.innerHTML='<div class="floading">Prognose laden…</div>';return;}
@@ -2899,12 +2940,12 @@ window.__kernLoad=function(){
     const cards=`<div class="fcards">`
       +`<div class="fcard"><div class="l">7-daags gem. / dag</div><div class="v">${M.f(mv(t.avg7))}</div><div class="s">gem. ${esc(FC.last7.start)} t/m ${esc(FC.last7.end)}</div></div>`
       +`<div class="fcard"><div class="l">Deze maand tot nu (dag ${FC.dayOfMonth})</div><div class="v">${M.f(mv(t.mtd))}</div><div class="s">t/m ${esc(FC.today)}</div></div>`
-      +`<div class="fcard hl"><div class="l">Prognose ${esc(FC.monthLabel)}</div><div class="v">${M.f(mv(t.proj))}</div><div class="s">tot nu + ${FC.daysRemaining} dagen × 7-daags gem.</div></div>`
+      +`<div class="fcard hl"><div class="l">Prognose ${esc(FC.monthLabel)}</div><div class="v">${M.f(projOf(t))}</div><div class="s">${fBasis==="runrate"?("7-daags gem. × "+FC.daysInMonth+" dagen"):("tot nu + "+FC.daysRemaining+" dagen × 7-daags gem.")}</div></div>`
       +`</div>`;
-    const mrows=landen.map(L=>{const s=FC.shops[L.code]||{};return `<tr class="${L.code==="NL"?"us":""}"><td><b>${esc(L.label)}</b></td><td>${M.f(mv(s.avg7))}</td><td>${M.f(mv(s.mtd))}</td><td><b>${M.f(mv(s.proj))}</b></td></tr>`;}).join("");
-    const mtbl=`<div class="fpanel"><div class="hd"><div class="fph">Maandprognose per land — ${esc(FC.monthLabel)}</div><div class="fpsub">Het 7-daags daggemiddelde doorgetrokken: wat deze maand tot nu toe is gerealiseerd, plus ${FC.daysRemaining} resterende dagen aan het huidige daggemiddelde.</div></div>`
+    const mrows=landen.map(L=>{const s=FC.shops[L.code]||{};return `<tr class="${L.code==="NL"?"us":""}"><td><b>${esc(L.label)}</b></td><td>${M.f(mv(s.avg7))}</td><td>${M.f(mv(s.mtd))}</td><td><b>${M.f(projOf(s))}</b></td></tr>`;}).join("");
+    const mtbl=`<div class="fpanel"><div class="hd"><div class="fph">Maandprognose per land — ${esc(FC.monthLabel)}</div><div class="fpsub">${fBasis==="runrate"?("Puur op current run-rate: het 7-daags daggemiddelde × "+FC.daysInMonth+" dagen — alsof je dit tempo de hele maand aanhoudt (negeert wat al is gerealiseerd).") :("Realisatie + run-rate: wat deze maand tot nu toe is gerealiseerd, plus "+FC.daysRemaining+" resterende dagen aan het huidige 7-daags daggemiddelde.")}</div></div>`
       +`<table><thead><tr><th>Land</th><th>7-daags / dag</th><th>Deze maand tot nu</th><th>Prognose maand</th></tr></thead><tbody>${mrows}</tbody>`
-      +`<tfoot><tr><td>Totaal</td><td>${M.f(mv(t.avg7))}</td><td>${M.f(mv(t.mtd))}</td><td>${M.f(mv(t.proj))}</td></tr></tfoot></table></div>`;
+      +`<tfoot><tr><td>Totaal</td><td>${M.f(mv(t.avg7))}</td><td>${M.f(mv(t.mtd))}</td><td>${M.f(projOf(t))}</td></tr></tfoot></table></div>`;
     const yc=`<div class="fcards">`
       +`<div class="fcard"><div class="l">Omzet ${FC.year} YTD</div><div class="v">${eur0(t.ytd.omzet)}</div></div>`
       +`<div class="fcard"><div class="l">Orders ${FC.year} YTD</div><div class="v">${int0(t.ytd.orders)}</div></div>`
@@ -2932,10 +2973,105 @@ window.__kernLoad=function(){
   window.__forecastLoad=function(){
     if(!fInit){ fInit=true;
       document.getElementById("fmet").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;fMet=b.dataset.m;[...document.querySelectorAll("#fmet button")].forEach(x=>x.classList.toggle("on",x===b));render();});
+      document.getElementById("fbasis").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;fBasis=b.dataset.b;[...document.querySelectorAll("#fbasis button")].forEach(x=>x.classList.toggle("on",x===b));render();});
       document.getElementById("fref").addEventListener("click",()=>load(true));
       load(); return;
     }
     if(!FC)load(); else render();
+  };
+})();
+/* ===== Jaarprognose-scenario's (client-side rekentool) ===== */
+(function(){
+  const M2025={NL:[121782,110491,102370,117711,150522,189433,197066,212607,225325,246224,225168,195808],
+    DE:[115219,80665,75691,63666,72389,71701,86345,96614,97642,110923,138451,108286],
+    FR:[0,0,83,1604,492,167,1469,5498,3697,7093,4948,3054],
+    MP:[0,0,0,0,0,0,143,19070,14690,11788,14008,10657]};
+  const YTD={NL:[190864,153520,187108,199650,180138,186933,248553],
+    DE:[90857,86233,110074,94888,98125,101887,118877],
+    FR:[3620,3799,4360,2407,2904,6733,5668],
+    MP:[4833,0,0,0,0,0,0]};
+  const REF={NL:2.0,DE:3.2,FR:2.0}, OPC={NL:13500,DE:7900,FR:300};
+  const H1WINST=745035, OM2025=3310563, W2025=961275;
+  const JUL_AD={NL:48800,DE:23400};
+  const PRESETS={voorzichtig:{gnl:18,gde:28,fr:5000},basis:{gnl:28,gde:38,fr:7000},optimistisch:{gnl:38,gde:48,fr:9000}};
+  const MND=["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
+  let scInit=false, scChart=null;
+  let ST={gnl:28,gde:38,fr:7000,vk:30,mnl:60.9,mde:62.1,mfr:59.1};
+  const eur=n=>"€ "+Math.round(n).toLocaleString("nl-NL");
+  const h1om=k=>YTD[k].reduce((a,b)=>a+b,0);
+  function chg(now,then){ if(!then)return ""; const p=(now-then)/then*100; const cls=p>=0?"up":"dn"; return '<span class="chg '+cls+'">'+(p>=0?"▲":"▼")+" "+Math.abs(p).toFixed(1)+"% vs 2025</span>"; }
+  function calc(){
+    const VARM={NL:ST.mnl,DE:ST.mde,FR:ST.mfr};
+    const per={}; let jaaromzet=0, h2winstTot=0, h2omzet=0, h2omzet2025NLDE=0, h2omzet2026NLDE=0, h2adbud=0, h2adbud2025=0;
+    const mon2026=YTD.NL.map((_,i)=>YTD.NL[i]+YTD.DE[i]+YTD.FR[i]+YTD.MP[i]); // jan-jul totalen
+    ["NL","DE","FR","MP"].forEach(s=>{
+      let h2=0; const monShop=[];
+      for(let m=7;m<12;m++){
+        const v = s==="NL"?M2025.NL[m]*(1+ST.gnl/100) : s==="DE"?M2025.DE[m]*(1+ST.gde/100) : s==="FR"?ST.fr : 0;
+        h2+=v; monShop.push(v);
+      }
+      const om=h1om(s)+h2; jaaromzet+=om; h2omzet+=h2;
+      let h2w=0; if(s!=="MP"){ h2w=h2*((VARM[s]-REF[s]-ST.vk)/100); h2winstTot+=h2w; }
+      per[s]={omzet:om, h2, h2w, monShop};
+      if(s==="NL"||s==="DE"){ h2omzet2026NLDE+=h2; for(let m=7;m<12;m++)h2omzet2025NLDE+= s==="NL"?M2025.NL[m]:M2025.DE[m]; h2adbud+=ST.vk/100*h2-OPC[s]*5; h2adbud2025+=ST.vk/100*(s==="NL"?M2025.NL.slice(7).reduce((a,b)=>a+b,0):M2025.DE.slice(7).reduce((a,b)=>a+b,0))-OPC[s]*5; }
+    });
+    const jaarwinst=H1WINST+h2winstTot;
+    // implied marginale ROAS op de H2-groei (NL+DE) t.o.v. 2025
+    const dOm=h2omzet2026NLDE-h2omzet2025NLDE, dAd=h2adbud-h2adbud2025;
+    const roas = dAd>0 ? dOm/dAd : null;
+    // maandtotalen 2026 (jan-jul actual, aug-dec projectie)
+    const tot2026=mon2026.slice(); for(let m=7;m<12;m++){ tot2026[m]=per.NL.monShop[m-7]+per.DE.monShop[m-7]+per.FR.monShop[m-7]; }
+    const tot2025=M2025.NL.map((_,i)=>M2025.NL[i]+M2025.DE[i]+M2025.FR[i]+M2025.MP[i]);
+    return {per,jaaromzet,jaarwinst,marge:jaarwinst/jaaromzet*100,h2omzet,h2winst:h2winstTot,roas,tot2025,tot2026};
+  }
+  function render(){
+    const R=calc(), out=document.getElementById("scout"); if(!out)return;
+    // waarschuwing
+    const wb=document.getElementById("scwarn");
+    if(R.roas!=null && R.roas>2.4){
+      wb.innerHTML='<div class="scwarnbox">⚠ <b>Let op — ambitieus scenario.</b> Deze groei bij '+ST.vk+'% verkoopkosten vraagt een impliciete marginale ROAS van <b>'+R.roas.toFixed(1)+'×</b> op de extra H2-omzet (NL+DE). De gemeten juli-push zat op ~2,4×; bij verder opschalen daalt dat richting 1,8–2,2×. Reken de omzetgroei dus niet te hard.</div>';
+    } else wb.innerHTML='';
+    const cards=`<div class="fcards">`
+      +`<div class="fcard hl"><div class="l">Jaaromzet 2026</div><div class="v">${eur(R.jaaromzet)}</div>${chg(R.jaaromzet,OM2025)}</div>`
+      +`<div class="fcard hl"><div class="l">Jaarwinst 2026</div><div class="v">${eur(R.jaarwinst)}</div>${chg(R.jaarwinst,W2025)}</div>`
+      +`<div class="fcard"><div class="l">Marge 2026</div><div class="v">${R.marge.toFixed(1)}%</div><div class="s">2025: 29,0%</div></div>`
+      +`<div class="fcard"><div class="l">H2 (aug–dec) omzet</div><div class="v">${eur(R.h2omzet)}</div><div class="s">winst H2 ${eur(R.h2winst)}</div></div>`
+      +`</div>`;
+    const shopRows=["NL","DE","FR","MP"].map(s=>{const p=R.per[s];const om25={NL:2094506,DE:1117594,FR:28106,MP:70357}[s];const w=(s==="MP"?0:p.h2w); return `<tr class="${s==="NL"?"us":""}"><td><b>${s}</b></td><td>${eur(p.omzet)}</td><td>${chg(p.omzet,om25).replace(/<span class="chg /,'<span style="font-size:11px;font-weight:700" class="').replace(/vs 2025/,'')}</td><td>${eur(h1om(s))}</td><td>${eur(p.h2)}</td></tr>`;}).join("");
+    const stbl=`<div class="fpanel"><div class="hd"><div class="fph">Per shop — 2026</div><div class="fpsub">Omzet = werkelijk jan–jul + projectie aug–dec. MP staat op €0 sinds feb 2026.</div></div>`
+      +`<table><thead><tr><th>Shop</th><th>Jaaromzet 2026</th><th>vs 2025</th><th>H1 (werkelijk)</th><th>H2 (projectie)</th></tr></thead><tbody>${shopRows}</tbody>`
+      +`<tfoot><tr><td>Totaal</td><td>${eur(R.jaaromzet)}</td><td>${chg(R.jaaromzet,OM2025)}</td><td>${eur(h1om("NL")+h1om("DE")+h1om("FR")+h1om("MP"))}</td><td>${eur(R.h2omzet)}</td></tr></tfoot></table></div>`;
+    // ad-budget per H2-maand NL/DE
+    const adRows=[7,8,9,10,11].map((m,i)=>{const nl=ST.vk/100*R.per.NL.monShop[i]-OPC.NL; const de=ST.vk/100*R.per.DE.monShop[i]-OPC.DE; return `<tr><td>${MND[m]}</td><td>${eur(nl)}</td><td>${eur(de)}</td></tr>`;}).join("");
+    const adtbl=`<div class="fpanel"><div class="hd"><div class="fph">Benodigd advertentiebudget per maand (H2) — bij ${ST.vk}% verkoopkosten</div><div class="fpsub">Ad-budget = verkoopkosten% × omzet − operationele kosten. Referentie juli 2026: NL ${eur(JUL_AD.NL)}, DE ${eur(JUL_AD.DE)}.</div></div>`
+      +`<table><thead><tr><th>Maand</th><th>NL ad-budget</th><th>DE ad-budget</th></tr></thead><tbody>${adRows}</tbody></table></div>`;
+    const chartp=`<div class="fpanel"><div class="hd"><div class="fph">Maandomzet 2025 vs 2026 (alle shops)</div><div class="fpsub">2026 jan–jul werkelijk, aug–dec geprojecteerd (gestippeld).</div></div><div style="padding:12px 16px"><div class="scchartbox"><canvas id="scchart"></canvas></div></div></div>`;
+    const note=`<div class="fnote">Winst = Metorik-winst: vóór personeelskosten en overige overhead. · MP herstart telt er bovenop als het weer aangaat. · Juli 2026 is bijna compleet (t/m 30 juli). · Marginale ROAS bij de juli-push: ~2,4× ex btw; verwacht dalend bij verder opschalen. · Scenario's zijn indicatief — pas de aannames aan naar eigen inzicht.</div>`;
+    out.innerHTML=cards+stbl+adtbl+chartp+note;
+    drawChart(R);
+  }
+  function drawChart(R){
+    if(typeof Chart==="undefined")return; const ctx=document.getElementById("scchart"); if(!ctx)return;
+    if(scChart)scChart.destroy();
+    const split=R.tot2026.map((v,i)=>i<=6?v:null), proj=R.tot2026.map((v,i)=>i>=6?v:null);
+    scChart=new Chart(ctx,{type:"line",data:{labels:MND,datasets:[
+      {label:"2025",data:R.tot2025,borderColor:"#9aa0a6",backgroundColor:"transparent",borderWidth:1.8,tension:.25,pointRadius:2},
+      {label:"2026 werkelijk",data:split,borderColor:"#01B52D",backgroundColor:"rgba(1,181,45,.10)",borderWidth:2.6,tension:.25,pointRadius:3,fill:true},
+      {label:"2026 prognose",data:proj,borderColor:"#01B52D",borderDash:[5,4],backgroundColor:"transparent",borderWidth:2.4,tension:.25,pointRadius:3},
+    ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
+      plugins:{legend:{position:"top",labels:{boxWidth:12,font:{size:11}}},tooltip:{callbacks:{label:c=>c.dataset.label+": "+(c.parsed.y==null?"—":eur(c.parsed.y))}}},
+      scales:{y:{beginAtZero:true,ticks:{callback:v=>"€"+Math.round(v/1000)+"k"}}}}});
+  }
+  function syncInputs(){ document.getElementById("sc_gnl").value=ST.gnl; document.getElementById("sc_gde").value=ST.gde; document.getElementById("sc_fr").value=ST.fr; document.getElementById("sc_vk").value=ST.vk; document.getElementById("sc_mnl").value=ST.mnl; document.getElementById("sc_mde").value=ST.mde; document.getElementById("sc_mfr").value=ST.mfr; }
+  window.__scenarioInit=function(){
+    if(scInit){ render(); return; }
+    scInit=true;
+    syncInputs();
+    document.getElementById("scpreset").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const p=PRESETS[b.dataset.p];ST.gnl=p.gnl;ST.gde=p.gde;ST.fr=p.fr;[...document.querySelectorAll("#scpreset button")].forEach(x=>x.classList.toggle("on",x===b));syncInputs();render();});
+    [["sc_gnl","gnl"],["sc_gde","gde"],["sc_fr","fr"],["sc_vk","vk"],["sc_mnl","mnl"],["sc_mde","mde"],["sc_mfr","mfr"]].forEach(([id,key])=>{
+      document.getElementById(id).addEventListener("input",e=>{const v=parseFloat(e.target.value); if(isFinite(v)){ST[key]=v; [...document.querySelectorAll("#scpreset button")].forEach(x=>x.classList.remove("on")); render();}});
+    });
+    render();
   };
 })();
 /* ===== Sectienavigatie (onthoudt actieve tab via URL-hash) ===== */
@@ -2956,7 +3092,7 @@ window.__kernLoad=function(){
     if(sec==="ads"&&window.__adsLoad)window.__adsLoad();
     if(sec==="reviews"&&window.__reviewsLoad)window.__reviewsLoad();
     if(sec==="kosten"&&window.__kostenLoad)window.__kostenLoad();
-    if(sec==="forecast"&&window.__forecastLoad)window.__forecastLoad();
+    if(sec==="forecast"){ if(window.__forecastLoad)window.__forecastLoad(); if(window.__scenarioInit)window.__scenarioInit(); }
     if(updateHash&&location.hash!=="#"+sec)history.replaceState(null,"","#"+sec);
     window.dispatchEvent(new Event("resize")); // charts hersizen na tab-wissel
   }
