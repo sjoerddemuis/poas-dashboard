@@ -349,12 +349,74 @@ async function metricsView(req, res) {
   }
 }
 
+// ---- Prognose: 7-daags daggemiddelde per shop doortrekken naar de lopende maand,
+// plus year-to-date jaarcijfers. Metriek per dag uit profit-by-date (omzet/orders/winst).
+const MND = ["januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus", "september", "oktober", "november", "december"];
+async function forecastView(req, res) {
+  const nowMs = Date.now();
+  if (mCache.forecast && nowMs - mCache.forecast.at < MTTL && !(req.query && req.query.fresh)) return res.json(mCache.forecast.data);
+  const d = new Date();
+  const year = d.getFullYear(), m0 = d.getMonth();
+  const today = ymd(d);
+  const yearStart = year + "-01-01";
+  const monthStart = ymd(new Date(year, m0, 1));
+  const daysInMonth = new Date(year, m0 + 1, 0).getDate();
+  const dayOfMonth = d.getDate();
+  const remaining = Math.max(0, daysInMonth - dayOfMonth);       // volledige dagen ná vandaag
+  const last7Start = addD(today, -7), last7End = addD(today, -1); // 7 complete dagen (excl. vandaag)
+  const winstOf = (v) => (v.net || 0) - (v.product || 0) - (v.shipping || 0) - (v.transaction || 0) - (v.extra || 0) - (v.advertising || 0) - (v.operational || 0);
+  try {
+    const shops = {};
+    await Promise.all(SHOPS.map(async ([code, envName]) => {
+      const token = process.env[envName];
+      if (!token) { shops[code] = { error: "geen token" }; return; }
+      try {
+        const pd = await profitDays(token, yearStart, today);
+        const agg = (from, to) => {
+          let omzet = 0, orders = 0, winst = 0;
+          Object.entries(pd).forEach(([dt, v]) => {
+            if (dt >= from && dt <= to) { omzet += v.net || 0; orders += v.orders || 0; winst += winstOf(v); }
+          });
+          return { omzet, orders, winst };
+        };
+        const ytd = agg(yearStart, today);
+        const mtd = agg(monthStart, today);
+        const a7 = agg(last7Start, last7End);
+        const avg7 = { omzet: a7.omzet / 7, orders: a7.orders / 7, winst: a7.winst / 7 };
+        const proj = {
+          omzet: mtd.omzet + avg7.omzet * remaining,
+          orders: mtd.orders + avg7.orders * remaining,
+          winst: mtd.winst + avg7.winst * remaining,
+        };
+        shops[code] = { ytd, mtd, avg7, proj };
+      } catch (e) { shops[code] = { error: e.message }; }
+    }));
+    const sumKey = (key) => {
+      const t = { omzet: 0, orders: 0, winst: 0 };
+      Object.values(shops).forEach((s) => { if (s && s[key]) { t.omzet += s[key].omzet; t.orders += s[key].orders; t.winst += s[key].winst; } });
+      return t;
+    };
+    const total = { ytd: sumKey("ytd"), mtd: sumKey("mtd"), avg7: sumKey("avg7"), proj: sumKey("proj") };
+    const out = {
+      today, year, monthLabel: MND[m0] + " " + year, daysInMonth, dayOfMonth, daysRemaining: remaining,
+      last7: { start: last7Start, end: last7End },
+      shops, total, landen: SHOPS.map(([code, , label]) => ({ code, label })),
+      updated: new Date().toISOString(),
+    };
+    mCache.forecast = { at: nowMs, data: out };
+    res.json(out);
+  } catch (e) {
+    res.status(500).json({ error: e.message || "Prognose ophalen mislukt" });
+  }
+}
+
 module.exports = async (req, res) => {
   const s = getSession(req);
   if (!s) return res.status(401).json({ error: "unauthorized" });
   if (req.query && req.query.view === "metrics") return metricsView(req, res);
   if (req.query && req.query.view === "product") return productView(req, res);
   if (req.query && req.query.view === "market") return marketView(req, res);
+  if (req.query && req.query.view === "forecast") return forecastView(req, res);
   const now = Date.now();
   if (cache && now - cacheAt < TTL) return res.json(cache);
   try {
