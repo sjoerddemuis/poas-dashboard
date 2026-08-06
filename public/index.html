@@ -1049,6 +1049,12 @@ summary{border-radius:11px;font-weight:600}
     #sec-doel .dcard .dc-badge.bad{background:rgba(192,57,43,.1);color:#C0392B}
     #sec-doel .dcard .dc-badge.na{background:var(--line);color:var(--mute)}
     #sec-doel .dcard .dc-sub{font-size:11.5px;color:var(--mute);margin-top:9px;line-height:1.5}
+    #sec-doel .dc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:11px}
+    #sec-doel .dc-st{background:var(--paper);border:1px solid var(--line);border-radius:9px;padding:7px 9px;min-width:0}
+    #sec-doel .dc-st .l{display:block;font-size:8.5px;letter-spacing:.3px;text-transform:uppercase;color:var(--mute);font-weight:700}
+    #sec-doel .dc-st .v{display:block;font-size:14px;font-weight:700;margin-top:2px;white-space:nowrap}
+    #sec-doel .dc-proj{margin-top:9px;font-size:11.5px;color:var(--mute);background:var(--paper);border:1px solid var(--line);border-radius:9px;padding:7px 10px;line-height:1.45}
+    #sec-doel .dc-proj .pl{font-weight:700;color:var(--ink)}
     #sec-doel .dpanel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:0;overflow:hidden;box-shadow:var(--shadow);margin-bottom:18px}
     #sec-doel .dpanel .hd{padding:13px 16px 4px;font-weight:700;font-size:14px}
     #sec-doel .dpanel .hs{padding:0 16px 12px;font-size:11.5px;color:var(--mute)}
@@ -3272,9 +3278,13 @@ window.__kernLoad=function(){
         +'<div class="dc-goal">'+(st.type==="none"?"—":st.label+" moet "+st.target)+'</div>'
         +'<div class="dc-val '+cls+'">'+(st.cur==null?"—":pct1(st.cur))+'</div>'
         +badge
-        +'<div class="dc-sub">Omzet '+eur0(a.net)+' · verkoopkosten '+eur0(a.vk)+' · winst '+eur0(a.winst)
-        +(R.isCur?'<br>Prognose maand: '+eur0(projOmzet)+' omzet — bij dit tempo blijft '+(st.type==="marge"?"de marge":"de AVK")+' rond '+(st.cur==null?"—":pct1(st.cur))+'.':'')
-        +'</div></div>';
+        +'<div class="dc-stats">'
+          +'<div class="dc-st"><span class="l">Omzet</span><span class="v">'+eur0(a.net)+'</span></div>'
+          +'<div class="dc-st"><span class="l">Verkoopk.</span><span class="v">'+eur0(a.vk)+'</span></div>'
+          +'<div class="dc-st"><span class="l">Winst</span><span class="v">'+eur0(a.winst)+'</span></div>'
+        +'</div>'
+        +(R.isCur?'<div class="dc-proj"><span class="pl">Prognose maand</span> '+eur0(projOmzet)+' omzet · '+(st.type==="marge"?"marge":"AVK")+' blijft bij dit tempo rond '+(st.cur==null?"—":pct1(st.cur))+'</div>':'')
+        +'</div>';
     }).join("");
     // Config panel
     const cfgHtml=SHOPS.map(sh=>{
