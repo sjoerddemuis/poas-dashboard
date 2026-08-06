@@ -600,6 +600,7 @@ summary{border-radius:11px;font-weight:600}
     <button class="snav" data-sec="reviews">Reviews</button>
     <button class="snav" data-sec="kosten">Verkoopkosten</button>
     <button class="snav" data-sec="forecast">Prognose</button>
+    <button class="snav" data-sec="doel">Doelen</button>
   </div>
   <div id="sec-poas">
   <div class="refresh"><span class="dot" id="dot"></span><span id="status">Laden…</span><button class="btn" id="reloadBtn" style="margin-left:auto">↻ Ververs</button></div>
@@ -995,6 +996,58 @@ summary{border-radius:11px;font-weight:600}
     <div id="scwarn"></div>
     <div id="scout"></div>
   </div><!-- /sec-forecast -->
+
+  <div id="sec-doel" style="display:none">
+    <style>
+    #sec-doel .dsub{color:var(--mute);font-size:13px;margin:0 0 14px;line-height:1.5;max-width:940px}
+    #sec-doel .dbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 12px;margin-bottom:16px;box-shadow:var(--shadow)}
+    #sec-doel .dlbl{font-size:12px;color:var(--mute);font-weight:600}
+    #sec-doel input[type=month]{border:1.5px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font-size:13px;font-weight:700;padding:6px 9px}
+    #sec-doel .dsep{flex:1}
+    #sec-doel .dref{border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--mute);font-family:var(--mono);font-size:11px;font-weight:700;padding:7px 12px;cursor:pointer}
+    #sec-doel .dref:hover{border-color:var(--green);color:var(--greenDk)}
+    #sec-doel .dcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-bottom:18px}
+    #sec-doel .dcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);border-left:5px solid var(--line)}
+    #sec-doel .dcard.ok{border-left-color:var(--green)}
+    #sec-doel .dcard.bad{border-left-color:#C0392B}
+    #sec-doel .dcard .dc-shop{font-size:13px;font-weight:700}
+    #sec-doel .dcard .dc-goal{font-size:11px;color:var(--mute);margin-top:1px}
+    #sec-doel .dcard .dc-val{font-size:30px;font-weight:800;line-height:1.05;margin-top:8px;letter-spacing:-.5px}
+    #sec-doel .dcard .dc-val.ok{color:var(--greenDk)} #sec-doel .dcard .dc-val.bad{color:#C0392B}
+    #sec-doel .dcard .dc-badge{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.3px;padding:3px 9px;border-radius:20px;margin-top:8px}
+    #sec-doel .dcard .dc-badge.ok{background:rgba(1,181,45,.12);color:var(--greenDk)}
+    #sec-doel .dcard .dc-badge.bad{background:rgba(192,57,43,.1);color:#C0392B}
+    #sec-doel .dcard .dc-badge.na{background:var(--line);color:var(--mute)}
+    #sec-doel .dcard .dc-sub{font-size:11.5px;color:var(--mute);margin-top:9px;line-height:1.5}
+    #sec-doel .dpanel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:0;overflow:hidden;box-shadow:var(--shadow);margin-bottom:18px}
+    #sec-doel .dpanel .hd{padding:13px 16px 4px;font-weight:700;font-size:14px}
+    #sec-doel .dpanel .hs{padding:0 16px 12px;font-size:11.5px;color:var(--mute)}
+    #sec-doel table{width:100%;border-collapse:collapse;font-size:13px}
+    #sec-doel th{color:var(--mute);font-weight:600;font-size:10px;letter-spacing:.3px;text-transform:uppercase;text-align:right;padding:9px 12px;border-bottom:1px solid var(--line)}
+    #sec-doel th:first-child,#sec-doel td:first-child{text-align:left}
+    #sec-doel td{padding:9px 12px;text-align:right;border-top:1px solid var(--line);white-space:nowrap}
+    #sec-doel td.steer{font-weight:800}
+    #sec-doel td.okc{color:var(--greenDk)} #sec-doel td.badc{color:#C0392B}
+    #sec-doel .dcfg{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;padding:14px 16px}
+    #sec-doel .dcfgrow{border:1px solid var(--line);border-radius:11px;padding:10px 12px}
+    #sec-doel .dcfgrow .cs{font-size:12px;font-weight:700;margin-bottom:7px}
+    #sec-doel .dcfgctl{display:flex;gap:6px;align-items:center}
+    #sec-doel .dcfgctl select{flex:1;border:1.5px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font-size:12px;font-weight:600;padding:6px 7px}
+    #sec-doel .dcfgctl input{width:64px;border:1.5px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font-size:13px;font-weight:700;padding:6px 7px;text-align:right}
+    #sec-doel .dcfgctl .pctsign{font-size:12px;color:var(--mute);font-weight:700}
+    #sec-doel .dloading,#sec-doel .derr{padding:40px;text-align:center;color:var(--mute)}
+    #sec-doel .dnote{font-size:11px;color:var(--mute);margin-top:6px;line-height:1.6;max-width:940px}
+    </style>
+    <div class="dsub">Per shop stuur je op een eigen doel: een <b>kostendoel</b> (AVK — verkoopkosten als % van de omzet — moet ónder de drempel blijven) of een <b>margedoel</b> (nettomarge moet bóven de drempel blijven). Live uit Metorik. AVK = transactie- + advertentie- + operationele kosten ÷ omzet. Marge = winst ÷ omzet. Doelen pas je hieronder aan; ze worden onthouden in deze browser.</div>
+    <div class="dbar">
+      <span class="dlbl">Maand</span>
+      <input type="month" id="dmonth">
+      <span class="dsep"></span>
+      <span class="dlbl" id="dupd"></span>
+      <button id="dref" class="dref">↻ Ververs</button>
+    </div>
+    <div id="dcontent"><div class="dloading">Doelen laden…</div></div>
+  </div><!-- /sec-doel -->
 
   <div id="kmodal" class="omodal"><div class="opanel" id="kmodalbody"></div></div>
 </div>
@@ -3122,10 +3175,128 @@ window.__kernLoad=function(){
     render();
   };
 })();
+/* ===== Doelen per shop (AVK-kostendoel of margedoel, instelbaar) ===== */
+(function(){
+  const SHOPS=[{code:"NL",label:"Ongediertewinkel.nl"},{code:"DE",label:"Ungeziefershop.de"},{code:"FR",label:"Boutiqueantinuisibles.fr"}];
+  const CFGKEY="doel_config_v1";
+  const DEF={NL:{type:"avk",thr:30},DE:{type:"avk",thr:30},FR:{type:"marge",thr:10}};
+  const MNAMES=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
+  let DM=null, dMonth=null, dInited=false;
+  const desc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+  const eur0=n=>isFinite(n)?"€"+Math.round(n).toLocaleString("nl-NL"):"—";
+  const pct1=n=>(n==null||!isFinite(n))?"—":n.toLocaleString("nl-NL",{minimumFractionDigits:1,maximumFractionDigits:1})+"%";
+  function loadCfg(){ try{ const c=JSON.parse(localStorage.getItem(CFGKEY)||"null"); return c?Object.assign({},DEF,c):Object.assign({},DEF); }catch(e){ return Object.assign({},DEF); } }
+  function saveCfg(c){ try{ localStorage.setItem(CFGKEY,JSON.stringify(c)); }catch(e){} }
+  function cfgFor(code){ const c=loadCfg()[code]; return c||{type:"none",thr:0}; }
+  function ym(x){ return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0"); }
+  function curMonth(){ return ym(new Date()); }
+  function monthRange(m){
+    const [y,mo]=m.split("-").map(Number);
+    const p2=n=>String(n).padStart(2,"0");
+    const last=new Date(y,mo,0).getDate();
+    const isCur=(m===curMonth());
+    const endDay=isCur?new Date().getDate():last;
+    return { start:y+"-"+p2(mo)+"-01", end:y+"-"+p2(mo)+"-"+p2(endDay), daysInMonth:last, daysElapsed:endDay, isCur, y, mo };
+  }
+  function agg(rows){
+    const a={net:0,transaction:0,advertising:0,operational:0,product:0,shipping:0,extra:0};
+    (rows||[]).forEach(r=>{ for(const k in a) a[k]+=r[k]||0; });
+    a.vk=a.transaction+a.advertising+a.operational;                       // verkoopkosten = tr+ad+op
+    a.winst=a.net-(a.product+a.shipping+a.transaction+a.extra+a.advertising+a.operational);
+    a.avk=a.net>0?a.vk/a.net*100:null;
+    a.marge=a.net>0?a.winst/a.net*100:null;
+    return a;
+  }
+  function statusOf(cfg,a){
+    if(!cfg||cfg.type==="none")return {type:"none",ok:null,cur:null};
+    if(cfg.type==="avk"){ const v=a.avk; return {type:"avk",label:"AVK",cur:v,thr:cfg.thr,target:"onder "+pct1(cfg.thr),ok:v!=null&&v<=cfg.thr,dist:v==null?null:cfg.thr-v}; }
+    const v=a.marge; return {type:"marge",label:"Marge",cur:v,thr:cfg.thr,target:"boven "+pct1(cfg.thr),ok:v!=null&&v>=cfg.thr,dist:v==null?null:v-cfg.thr};
+  }
+  async function fetchM(fresh){
+    const c=document.getElementById("dcontent"); if(c)c.innerHTML='<div class="dloading">Doelen laden uit Metorik…</div>';
+    const R=monthRange(dMonth);
+    try{
+      const r=await fetch("/api/data?view=metrics&start="+R.start+"&end="+R.end+(fresh?"&fresh=1":""),{cache:"no-store"});
+      if(r.status===401){ location.href="/login.html"; return; }
+      const d=await r.json();
+      if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
+      DM={data:d,range:R};
+      render();
+    }catch(e){ const el=document.getElementById("dcontent"); if(el)el.innerHTML='<div class="derr">Kon doelen niet laden.<br><small>'+desc(e.message||e)+'</small></div>'; }
+  }
+  function render(){
+    const c=document.getElementById("dcontent"); if(!c||!DM)return;
+    const d=DM.data, R=DM.range, cfg=loadCfg();
+    const upd=document.getElementById("dupd"); if(upd)upd.textContent=MNAMES[R.mo-1]+" "+R.y+" · "+(R.isCur?("dag "+R.daysElapsed+" / "+R.daysInMonth):"volledige maand");
+    const scale=R.daysElapsed>0?R.daysInMonth/R.daysElapsed:1;
+    // Cards per shop
+    const cards=SHOPS.map(sh=>{
+      const shop=d.shops&&d.shops[sh.code];
+      if(!shop||shop.error||!shop.rows){ return '<div class="dcard"><div class="dc-shop">'+desc(sh.label)+'</div><div class="dc-sub">Geen data'+(shop&&shop.error?": "+desc(shop.error):"")+'</div></div>'; }
+      const a=agg(shop.rows), st=statusOf(cfg[sh.code],a);
+      const cls=st.ok==null?"":st.ok?"ok":"bad";
+      const badge=st.ok==null?'<span class="dc-badge na">Geen doel</span>':st.ok?'<span class="dc-badge ok">✓ Op koers</span>':'<span class="dc-badge bad">✗ Buiten doel</span>';
+      const projOmzet=a.net*scale;
+      return '<div class="dcard '+cls+'">'
+        +'<div class="dc-shop">'+desc(sh.label)+'</div>'
+        +'<div class="dc-goal">'+(st.type==="none"?"—":st.label+" moet "+st.target)+'</div>'
+        +'<div class="dc-val '+cls+'">'+(st.cur==null?"—":pct1(st.cur))+'</div>'
+        +badge
+        +'<div class="dc-sub">Omzet '+eur0(a.net)+' · verkoopkosten '+eur0(a.vk)+' · winst '+eur0(a.winst)
+        +(R.isCur?'<br>Prognose maand: '+eur0(projOmzet)+' omzet — bij dit tempo blijft '+(st.type==="marge"?"de marge":"de AVK")+' rond '+(st.cur==null?"—":pct1(st.cur))+'.':'')
+        +'</div></div>';
+    }).join("");
+    // Config panel
+    const cfgHtml=SHOPS.map(sh=>{
+      const cf=cfg[sh.code]||{type:"none",thr:0};
+      const opt=(v,l)=>'<option value="'+v+'"'+(cf.type===v?" selected":"")+'>'+l+'</option>';
+      return '<div class="dcfgrow"><div class="cs">'+desc(sh.label)+'</div><div class="dcfgctl">'
+        +'<select class="dcfgtype" data-shop="'+sh.code+'">'+opt("avk","Kostendoel (AVK onder)")+opt("marge","Margedoel (boven)")+opt("none","Geen doel")+'</select>'
+        +'<input class="dcfgthr" data-shop="'+sh.code+'" type="number" step="0.5" value="'+(cf.thr!=null?cf.thr:"")+'"'+(cf.type==="none"?" disabled":"")+'><span class="pctsign">%</span>'
+        +'</div></div>';
+    }).join("");
+    // Table
+    const body=SHOPS.map(sh=>{
+      const shop=d.shops&&d.shops[sh.code];
+      if(!shop||!shop.rows)return '<tr><td>'+desc(sh.label)+'</td><td colspan="6">—</td></tr>';
+      const a=agg(shop.rows), st=statusOf(cfg[sh.code],a);
+      const avkSteer=st.type==="avk", margeSteer=st.type==="marge";
+      const avkCls=avkSteer?("steer "+(st.ok?"okc":"badc")):"";
+      const margeCls=margeSteer?("steer "+(st.ok?"okc":"badc")):"";
+      const stTxt=st.type==="none"?'<span style="color:var(--mute)">—</span>':(st.ok?'<span class="okc" style="font-weight:800">✓ op koers</span>':'<span class="badc" style="font-weight:800">✗ buiten doel</span>');
+      return '<tr><td>'+desc(sh.label)+'</td>'
+        +'<td>'+eur0(a.net)+'</td><td>'+eur0(a.vk)+'</td><td>'+eur0(a.winst)+'</td>'
+        +'<td class="'+avkCls+'">'+pct1(a.avk)+'</td>'
+        +'<td class="'+margeCls+'">'+pct1(a.marge)+'</td>'
+        +'<td>'+(st.type==="none"?"—":st.label+" "+st.target)+'<br>'+stTxt+'</td></tr>';
+    }).join("");
+    c.innerHTML=''
+      +'<div class="dcards">'+cards+'</div>'
+      +'<div class="dpanel"><div class="hd">Doelen instellen</div><div class="hs">Kies per shop of je op kosten (AVK) of op marge stuurt, en zet de drempel. Wordt onthouden in deze browser.</div><div class="dcfg">'+cfgHtml+'</div></div>'
+      +'<div class="dpanel"><div class="hd">Overzicht — '+MNAMES[R.mo-1]+' '+R.y+'</div><div class="hs">De vetgedrukte kolom is waar de shop op stuurt; groen = binnen doel, rood = eroverheen.</div>'
+      +'<table><thead><tr><th>Shop</th><th>Omzet</th><th>Verkoopkosten</th><th>Winst</th><th>AVK</th><th>Marge</th><th>Doel &amp; status</th></tr></thead><tbody>'+body+'</tbody></table></div>'
+      +'<div class="dnote">Verkoopkosten = transactie- + advertentie- + operationele kosten uit Metorik. AVK = verkoopkosten ÷ omzet. Marge = winst ÷ omzet (winst = omzet minus alle kosten). '+(R.isCur?'Prognose = huidig dagtempo doorgetrokken naar de hele maand; omdat AVK en marge verhoudingen zijn, blijft het % gelijk bij gelijk tempo.':'Volledige maand.')+'</div>';
+  }
+  window.__doelLoad=function(){
+    if(!dInited){ dInited=true;
+      dMonth=curMonth();
+      const mi=document.getElementById("dmonth"); if(mi){ mi.value=dMonth; mi.max=curMonth(); }
+      document.getElementById("dmonth").addEventListener("change",e=>{ if(e.target.value){ dMonth=e.target.value; DM=null; fetchM(); } });
+      document.getElementById("dref").addEventListener("click",()=>fetchM(true));
+      document.getElementById("dcontent").addEventListener("change",e=>{
+        const ty=e.target.closest(".dcfgtype"), th=e.target.closest(".dcfgthr");
+        if(ty){ const cfg=loadCfg(); const s=ty.dataset.shop; cfg[s]=cfg[s]||{type:"none",thr:0}; cfg[s].type=ty.value; if(cfg[s].type!=="none"&&(cfg[s].thr==null||!isFinite(cfg[s].thr))) cfg[s].thr=cfg[s].type==="marge"?10:30; saveCfg(cfg); render(); }
+        else if(th){ const cfg=loadCfg(); const s=th.dataset.shop; const v=parseFloat(th.value); cfg[s]=cfg[s]||{type:"avk",thr:30}; if(isFinite(v))cfg[s].thr=v; saveCfg(cfg); render(); }
+      });
+      fetchM(); return;
+    }
+    if(!DM)fetchM(); else render();
+  };
+})();
 /* ===== Sectienavigatie (onthoudt actieve tab via URL-hash) ===== */
 (function(){
   const nav=document.getElementById("secnav");
-  const SECS=["poas","kern","prod","market","ronada","prijs","voorraad","ads","reviews","kosten","forecast"];
+  const SECS=["poas","kern","prod","market","ronada","prijs","voorraad","ads","reviews","kosten","forecast","doel"];
   function activate(sec,updateHash){
     if(!SECS.includes(sec))sec="poas";
     const b=nav.querySelector('.snav[data-sec="'+sec+'"]');
@@ -3141,6 +3312,7 @@ window.__kernLoad=function(){
     if(sec==="reviews"&&window.__reviewsLoad)window.__reviewsLoad();
     if(sec==="kosten"&&window.__kostenLoad)window.__kostenLoad();
     if(sec==="forecast"){ if(window.__forecastLoad)window.__forecastLoad(); if(window.__scenarioInit)window.__scenarioInit(); }
+    if(sec==="doel"&&window.__doelLoad)window.__doelLoad();
     if(updateHash&&location.hash!=="#"+sec)history.replaceState(null,"","#"+sec);
     window.dispatchEvent(new Event("resize")); // charts hersizen na tab-wissel
   }
