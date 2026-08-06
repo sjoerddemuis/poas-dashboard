@@ -3248,11 +3248,15 @@ window.__kernLoad=function(){
     if(cfg.type==="avk"){ const v=a.avk; return {type:"avk",label:"AVK",cur:v,thr:cfg.thr,target:"onder "+pct1(cfg.thr),ok:v!=null&&v<=cfg.thr,dist:v==null?null:cfg.thr-v}; }
     const v=a.marge; return {type:"marge",label:"Marge",cur:v,thr:cfg.thr,target:"boven "+pct1(cfg.thr),ok:v!=null&&v>=cfg.thr,dist:v==null?null:v-cfg.thr};
   }
+  function addD(ds,n){ const dt=new Date(ds+"T00:00:00"); dt.setDate(dt.getDate()+n); return dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0"); }
+  function todayY(){ const x=new Date(); return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); }
   async function fetchM(fresh){
     const c=document.getElementById("dcontent"); if(c)c.innerHTML='<div class="dloading">Doelen laden uit Metorik…</div>';
     const R=monthRange(dMonth);
+    // Voor de run-rate-prognose (7-daags gem.) hebben we ook de dagen vlak vóór de maandstart nodig.
+    let fStart=R.start; if(R.isCur){ const back=addD(todayY(),-8); if(back<fStart)fStart=back; }
     try{
-      const r=await fetch("/api/data?view=metrics&start="+R.start+"&end="+R.end+(fresh?"&fresh=1":""),{cache:"no-store"});
+      const r=await fetch("/api/data?view=metrics&start="+fStart+"&end="+R.end+(fresh?"&fresh=1":""),{cache:"no-store"});
       if(r.status===401){ location.href="/login.html"; return; }
       const d=await r.json();
       if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
@@ -3264,15 +3268,23 @@ window.__kernLoad=function(){
     const c=document.getElementById("dcontent"); if(!c||!DM)return;
     const d=DM.data, R=DM.range, cfg=loadCfg();
     const upd=document.getElementById("dupd"); if(upd)upd.textContent=MNAMES[R.mo-1]+" "+R.y+" · "+(R.isCur?("dag "+R.daysElapsed+" / "+R.daysInMonth):"volledige maand");
-    const scale=R.daysElapsed>0?R.daysInMonth/R.daysElapsed:1;
+    // Run-rate-prognose zoals in de Prognose-tab: maand-tot-nu + resterende dagen × 7-daags daggemiddelde (laatste 7 volledige dagen).
+    const t7s=addD(todayY(),-7), t7e=addD(todayY(),-1);
+    const remDays=R.isCur?Math.max(0,R.daysInMonth-R.daysElapsed):0;
+    function monthAgg(shop){ return agg((shop.rows||[]).filter(r=>r.d>=R.start&&r.d<=R.end)); }
+    function projOf(shop){
+      const m=monthAgg(shop), last7=agg((shop.rows||[]).filter(r=>r.d>=t7s&&r.d<=t7e));
+      const net=m.net+last7.net/7*remDays, vk=m.vk+last7.vk/7*remDays, winst=m.winst+last7.winst/7*remDays;
+      return { net, vk, winst, avk:net>0?vk/net*100:null, marge:net>0?winst/net*100:null };
+    }
     // Cards per shop
     const cards=SHOPS.map(sh=>{
       const shop=d.shops&&d.shops[sh.code];
       if(!shop||shop.error||!shop.rows){ return '<div class="dcard"><div class="dc-shop">'+desc(sh.label)+'</div><div class="dc-sub">Geen data'+(shop&&shop.error?": "+desc(shop.error):"")+'</div></div>'; }
-      const a=agg(shop.rows), st=statusOf(cfg[sh.code],a);
+      const a=monthAgg(shop), st=statusOf(cfg[sh.code],a);
       const cls=st.ok==null?"":st.ok?"ok":"bad";
       const badge=st.ok==null?'<span class="dc-badge na">Geen doel</span>':st.ok?'<span class="dc-badge ok">✓ Op koers</span>':'<span class="dc-badge bad">✗ Buiten doel</span>';
-      const projOmzet=a.net*scale;
+      const pj=projOf(shop);
       return '<div class="dcard '+cls+'">'
         +'<div class="dc-shop">'+desc(sh.label)+'</div>'
         +'<div class="dc-goal">'+(st.type==="none"?"—":st.label+" moet "+st.target)+'</div>'
@@ -3283,7 +3295,7 @@ window.__kernLoad=function(){
           +'<div class="dc-st"><span class="l">Verkoopk.</span><span class="v">'+eur0(a.vk)+'</span></div>'
           +'<div class="dc-st"><span class="l">Winst</span><span class="v">'+eur0(a.winst)+'</span></div>'
         +'</div>'
-        +(R.isCur?'<div class="dc-proj"><span class="pl">Prognose maand</span> '+eur0(projOmzet)+' omzet · '+(st.type==="marge"?"marge":"AVK")+' blijft bij dit tempo rond '+(st.cur==null?"—":pct1(st.cur))+'</div>':'')
+        +(R.isCur?'<div class="dc-proj"><span class="pl">Prognose maand</span> '+eur0(pj.net)+' omzet · '+(st.type==="marge"?"marge ~"+pct1(pj.marge):st.type==="avk"?"AVK ~"+pct1(pj.avk):"geen doel")+'<br><span style="font-size:10.5px">7-daags run-rate · tot nu + '+remDays+' dagen × daggem.</span></div>':'')
         +'</div>';
     }).join("");
     // Config panel
@@ -3299,7 +3311,7 @@ window.__kernLoad=function(){
     const body=SHOPS.map(sh=>{
       const shop=d.shops&&d.shops[sh.code];
       if(!shop||!shop.rows)return '<tr><td>'+desc(sh.label)+'</td><td colspan="6">—</td></tr>';
-      const a=agg(shop.rows), st=statusOf(cfg[sh.code],a);
+      const a=monthAgg(shop), st=statusOf(cfg[sh.code],a);
       const avkSteer=st.type==="avk", margeSteer=st.type==="marge";
       const avkCls=avkSteer?("steer "+(st.ok?"okc":"badc")):"";
       const margeCls=margeSteer?("steer "+(st.ok?"okc":"badc")):"";
@@ -3334,7 +3346,7 @@ window.__kernLoad=function(){
       +'<div class="dpanel"><div class="hd">Overzicht — '+MNAMES[R.mo-1]+' '+R.y+'</div><div class="hs">De vetgedrukte kolom is waar de shop op stuurt; groen = binnen doel, rood = eroverheen.</div>'
       +'<table><thead><tr><th>Shop</th><th>Omzet</th><th>Verkoopkosten</th><th>Winst</th><th>AVK</th><th>Marge</th><th>Doel &amp; status</th></tr></thead><tbody>'+body+'</tbody></table></div>'
       +daily
-      +'<div class="dnote">Verkoopkosten = transactie- + advertentie- + operationele kosten uit Metorik. AVK = verkoopkosten ÷ omzet. Marge = winst ÷ omzet (winst = omzet minus alle kosten). '+(R.isCur?'Prognose = huidig dagtempo doorgetrokken naar de hele maand; omdat AVK en marge verhoudingen zijn, blijft het % gelijk bij gelijk tempo.':'Volledige maand.')+'</div>';
+      +'<div class="dnote">Verkoopkosten = transactie- + advertentie- + operationele kosten uit Metorik. AVK = verkoopkosten ÷ omzet. Marge = winst ÷ omzet (winst = omzet minus alle kosten). '+(R.isCur?'Prognose = maand-tot-nu + resterende dagen × het 7-daags daggemiddelde (laatste 7 volledige dagen) — dezelfde run-rate-methode als de Prognose-tab.':'Volledige maand.')+'</div>';
   }
   window.__doelLoad=function(){
     if(!dInited){ dInited=true;
