@@ -537,6 +537,21 @@ h1{font-weight:600;letter-spacing:-.3px;font-size:23px;margin:2px 0 0}
 .snav{border:1px solid transparent;background:transparent;border-radius:9px;color:var(--mute);font-weight:600;font-size:14px;padding:9px 18px;transition:background .12s,color .12s}
 .snav:hover{color:var(--ink)}
 .snav.on{background:var(--green);border-color:var(--green);color:#fff}
+/* Sectienavigatie als categorie-dropdowns */
+.secnav{display:flex;flex-wrap:wrap;gap:8px;background:transparent;border:none;border-radius:0;padding:0;box-shadow:none;margin:2px 0 22px;position:relative;z-index:20}
+.navgroup{position:relative}
+.navtop{border:1.5px solid var(--line);background:var(--card);border-radius:10px;color:var(--ink);font-weight:700;font-size:14px;padding:9px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:background .12s,color .12s,border-color .12s}
+.navtop:hover{border-color:var(--ink)}
+.navtop .navcar{font-size:10px;color:var(--mute);transition:transform .14s}
+.navgroup.open .navtop{border-color:var(--ink)}
+.navgroup.open .navtop .navcar{transform:rotate(180deg)}
+.navgroup.hasactive .navtop{background:var(--green);border-color:var(--green);color:#fff}
+.navgroup.hasactive .navtop .navcar{color:rgba(255,255,255,.85)}
+.navmenu{position:absolute;top:calc(100% + 6px);left:0;z-index:40;display:none;flex-direction:column;gap:3px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px;box-shadow:0 8px 26px rgba(20,27,31,.14);min-width:196px}
+.navgroup.open .navmenu{display:flex}
+.navmenu .snav{border:1px solid transparent;background:transparent;border-radius:8px;color:var(--ink);font-weight:600;font-size:14px;padding:9px 14px;text-align:left;white-space:nowrap;cursor:pointer;width:100%}
+.navmenu .snav:hover{background:var(--paper);color:var(--ink)}
+.navmenu .snav.on{background:var(--green);border-color:var(--green);color:#fff}
 /* Tabs / presets in brand-groen */
 .tab{border:1.5px solid var(--line);border-radius:10px;font-weight:600}
 .tab.on,.ps.on{background:var(--green);border-color:var(--green);color:#fff}
@@ -589,18 +604,33 @@ summary{border-radius:11px;font-weight:600}
     </div>
   </div>
   <div class="secnav" id="secnav">
-    <button class="snav on" data-sec="poas">Blended POAS</button>
-    <button class="snav" data-sec="kern">Kerncijfers</button>
-    <button class="snav" data-sec="prod">Productdata</button>
-    <button class="snav" data-sec="market">Marktaandeel</button>
-    <button class="snav" data-sec="ronada">Ronada-aandeel</button>
-    <button class="snav" data-sec="prijs">Prijsmonitor</button>
-    <button class="snav" data-sec="voorraad">Voorraad</button>
-    <button class="snav" data-sec="ads">Google Ads</button>
-    <button class="snav" data-sec="reviews">Reviews</button>
-    <button class="snav" data-sec="kosten">Verkoopkosten</button>
-    <button class="snav" data-sec="forecast">Prognose</button>
-    <button class="snav" data-sec="doel">Doelen</button>
+    <div class="navgroup" data-group="fin">
+      <button class="navtop" type="button">Financieel <span class="navcar">&#9662;</span></button>
+      <div class="navmenu">
+        <button class="snav on" data-sec="poas">Blended POAS</button>
+        <button class="snav" data-sec="kern">Kerncijfers</button>
+        <button class="snav" data-sec="forecast">Prognose</button>
+        <button class="snav" data-sec="doel">Doelen</button>
+      </div>
+    </div>
+    <div class="navgroup" data-group="markt">
+      <button class="navtop" type="button">Producten &amp; markt <span class="navcar">&#9662;</span></button>
+      <div class="navmenu">
+        <button class="snav" data-sec="prod">Productdata</button>
+        <button class="snav" data-sec="market">Marktaandeel</button>
+        <button class="snav" data-sec="ronada">Ronada-aandeel</button>
+        <button class="snav" data-sec="prijs">Prijsmonitor</button>
+      </div>
+    </div>
+    <div class="navgroup" data-group="ops">
+      <button class="navtop" type="button">Operatie <span class="navcar">&#9662;</span></button>
+      <div class="navmenu">
+        <button class="snav" data-sec="voorraad">Voorraad</button>
+        <button class="snav" data-sec="kosten">Verkoopkosten</button>
+        <button class="snav" data-sec="ads">Google Ads</button>
+        <button class="snav" data-sec="reviews">Reviews</button>
+      </div>
+    </div>
   </div>
   <div id="sec-poas">
   <div class="refresh"><span class="dot" id="dot"></span><span id="status">Laden…</span><button class="btn" id="reloadBtn" style="margin-left:auto">↻ Ververs</button></div>
@@ -3270,11 +3300,30 @@ window.__kernLoad=function(){
         +'<td class="'+margeCls+'">'+pct1(a.marge)+'</td>'
         +'<td>'+(st.type==="none"?"—":st.label+" "+st.target)+'<br>'+stTxt+'</td></tr>';
     }).join("");
+    // Dagelijks overzicht: per dag de stuur-metriek per shop
+    const p2=n=>String(n).padStart(2,"0");
+    const dayMap={}; SHOPS.forEach(sh=>{ const shop=d.shops&&d.shops[sh.code]; const mp={}; if(shop&&shop.rows)shop.rows.forEach(r=>{mp[r.d]=r;}); dayMap[sh.code]=mp; });
+    const dHead='<tr><th>Dag</th>'+SHOPS.map(sh=>{ const c0=cfg[sh.code]||{type:"none"}; const lbl=c0.type==="marge"?"Marge":"AVK"; return '<th>'+desc(sh.code)+' <span style="color:var(--mute);font-weight:400;text-transform:none;letter-spacing:0">'+lbl+'</span></th>'; }).join('')+'</tr>';
+    const maxDay=R.isCur?R.daysElapsed:R.daysInMonth;
+    let dBody='';
+    for(let dd=maxDay; dd>=1; dd--){
+      const ds=R.y+"-"+p2(R.mo)+"-"+p2(dd);
+      const cells=SHOPS.map(sh=>{
+        const row=dayMap[sh.code][ds];
+        if(!row||!(row.net>0))return '<td style="color:var(--mute)">—</td>';
+        const a=agg([row]), st=statusOf(cfg[sh.code],a);
+        if(st.type==="none")return '<td>'+pct1(a.avk)+'</td>';
+        return '<td class="steer '+(st.ok?"okc":"badc")+'" title="omzet '+eur0(a.net)+' · verkoopkosten '+eur0(a.vk)+' · winst '+eur0(a.winst)+'">'+pct1(st.cur)+'</td>';
+      }).join('');
+      dBody+='<tr><td>'+p2(dd)+'-'+p2(R.mo)+'</td>'+cells+'</tr>';
+    }
+    const daily='<div class="dpanel"><div class="hd">Dagelijks overzicht</div><div class="hs">Per dag de stuur-metriek per shop (AVK of marge), gekleurd t.o.v. het doel. Nieuwste dag bovenaan · hover voor omzet/kosten.</div><div style="max-height:440px;overflow:auto"><table><thead>'+dHead+'</thead><tbody>'+(dBody||'<tr><td colspan="'+(SHOPS.length+1)+'" style="color:var(--mute)">Nog geen dagen met data.</td></tr>')+'</tbody></table></div></div>';
     c.innerHTML=''
       +'<div class="dcards">'+cards+'</div>'
       +'<div class="dpanel"><div class="hd">Doelen instellen</div><div class="hs">Kies per shop of je op kosten (AVK) of op marge stuurt, en zet de drempel. Wordt onthouden in deze browser.</div><div class="dcfg">'+cfgHtml+'</div></div>'
       +'<div class="dpanel"><div class="hd">Overzicht — '+MNAMES[R.mo-1]+' '+R.y+'</div><div class="hs">De vetgedrukte kolom is waar de shop op stuurt; groen = binnen doel, rood = eroverheen.</div>'
       +'<table><thead><tr><th>Shop</th><th>Omzet</th><th>Verkoopkosten</th><th>Winst</th><th>AVK</th><th>Marge</th><th>Doel &amp; status</th></tr></thead><tbody>'+body+'</tbody></table></div>'
+      +daily
       +'<div class="dnote">Verkoopkosten = transactie- + advertentie- + operationele kosten uit Metorik. AVK = verkoopkosten ÷ omzet. Marge = winst ÷ omzet (winst = omzet minus alle kosten). '+(R.isCur?'Prognose = huidig dagtempo doorgetrokken naar de hele maand; omdat AVK en marge verhoudingen zijn, blijft het % gelijk bij gelijk tempo.':'Volledige maand.')+'</div>';
   }
   window.__doelLoad=function(){
@@ -3301,6 +3350,7 @@ window.__kernLoad=function(){
     if(!SECS.includes(sec))sec="poas";
     const b=nav.querySelector('.snav[data-sec="'+sec+'"]');
     [...nav.querySelectorAll(".snav")].forEach(x=>x.classList.toggle("on",x===b));
+    [...nav.querySelectorAll(".navgroup")].forEach(g=>{ g.classList.toggle("hasactive", b!=null&&g.contains(b)); g.classList.remove("open"); });
     SECS.forEach(s=>{const el=document.getElementById("sec-"+s);if(el)el.style.display=s===sec?"":"none";});
     if(sec==="kern"&&window.__kernLoad)window.__kernLoad();
     if(sec==="prod"&&window.__prodLoad)window.__prodLoad();
@@ -3316,10 +3366,16 @@ window.__kernLoad=function(){
     if(updateHash&&location.hash!=="#"+sec)history.replaceState(null,"","#"+sec);
     window.dispatchEvent(new Event("resize")); // charts hersizen na tab-wissel
   }
-  nav.addEventListener("click",e=>{const b=e.target.closest(".snav");if(!b)return;activate(b.dataset.sec,true);});
+  nav.addEventListener("click",e=>{
+    const top=e.target.closest(".navtop");
+    if(top){ const g=top.closest(".navgroup"); const wasOpen=g.classList.contains("open"); [...nav.querySelectorAll(".navgroup")].forEach(x=>x.classList.remove("open")); if(!wasOpen)g.classList.add("open"); return; }
+    const b=e.target.closest(".snav"); if(!b)return; activate(b.dataset.sec,true);
+  });
+  document.addEventListener("click",e=>{ if(!e.target.closest("#secnav")) [...nav.querySelectorAll(".navgroup")].forEach(x=>x.classList.remove("open")); });
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape") [...nav.querySelectorAll(".navgroup")].forEach(x=>x.classList.remove("open")); });
   window.addEventListener("hashchange",()=>activate((location.hash||"").replace("#",""),false));
   const init=(location.hash||"").replace("#","");
-  if(SECS.includes(init)&&init!=="poas")activate(init,false);
+  activate(SECS.includes(init)?init:"poas",false);
 })();
 </script>
 </body>
