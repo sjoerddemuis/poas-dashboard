@@ -3317,7 +3317,7 @@ window.__kernLoad=function(){
       }).join('');
       dBody+='<tr><td>'+p2(dd)+'-'+p2(R.mo)+'</td>'+cells+'</tr>';
     }
-    const daily='<div class="dpanel"><div class="hd">Dagelijks overzicht</div><div class="hs">Per dag de stuur-metriek per shop (AVK of marge), gekleurd t.o.v. het doel. Nieuwste dag bovenaan · hover voor omzet/kosten.</div><div style="max-height:440px;overflow:auto"><table><thead>'+dHead+'</thead><tbody>'+(dBody||'<tr><td colspan="'+(SHOPS.length+1)+'" style="color:var(--mute)">Nog geen dagen met data.</td></tr>')+'</tbody></table></div></div>';
+    const daily='<div class="dpanel"><div class="hd">Dagelijks overzicht</div><div class="hs">Per dag de stuur-metriek per shop (AVK of marge), gekleurd t.o.v. het doel. Nieuwste dag bovenaan · hover voor omzet/kosten.</div><div style="overflow-x:auto"><table><thead>'+dHead+'</thead><tbody>'+(dBody||'<tr><td colspan="'+(SHOPS.length+1)+'" style="color:var(--mute)">Nog geen dagen met data.</td></tr>')+'</tbody></table></div></div>';
     c.innerHTML=''
       +'<div class="dcards">'+cards+'</div>'
       +'<div class="dpanel"><div class="hd">Doelen instellen</div><div class="hs">Kies per shop of je op kosten (AVK) of op marge stuurt, en zet de drempel. Wordt onthouden in deze browser.</div><div class="dcfg">'+cfgHtml+'</div></div>'
