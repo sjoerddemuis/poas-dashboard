@@ -3439,6 +3439,13 @@ window.__kernLoad=function(){
       sh.rows.forEach(r=>{ const ym=r.d.slice(0,7); (map[ym]||(map[ym]=blank())); addRow(map[ym],r); }); });
     return map;
   }
+  // Aggregatie van een specifieke maand t/m een bepaalde dag (voor dag-op-dag YoY van de lopende maand).
+  function partialAgg(code,ym,maxDay){
+    const a=blank(); const shops=code==="TOT"?SHOPS:[code];
+    shops.forEach(c=>{ const sh=PM.shops&&PM.shops[c]; if(!sh||!sh.rows)return;
+      sh.rows.forEach(r=>{ if(r.d.slice(0,7)!==ym)return; if(+r.d.slice(8,10)>maxDay)return; addRow(a,r); }); });
+    return a;
+  }
   function growth(cur,prev){ return (prev>0)?(cur/prev-1)*100:null; }
   function gcell(v){ if(v==null||!isFinite(v))return '<td>—</td>'; const c=v>=0?"up":"dn"; return '<td class="'+c+'">'+(v>=0?"+":"")+pct1(v)+'</td>'; }
   async function fetchP(fresh){
@@ -3459,14 +3466,15 @@ window.__kernLoad=function(){
     // ---- Maandtabel (nieuwste boven) ----
     const body=yms.slice().reverse().map(ym=>{
       const m=metr(map[ym]); const y=+ym.slice(0,4), mo=+ym.slice(5,7);
-      const prevYm=(y-1)+"-"+String(mo).padStart(2,"0"); const pv=map[prevYm]?metr(map[prevYm]):null;
-      const isCur=ym===curMonth;
+      const prevYm=(y-1)+"-"+String(mo).padStart(2,"0"); const isCur=ym===curMonth;
+      // Lopende maand: vergelijk t/m dezelfde dag vorig jaar (dag-op-dag), niet tegen de héle maand.
+      const pv=isCur?metr(partialAgg(pShop,prevYm,+todayY().slice(8,10))):(map[prevYm]?metr(map[prevYm]):null);
       return '<tr><td>'+MN[mo-1]+' '+y+(isCur?' <span style="color:var(--mute);font-weight:400">(lopend)</span>':'')+'</td>'
         +'<td>'+num0(m.orders)+'</td><td>'+eur0(m.omzet)+'</td><td>'+eur0(m.winst)+'</td>'
         +'<td>'+pct1(m.marge)+'</td><td>'+eur2(m.aov)+'</td><td>'+pct1(m.avk)+'</td>'
         +gcell(pv?growth(m.orders,pv.orders):null)+gcell(pv?growth(m.omzet,pv.omzet):null)+gcell(pv?growth(m.winst,pv.winst):null)+'</tr>';
     }).join("");
-    const mth='<div class="ppanel"><div class="hd">Per maand — '+pesc(SLABEL[pShop])+'</div><div class="hs">Nieuwste maand bovenaan. Groei = t.o.v. dezelfde maand vorig jaar.</div>'
+    const mth='<div class="ppanel"><div class="hd">Per maand — '+pesc(SLABEL[pShop])+'</div><div class="hs">Nieuwste maand bovenaan. Groei = t.o.v. dezelfde maand vorig jaar; de lopende maand wordt vergeleken t/m dezelfde dag als vorig jaar.</div>'
       +'<div class="ptbl"><table><thead><tr><th>Maand</th><th>Orders</th><th>Omzet</th><th>Winst</th><th>Marge</th><th>AOV</th><th>AVK</th><th>Δ Orders</th><th>Δ Omzet</th><th>Δ Winst</th></tr></thead><tbody>'+body+'</tbody></table></div></div>';
     // ---- Jaartabel ----
     function yearFull(yr){ const a=blank(); Object.keys(map).forEach(ym=>{ if(+ym.slice(0,4)!==yr)return; if(ym===curMonth)return; addAgg(a,map[ym]); }); return a; }
