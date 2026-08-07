@@ -611,6 +611,7 @@ summary{border-radius:11px;font-weight:600}
         <button class="snav" data-sec="kern">Kerncijfers</button>
         <button class="snav" data-sec="forecast">Prognose</button>
         <button class="snav" data-sec="doel">Doelen</button>
+        <button class="snav" data-sec="prest">Prestaties</button>
       </div>
     </div>
     <div class="navgroup" data-group="markt">
@@ -1084,6 +1085,52 @@ summary{border-radius:11px;font-weight:600}
     </div>
     <div id="dcontent"><div class="dloading">Doelen laden…</div></div>
   </div><!-- /sec-doel -->
+
+  <div id="sec-prest" style="display:none">
+    <style>
+    #sec-prest .psub{color:var(--mute);font-size:13px;margin:0 0 14px;line-height:1.5;max-width:940px}
+    #sec-prest .pbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 12px;margin-bottom:16px;box-shadow:var(--shadow)}
+    #sec-prest .plbl{font-size:12px;color:var(--mute);font-weight:600}
+    #sec-prest .psep{flex:1}
+    #sec-prest .pseg{display:inline-flex;border:1.5px solid var(--line);border-radius:9px;overflow:hidden}
+    #sec-prest .pseg button{border:0;border-right:1px solid var(--line);background:var(--card);color:var(--ink);font-size:12px;font-weight:700;padding:7px 13px;cursor:pointer}
+    #sec-prest .pseg button:last-child{border-right:0}
+    #sec-prest .pseg button.on{background:var(--green);color:#fff}
+    #sec-prest .pref{border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--mute);font-family:var(--mono);font-size:11px;font-weight:700;padding:7px 12px;cursor:pointer}
+    #sec-prest .pref:hover{border-color:var(--green);color:var(--greenDk)}
+    #sec-prest .ppanel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:0;overflow:hidden;box-shadow:var(--shadow);margin-bottom:18px}
+    #sec-prest .ppanel .hd{padding:13px 16px 4px;font-weight:700;font-size:14px}
+    #sec-prest .ppanel .hs{padding:0 16px 12px;font-size:11.5px;color:var(--mute)}
+    #sec-prest .ptbl{overflow-x:auto}
+    #sec-prest table{width:100%;border-collapse:collapse;font-size:13px}
+    #sec-prest th{color:var(--mute);font-weight:600;font-size:10px;letter-spacing:.3px;text-transform:uppercase;text-align:right;padding:9px 11px;border-bottom:1px solid var(--line);white-space:nowrap}
+    #sec-prest th:first-child,#sec-prest td:first-child{text-align:left}
+    #sec-prest td{padding:8px 11px;text-align:right;border-top:1px solid var(--line);white-space:nowrap}
+    #sec-prest tbody tr:hover{background:var(--paper)}
+    #sec-prest tfoot td{font-weight:700;border-top:2px solid var(--line)}
+    #sec-prest .yr td{font-weight:700}
+    #sec-prest .up{color:var(--greenDk);font-weight:700}
+    #sec-prest .dn{color:#C0392B;font-weight:700}
+    #sec-prest .proj td{background:rgba(1,181,45,.06);font-weight:700}
+    #sec-prest .ploading,#sec-prest .perr{padding:40px;text-align:center;color:var(--mute)}
+    #sec-prest .perr{color:#C0392B}
+    #sec-prest .pnote{font-size:11px;color:var(--mute);margin-top:6px;line-height:1.6;max-width:940px}
+    </style>
+    <div class="psub">Maandelijkse en jaarlijkse prestaties per shop en gecombineerd — live uit Metorik. Kies een shop of het totaal. Groei is t.o.v. dezelfde maand vorig jaar. AOV = omzet ÷ orders · AVK = verkoopkosten (transactie + advertentie + operationeel) ÷ omzet · marge = winst ÷ omzet.</div>
+    <div class="pbar">
+      <span class="plbl">Shop</span>
+      <div class="pseg" id="pshop">
+        <button data-s="TOT" class="on">Alle shops</button>
+        <button data-s="NL">NL</button>
+        <button data-s="DE">DE</button>
+        <button data-s="FR">FR</button>
+      </div>
+      <span class="psep"></span>
+      <span class="plbl" id="pupd"></span>
+      <button id="pref" class="pref">↻ Ververs</button>
+    </div>
+    <div id="pcontent"><div class="ploading">Prestaties laden…</div></div>
+  </div><!-- /sec-prest -->
 
   <div id="kmodal" class="omodal"><div class="opanel" id="kmodalbody"></div></div>
 </div>
@@ -3364,10 +3411,102 @@ window.__kernLoad=function(){
     if(!DM)fetchM(); else render();
   };
 })();
+/* ===== Prestaties per maand & jaar (per shop + totaal, live uit Metorik) ===== */
+(function(){
+  const SHOPS=["NL","DE","FR"];
+  const SLABEL={NL:"Ongediertewinkel.nl",DE:"Ungeziefershop.de",FR:"Boutiqueantinuisibles.fr",TOT:"Alle shops"};
+  const MN=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
+  const START="2024-08-01";
+  let PM=null, pShop="TOT", pInited=false;
+  const pesc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+  const eur0=n=>isFinite(n)?"€"+Math.round(n).toLocaleString("nl-NL"):"—";
+  const eur2=n=>isFinite(n)?"€"+n.toLocaleString("nl-NL",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
+  const num0=n=>isFinite(n)?Math.round(n).toLocaleString("nl-NL"):"—";
+  const pct1=n=>(n==null||!isFinite(n))?"—":n.toLocaleString("nl-NL",{minimumFractionDigits:1,maximumFractionDigits:1})+"%";
+  function todayY(){ const x=new Date(); return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); }
+  function blank(){ return {orders:0,net:0,vk:0,winst:0}; }
+  function addRow(a,r){
+    a.orders+=r.orders||0; a.net+=r.net||0;
+    a.vk+=(r.transaction||0)+(r.advertising||0)+(r.operational||0);
+    a.winst+=(r.net||0)-((r.product||0)+(r.shipping||0)+(r.transaction||0)+(r.extra||0)+(r.advertising||0)+(r.operational||0));
+  }
+  function addAgg(a,b){ a.orders+=b.orders; a.net+=b.net; a.vk+=b.vk; a.winst+=b.winst; }
+  function metr(a){ return { orders:a.orders, omzet:a.net, winst:a.winst,
+    marge:a.net>0?a.winst/a.net*100:null, aov:a.orders>0?a.net/a.orders:null, avk:a.net>0?a.vk/a.net*100:null }; }
+  function monthMap(code){
+    const map={}; const shops=code==="TOT"?SHOPS:[code];
+    shops.forEach(c=>{ const sh=PM.shops&&PM.shops[c]; if(!sh||!sh.rows)return;
+      sh.rows.forEach(r=>{ const ym=r.d.slice(0,7); (map[ym]||(map[ym]=blank())); addRow(map[ym],r); }); });
+    return map;
+  }
+  function growth(cur,prev){ return (prev>0)?(cur/prev-1)*100:null; }
+  function gcell(v){ if(v==null||!isFinite(v))return '<td>—</td>'; const c=v>=0?"up":"dn"; return '<td class="'+c+'">'+(v>=0?"+":"")+pct1(v)+'</td>'; }
+  async function fetchP(fresh){
+    const c=document.getElementById("pcontent"); if(c)c.innerHTML='<div class="ploading">Prestaties laden uit Metorik…</div>';
+    try{
+      const r=await fetch("/api/data?view=metrics&start="+START+"&end="+todayY()+(fresh?"&fresh=1":""),{cache:"no-store"});
+      if(r.status===401){ location.href="/login.html"; return; }
+      const d=await r.json(); if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
+      PM=d; render();
+    }catch(e){ const el=document.getElementById("pcontent"); if(el)el.innerHTML='<div class="perr">Kon prestaties niet laden.<br><small>'+pesc(e.message||e)+'</small></div>'; }
+  }
+  function render(){
+    const c=document.getElementById("pcontent"); if(!c||!PM)return;
+    const map=monthMap(pShop);
+    const yms=Object.keys(map).sort();
+    const curMonth=todayY().slice(0,7), curYear=+curMonth.slice(0,4), curMoNum=+curMonth.slice(5,7);
+    const upd=document.getElementById("pupd"); if(upd)upd.textContent=SLABEL[pShop]+" · "+yms.length+" maanden";
+    // ---- Maandtabel (nieuwste boven) ----
+    const body=yms.slice().reverse().map(ym=>{
+      const m=metr(map[ym]); const y=+ym.slice(0,4), mo=+ym.slice(5,7);
+      const prevYm=(y-1)+"-"+String(mo).padStart(2,"0"); const pv=map[prevYm]?metr(map[prevYm]):null;
+      const isCur=ym===curMonth;
+      return '<tr><td>'+MN[mo-1]+' '+y+(isCur?' <span style="color:var(--mute);font-weight:400">(lopend)</span>':'')+'</td>'
+        +'<td>'+num0(m.orders)+'</td><td>'+eur0(m.omzet)+'</td><td>'+eur0(m.winst)+'</td>'
+        +'<td>'+pct1(m.marge)+'</td><td>'+eur2(m.aov)+'</td><td>'+pct1(m.avk)+'</td>'
+        +gcell(pv?growth(m.orders,pv.orders):null)+gcell(pv?growth(m.omzet,pv.omzet):null)+gcell(pv?growth(m.winst,pv.winst):null)+'</tr>';
+    }).join("");
+    const mth='<div class="ppanel"><div class="hd">Per maand — '+pesc(SLABEL[pShop])+'</div><div class="hs">Nieuwste maand bovenaan. Groei = t.o.v. dezelfde maand vorig jaar.</div>'
+      +'<div class="ptbl"><table><thead><tr><th>Maand</th><th>Orders</th><th>Omzet</th><th>Winst</th><th>Marge</th><th>AOV</th><th>AVK</th><th>Δ Orders</th><th>Δ Omzet</th><th>Δ Winst</th></tr></thead><tbody>'+body+'</tbody></table></div></div>';
+    // ---- Jaartabel ----
+    function yearFull(yr){ const a=blank(); Object.keys(map).forEach(ym=>{ if(+ym.slice(0,4)!==yr)return; if(ym===curMonth)return; addAgg(a,map[ym]); }); return a; }
+    function ytdAgg(yr){ const a=blank(); Object.keys(map).forEach(ym=>{ if(+ym.slice(0,4)!==yr)return; if(+ym.slice(5,7)>=curMoNum)return; addAgg(a,map[ym]); }); return a; }
+    const years=[...new Set(yms.map(ym=>+ym.slice(0,4)))].sort();
+    const yrBody=years.map(yr=>{
+      const isCur=yr===curYear; const a=yearFull(yr); const m=metr(a);
+      const monthsIn=Object.keys(map).filter(ym=>+ym.slice(0,4)===yr).length;
+      let g=null;
+      if(isCur){ const cu=ytdAgg(yr), pv=ytdAgg(yr-1); if(pv.net>0)g={o:growth(cu.orders,pv.orders),om:growth(cu.net,pv.net),w:growth(cu.winst,pv.winst)}; }
+      else { const pv=yearFull(yr-1); const pm=Object.keys(map).filter(ym=>+ym.slice(0,4)===yr-1).length; if(pv.net>0&&pm>=12)g={o:growth(a.orders,pv.orders),om:growth(a.net,pv.net),w:growth(a.winst,pv.winst)}; }
+      let lbl; if(isCur)lbl=yr+' <span style="color:var(--mute);font-weight:400">(t/m '+MN[curMoNum-2>=0?curMoNum-2:11]+')</span>'; else if(monthsIn<12)lbl=yr+' <span style="color:var(--mute);font-weight:400">('+monthsIn+' mnd)</span>'; else lbl=''+yr;
+      return '<tr class="yr"><td>'+lbl+'</td><td>'+num0(m.orders)+'</td><td>'+eur0(m.omzet)+'</td><td>'+eur0(m.winst)+'</td><td>'+pct1(m.marge)+'</td><td>'+eur2(m.aov)+'</td><td>'+pct1(m.avk)+'</td>'
+        +gcell(g?g.o:null)+gcell(g?g.om:null)+gcell(g?g.w:null)+'</tr>';
+    }).join("");
+    // Prognose lopend jaar = vorig-jaar-heel × (1 + YTD-groei)
+    let projRow=''; const prevFull=yearFull(curYear-1), cu=ytdAgg(curYear), pv=ytdAgg(curYear-1);
+    if(prevFull.net>0&&pv.net>0&&pv.orders>0&&pv.winst!==0){
+      const gO=cu.orders/pv.orders, gM=cu.net/pv.net, gW=cu.winst/pv.winst;
+      const pOrders=prevFull.orders*gO, pOmzet=prevFull.net*gM, pWinst=prevFull.winst*gW;
+      projRow='<tr class="proj"><td>Prognose '+curYear+'</td><td>'+num0(pOrders)+'</td><td>'+eur0(pOmzet)+'</td><td>'+eur0(pWinst)+'</td><td>'+pct1(pOmzet>0?pWinst/pOmzet*100:null)+'</td><td>'+eur2(pOrders>0?pOmzet/pOrders:null)+'</td><td>—</td>'
+        +gcell((gO-1)*100)+gcell((gM-1)*100)+gcell((gW-1)*100)+'</tr>';
+    }
+    const yr='<div class="ppanel"><div class="hd">Per jaar — '+pesc(SLABEL[pShop])+'</div><div class="hs">Heel-jaartotalen (lopend jaar t/m laatste complete maand). Prognose = vorig jaar × YTD-groei — dezelfde methode als je sheet.</div>'
+      +'<div class="ptbl"><table><thead><tr><th>Jaar</th><th>Orders</th><th>Omzet</th><th>Winst</th><th>Marge</th><th>AOV</th><th>AVK</th><th>Δ Orders</th><th>Δ Omzet</th><th>Δ Winst</th></tr></thead><tbody>'+yrBody+projRow+'</tbody></table></div></div>';
+    c.innerHTML=yr+mth+'<div class="pnote">Bron: Metorik. Winst = netto-omzet minus alle kosten uit het winstrapport (inkoop, verzending, transactie, ads, operationeel, extra). AVK = verkoopkosten (transactie + advertentie + operationeel) ÷ omzet. Data vanaf augustus 2024. Jaargroei wordt alleen getoond als het voorgaande jaar volledig is; het lopende jaar vergelijkt YTD met dezelfde periode vorig jaar.</div>';
+  }
+  window.__prestLoad=function(){
+    if(!pInited){ pInited=true;
+      document.getElementById("pshop").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b)return; pShop=b.dataset.s; [...document.querySelectorAll("#pshop button")].forEach(x=>x.classList.toggle("on",x===b)); if(PM)render(); });
+      document.getElementById("pref").addEventListener("click",()=>fetchP(true));
+      fetchP(); return;
+    }
+    if(!PM)fetchP(); else render();
+  };
+})();
 /* ===== Sectienavigatie (onthoudt actieve tab via URL-hash) ===== */
 (function(){
   const nav=document.getElementById("secnav");
-  const SECS=["poas","kern","prod","market","ronada","prijs","voorraad","ads","reviews","kosten","forecast","doel"];
+  const SECS=["poas","kern","prod","market","ronada","prijs","voorraad","ads","reviews","kosten","forecast","doel","prest"];
   function activate(sec,updateHash){
     if(!SECS.includes(sec))sec="poas";
     const b=nav.querySelector('.snav[data-sec="'+sec+'"]');
@@ -3385,6 +3524,7 @@ window.__kernLoad=function(){
     if(sec==="kosten"&&window.__kostenLoad)window.__kostenLoad();
     if(sec==="forecast"){ if(window.__forecastLoad)window.__forecastLoad(); if(window.__scenarioInit)window.__scenarioInit(); }
     if(sec==="doel"&&window.__doelLoad)window.__doelLoad();
+    if(sec==="prest"&&window.__prestLoad)window.__prestLoad();
     if(updateHash&&location.hash!=="#"+sec)history.replaceState(null,"","#"+sec);
     window.dispatchEvent(new Event("resize")); // charts hersizen na tab-wissel
   }
