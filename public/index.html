@@ -1119,17 +1119,17 @@ summary{border-radius:11px;font-weight:600}
     <div class="psub">Maandelijkse en jaarlijkse prestaties per shop en gecombineerd — live uit Metorik. Kies een shop of het totaal. Groei is t.o.v. dezelfde maand vorig jaar. AOV = omzet ÷ orders · AVK = verkoopkosten (transactie + advertentie + operationeel) ÷ omzet · marge = winst ÷ omzet.</div>
     <div class="pbar">
       <span class="plbl">Shop</span>
-      <div class="pseg" id="pshop">
+      <div class="pseg" id="prshop">
         <button data-s="TOT" class="on">Alle shops</button>
         <button data-s="NL">NL</button>
         <button data-s="DE">DE</button>
         <button data-s="FR">FR</button>
       </div>
       <span class="psep"></span>
-      <span class="plbl" id="pupd"></span>
-      <button id="pref" class="pref">↻ Ververs</button>
+      <span class="plbl" id="prupd"></span>
+      <button id="prref" class="pref">↻ Ververs</button>
     </div>
-    <div id="pcontent"><div class="ploading">Prestaties laden…</div></div>
+    <div id="prcontent"><div class="ploading">Prestaties laden…</div></div>
   </div><!-- /sec-prest -->
 
   <div id="kmodal" class="omodal"><div class="opanel" id="kmodalbody"></div></div>
@@ -3442,20 +3442,20 @@ window.__kernLoad=function(){
   function growth(cur,prev){ return (prev>0)?(cur/prev-1)*100:null; }
   function gcell(v){ if(v==null||!isFinite(v))return '<td>—</td>'; const c=v>=0?"up":"dn"; return '<td class="'+c+'">'+(v>=0?"+":"")+pct1(v)+'</td>'; }
   async function fetchP(fresh){
-    const c=document.getElementById("pcontent"); if(c)c.innerHTML='<div class="ploading">Prestaties laden uit Metorik…</div>';
+    const c=document.getElementById("prcontent"); if(c)c.innerHTML='<div class="ploading">Prestaties laden uit Metorik…</div>';
     try{
       const r=await fetch("/api/data?view=metrics&start="+START+"&end="+todayY()+(fresh?"&fresh=1":""),{cache:"no-store"});
       if(r.status===401){ location.href="/login.html"; return; }
       const d=await r.json(); if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
       PM=d; render();
-    }catch(e){ const el=document.getElementById("pcontent"); if(el)el.innerHTML='<div class="perr">Kon prestaties niet laden.<br><small>'+pesc(e.message||e)+'</small></div>'; }
+    }catch(e){ const el=document.getElementById("prcontent"); if(el)el.innerHTML='<div class="perr">Kon prestaties niet laden.<br><small>'+pesc(e.message||e)+'</small></div>'; }
   }
   function render(){
-    const c=document.getElementById("pcontent"); if(!c||!PM)return;
+    const c=document.getElementById("prcontent"); if(!c||!PM)return;
     const map=monthMap(pShop);
     const yms=Object.keys(map).sort();
     const curMonth=todayY().slice(0,7), curYear=+curMonth.slice(0,4), curMoNum=+curMonth.slice(5,7);
-    const upd=document.getElementById("pupd"); if(upd)upd.textContent=SLABEL[pShop]+" · "+yms.length+" maanden";
+    const upd=document.getElementById("prupd"); if(upd)upd.textContent=SLABEL[pShop]+" · "+yms.length+" maanden";
     // ---- Maandtabel (nieuwste boven) ----
     const body=yms.slice().reverse().map(ym=>{
       const m=metr(map[ym]); const y=+ym.slice(0,4), mo=+ym.slice(5,7);
@@ -3496,8 +3496,8 @@ window.__kernLoad=function(){
   }
   window.__prestLoad=function(){
     if(!pInited){ pInited=true;
-      document.getElementById("pshop").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b)return; pShop=b.dataset.s; [...document.querySelectorAll("#pshop button")].forEach(x=>x.classList.toggle("on",x===b)); if(PM)render(); });
-      document.getElementById("pref").addEventListener("click",()=>fetchP(true));
+      document.getElementById("prshop").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b)return; pShop=b.dataset.s; [...document.querySelectorAll("#prshop button")].forEach(x=>x.classList.toggle("on",x===b)); if(PM)render(); });
+      document.getElementById("prref").addEventListener("click",()=>fetchP(true));
       fetchP(); return;
     }
     if(!PM)fetchP(); else render();
