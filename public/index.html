@@ -2715,7 +2715,7 @@ window.__kostenLoad=function(){
 /* ===== Sectie: Kerncijfers (key metrics) — per land + totaal, dag/week/maand ===== */
 (function(){
 "use strict";
-let KM=null, knInited=false, knLand="total", knGran="month", knDow="all", knFrom="", knTo="", knChart=null;
+let KM=null, knInited=false, knLand="total", knGran="month", knDow="all", knFrom="", knTo="", knChart=null, knCompare=false, KMprev=null;
 const chartOn={ margin:true }, pctMode={};
 const kesc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
 const KMAB=["","jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
@@ -2756,17 +2756,18 @@ function aggregate(rows){
   a.profit = a.net - (a.product+a.shipping+a.transaction+a.extra+a.advertising+a.operational);
   return a;
 }
-function rowsFor(land){
-  if(!KM||!KM.shops)return [];
+function rowsFor(land,src){
+  src=src||KM;
+  if(!src||!src.shops)return [];
   if(land==="total"){
     const byd={};
-    ["NL","DE","FR"].forEach(k=>{ const sh=KM.shops[k]; if(sh&&sh.rows)sh.rows.forEach(r=>{
+    ["NL","DE","FR"].forEach(k=>{ const sh=src.shops[k]; if(sh&&sh.rows)sh.rows.forEach(r=>{
       const o=byd[r.d]||(byd[r.d]={d:r.d,net:0,orders:0,items:0,product:0,shipping:0,transaction:0,extra:0,advertising:0,operational:0,newOrders:0,sessions:0});
       for(const f in o){ if(f!=="d")o[f]+=r[f]||0; }
     });});
     return Object.values(byd).sort((a,b)=>a.d<b.d?-1:1);
   }
-  const sh=KM.shops[land]; return sh&&sh.rows?sh.rows.slice():[];
+  const sh=src.shops[land]; return sh&&sh.rows?sh.rows.slice():[];
 }
 function isoWeek(dstr){
   const dt=new Date(dstr+"T00:00:00");
@@ -2802,9 +2803,19 @@ function drawChart(bks){
   const datasets=active.map(m=>{ const u=mUnit(m); return {
     label:m.label+(m.cost?(u==="eur"?" (€)":" (%)"):""),
     data:bks.map(b=>{ const v=mVal(m,b.agg); return v==null?null:Math.round(v*100)/100; }),
-    borderColor:m.color, backgroundColor:m.color+"22", yAxisID:"y_"+u,
+    borderColor:m.color, backgroundColor:m.color+"22", yAxisID:"y_"+u, _m:m,
     tension:.25, pointRadius:bks.length>40?0:3, borderWidth:2, spanGaps:true,
   };});
+  if(knCompare && KMprev){
+    let prows=rowsFor(knLand,KMprev); if(knDow!=="all")prows=prows.filter(r=>new Date(r.d+"T00:00:00").getDay()===+knDow);
+    const pbks=buckets(prows);
+    active.forEach(m=>{ const u=mUnit(m); datasets.push({
+      label:m.label+" (vorige periode)",
+      data:bks.map((b,i)=>{ const pb=pbks[i]; if(!pb)return null; const v=mVal(m,pb.agg); return v==null?null:Math.round(v*100)/100; }),
+      borderColor:m.color+"80", backgroundColor:"transparent", yAxisID:"y_"+u, _m:m,
+      borderDash:[5,4], tension:.25, pointRadius:0, borderWidth:1.6, spanGaps:true, fill:false,
+    });});
+  }
   const pos={eur:"left",pct:"right",num:"right",ratio:"right"};
   const ttl={eur:"€",pct:"%",num:"aantal",ratio:"items/order"};
   const scales={ x:{ grid:{display:false} } };
@@ -2814,7 +2825,7 @@ function drawChart(bks){
   knChart=new Chart(box,{ type:"line", data:{labels,datasets},
     options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:"index",intersect:false},
       plugins:{ legend:{position:"top",labels:{boxWidth:12,font:{size:11}}},
-        tooltip:{ callbacks:{ label:ctx=>{ const m=active[ctx.datasetIndex]; return m.label+": "+fmtU(ctx.parsed.y,mUnit(m)); } } } },
+        tooltip:{ callbacks:{ label:ctx=>{ const ds=ctx.dataset; return ds.label+": "+fmtU(ctx.parsed.y,mUnit(ds._m)); } } } },
       scales } });
 }
 function render(){
@@ -2837,7 +2848,7 @@ function render(){
     +'<div class="kncards">'+cards+'</div>'
     +'<div class="knchartwrap"><div class="kncharthd">Grafiek — '+kesc(landName())+'</div>'
     +'<div class="knchartsub">Per '+granWord()+' · klik kerncijfers hierboven aan/uit om te vergelijken</div>'
-    +(anyOn?'<div class="knchartbox"><canvas id="knchart"></canvas></div>':'<div class="knempty">Klik hierboven op één of meer kerncijfers om ze in de grafiek te zetten.</div>')
+    +(anyOn?('<div class="kncmp" style="margin-bottom:10px"><button class="kncmpbtn" style="border:1.5px solid var(--line);border-radius:8px;background:'+(knCompare?'var(--green)':'var(--card)')+';color:'+(knCompare?'#fff':'var(--mute)')+';font-size:12px;font-weight:600;padding:6px 12px;cursor:pointer">'+(knCompare?'✓ ':'')+'Vorige periode vergelijken</button>'+(knCompare&&KMprev?'<span style="font-size:11.5px;color:var(--mute);margin-left:10px">vorige periode: '+kesc(KMprev.start)+' t/m '+kesc(KMprev.end)+' (gestippeld)</span>':'')+'</div><div class="knchartbox"><canvas id="knchart"></canvas></div>'):'<div class="knempty">Klik hierboven op één of meer kerncijfers om ze in de grafiek te zetten.</div>')
     +'</div>';
   setUpd();
   if(anyOn)drawChart(bks);
@@ -2852,8 +2863,22 @@ async function fetchMetrics(fresh){
     KM=d; if(d.start)knFrom=d.start; if(d.end)knTo=d.end;
     const ff=document.getElementById("knfrom"), tt=document.getElementById("knto");
     if(ff)ff.value=knFrom; if(tt)tt.value=knTo;
-    render();
+    if(knCompare) await fetchPrev(); else render();
   }catch(e){ document.getElementById("kncontent").innerHTML='<div class="knerr">Kon kerncijfers niet laden.<br><small>'+kesc(e.message||e)+'</small></div>'; }
+}
+function prevRangeOf(from,to){
+  const f=new Date(from+"T00:00:00"), t=new Date(to+"T00:00:00");
+  const len=Math.round((t-f)/86400000)+1;
+  const pt=new Date(f); pt.setDate(pt.getDate()-1);
+  const pf=new Date(pt); pf.setDate(pf.getDate()-(len-1));
+  const y=x=>x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0");
+  return {from:y(pf), to:y(pt)};
+}
+async function fetchPrev(){
+  if(!KM||!KM.start){ render(); return; }
+  const pr=prevRangeOf(KM.start,KM.end);
+  try{ const r=await fetch("/api/data?view=metrics&start="+encodeURIComponent(pr.from)+"&end="+encodeURIComponent(pr.to),{cache:"no-store"}); const d=await r.json(); if(r.ok)KMprev=d; }catch(e){}
+  render();
 }
 function setPreset(d){
   const to=new Date(), from=new Date();
@@ -2879,6 +2904,8 @@ window.__kernLoad=function(){
     document.getElementById("kncontent").addEventListener("click",e=>{
       const tog=e.target.closest(".kntog");
       if(tog){ e.stopPropagation(); pctMode[tog.dataset.tog]=!(pctMode[tog.dataset.tog]===false)?false:true; render(); return; }
+      const cmp=e.target.closest(".kncmpbtn");
+      if(cmp){ knCompare=!knCompare; if(knCompare && !KMprev){ fetchPrev(); } else { render(); } return; }
       const card=e.target.closest(".kncard"); if(!card)return;
       const id=card.dataset.m; chartOn[id]=!chartOn[id]; render();
     });
@@ -3188,7 +3215,7 @@ window.__kernLoad=function(){
     const M=METS[fMet], landen=FC.landen||[], t=FC.total;
     const cards=`<div class="fcards">`
       +`<div class="fcard"><div class="l">7-daags gem. / dag</div><div class="v">${M.f(mv(t.avg7))}</div><div class="s">gem. ${esc(FC.last7.start)} t/m ${esc(FC.last7.end)}</div></div>`
-      +`<div class="fcard"><div class="l">Deze maand tot nu (dag ${FC.dayOfMonth})</div><div class="v">${M.f(mv(t.mtd))}</div><div class="s">t/m ${esc(FC.today)}</div></div>`
+      +`<div class="fcard"><div class="l">Deze maand tot nu (t/m dag ${FC.completedDays})</div><div class="v">${M.f(mv(t.mtd))}</div><div class="s">t/m ${esc(FC.asof)} · vandaag telt nog niet mee</div></div>`
       +`<div class="fcard hl"><div class="l">Prognose ${esc(FC.monthLabel)}</div><div class="v">${M.f(projOf(t))}</div><div class="s">${fBasis==="runrate"?("7-daags gem. × "+FC.daysInMonth+" dagen"):("tot nu + "+FC.daysRemaining+" dagen × 7-daags gem.")}</div></div>`
       +`</div>`;
     const mrows=landen.map(L=>{const s=FC.shops[L.code]||{};return `<tr class="${L.code==="NL"?"us":""}"><td><b>${esc(L.label)}</b></td><td>${M.f(mv(s.avg7))}</td><td>${M.f(mv(s.mtd))}</td><td><b>${M.f(projOf(s))}</b></td></tr>`;}).join("");
@@ -3203,7 +3230,7 @@ window.__kernLoad=function(){
       +`</div>`;
     const yrows=landen.map(L=>{const s=(FC.shops[L.code]||{}).ytd||{omzet:0,orders:0,winst:0};const mar=s.omzet>0?s.winst/s.omzet*100:null;return `<tr class="${L.code==="NL"?"us":""}"><td><b>${esc(L.label)}</b></td><td>${eur0(s.omzet)}</td><td>${int0(s.orders)}</td><td>${eur0(s.winst)}</td><td>${pct1(mar)}</td></tr>`;}).join("");
     const ymar=t.ytd.omzet>0?t.ytd.winst/t.ytd.omzet*100:null;
-    const ytbl=`<div class="fpanel"><div class="hd"><div class="fph">Jaarcijfers ${FC.year} — tot nu toe (t/m ${esc(FC.today)})</div><div class="fpsub">Cumulatief dit kalenderjaar per land. Winst = netto-omzet minus alle kosten uit het Metorik-winstrapport.</div></div>`
+    const ytbl=`<div class="fpanel"><div class="hd"><div class="fph">Jaarcijfers ${FC.year} — tot nu toe (t/m ${esc(FC.asof)})</div><div class="fpsub">Cumulatief dit kalenderjaar per land. Winst = netto-omzet minus alle kosten uit het Metorik-winstrapport.</div></div>`
       +`<table><thead><tr><th>Land</th><th>Omzet</th><th>Orders</th><th>Winst</th><th>Marge</th></tr></thead><tbody>${yrows}</tbody>`
       +`<tfoot><tr><td>Totaal</td><td>${eur0(t.ytd.omzet)}</td><td>${int0(t.ytd.orders)}</td><td>${eur0(t.ytd.winst)}</td><td>${pct1(ymar)}</td></tr></tfoot></table></div>`;
     c.innerHTML=cards+mtbl+`<div class="fph" style="margin:22px 0 2px">Jaaroverzicht</div>`+yc+ytbl;
@@ -3379,11 +3406,11 @@ window.__kernLoad=function(){
   function render(){
     const c=document.getElementById("dcontent"); if(!c||!DM)return;
     const d=DM.data, R=DM.range, cfg=loadCfg();
-    const upd=document.getElementById("dupd"); if(upd)upd.textContent=MNAMES[R.mo-1]+" "+R.y+" · "+(R.isCur?("dag "+R.daysElapsed+" / "+R.daysInMonth):"volledige maand");
+    const upd=document.getElementById("dupd"); if(upd)upd.textContent=MNAMES[R.mo-1]+" "+R.y+" · "+(R.isCur?("t/m dag "+(R.daysElapsed-1)+" / "+R.daysInMonth+" (vandaag telt nog niet mee)"):"volledige maand");
     // Run-rate-prognose zoals in de Prognose-tab: maand-tot-nu + resterende dagen × 7-daags daggemiddelde (laatste 7 volledige dagen).
-    const t7s=addD(todayY(),-7), t7e=addD(todayY(),-1);
-    const remDays=R.isCur?Math.max(0,R.daysInMonth-R.daysElapsed):0;
-    function monthAgg(shop){ return agg((shop.rows||[]).filter(r=>r.d>=R.start&&r.d<=R.end)); }
+    const t7s=addD(todayY(),-7), t7e=addD(todayY(),-1), asofY=addD(todayY(),-1);
+    const remDays=R.isCur?Math.max(0,R.daysInMonth-(R.daysElapsed-1)):0;
+    function monthAgg(shop){ const hi=R.isCur?asofY:R.end; return agg((shop.rows||[]).filter(r=>r.d>=R.start&&r.d<=hi)); }
     function projOf(shop){
       const m=monthAgg(shop), last7=agg((shop.rows||[]).filter(r=>r.d>=t7s&&r.d<=t7e));
       const net=m.net+last7.net/7*remDays, vk=m.vk+last7.vk/7*remDays, winst=m.winst+last7.winst/7*remDays;
