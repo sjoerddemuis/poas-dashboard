@@ -514,7 +514,9 @@ async function forecastView(req, res) {
   const monthStart = ymd(new Date(year, m0, 1));
   const daysInMonth = new Date(year, m0 + 1, 0).getDate();
   const dayOfMonth = d.getDate();
-  const remaining = Math.max(0, daysInMonth - dayOfMonth);       // volledige dagen ná vandaag
+  const asof = addD(today, -1);                                  // laatste afgeronde dag (vandaag telt niet mee)
+  const completedDays = dayOfMonth - 1;                          // afgeronde dagen deze maand
+  const remaining = Math.max(0, daysInMonth - completedDays);    // nog te gaan (incl. vandaag als run-rate-dag)
   const last7Start = addD(today, -7), last7End = addD(today, -1); // 7 complete dagen (excl. vandaag)
   const winstOf = (v) => (v.net || 0) - (v.product || 0) - (v.shipping || 0) - (v.transaction || 0) - (v.extra || 0) - (v.advertising || 0) - (v.operational || 0);
   try {
@@ -531,8 +533,8 @@ async function forecastView(req, res) {
           });
           return { omzet, orders, winst };
         };
-        const ytd = agg(yearStart, today);
-        const mtd = agg(monthStart, today);
+        const ytd = agg(yearStart, asof);
+        const mtd = agg(monthStart, asof);
         const a7 = agg(last7Start, last7End);
         const avg7 = { omzet: a7.omzet / 7, orders: a7.orders / 7, winst: a7.winst / 7 };
         const proj = {
@@ -550,7 +552,7 @@ async function forecastView(req, res) {
     };
     const total = { ytd: sumKey("ytd"), mtd: sumKey("mtd"), avg7: sumKey("avg7"), proj: sumKey("proj") };
     const out = {
-      today, year, monthLabel: MND[m0] + " " + year, daysInMonth, dayOfMonth, daysRemaining: remaining,
+      today, asof, year, monthLabel: MND[m0] + " " + year, daysInMonth, dayOfMonth, completedDays, daysRemaining: remaining,
       last7: { start: last7Start, end: last7End },
       shops, total, landen: SHOPS.map(([code, , label]) => ({ code, label })),
       updated: new Date().toISOString(),
