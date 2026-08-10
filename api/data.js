@@ -440,9 +440,38 @@ async function forecastView(req, res) {
   }
 }
 
+// Diagnose: welke locatievelden levert Metorik per order? (tijdelijk, om de heatmap te ontwerpen)
+async function geodiagView(req, res) {
+  const q = req.query || {};
+  const shop = String(q.shop || "NL").toUpperCase();
+  const token = shopToken(shop);
+  if (!token) return res.status(400).json({ error: "onbekende shop" });
+  function pickGeo(o) {
+    const out = {};
+    (function walk(obj, pre) {
+      if (!obj || typeof obj !== "object") return;
+      for (const k in obj) {
+        const v = obj[k];
+        if (v && typeof v === "object" && !Array.isArray(v)) walk(v, pre + k + ".");
+        else if (/city|post|zip|country|lat|lng|lon|geo|state|region|plaats|address|straat/i.test(k)) out[pre + k] = v;
+      }
+    })(o, "");
+    return out;
+  }
+  try {
+    const j = await metGet(token, PSTORE + "/orders", { per_page: "5" });
+    const rows = j.data || j.orders || [];
+    const sample = rows.slice(0, 3).map((o) => ({ id: o.id, keys: Object.keys(o), geo: pickGeo(o) }));
+    res.json({ shop, count: rows.length, topKeys: rows[0] ? Object.keys(rows[0]) : [], sample });
+  } catch (e) {
+    res.status(500).json({ error: e.message || "geodiag mislukt" });
+  }
+}
+
 module.exports = async (req, res) => {
   const s = getSession(req);
   if (!s) return res.status(401).json({ error: "unauthorized" });
+  if (req.query && req.query.view === "geodiag") return geodiagView(req, res);
   if (req.query && req.query.view === "metrics") return metricsView(req, res);
   if (req.query && req.query.view === "product") return productView(req, res);
   if (req.query && req.query.view === "market") return marketView(req, res);
