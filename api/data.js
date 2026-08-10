@@ -1,7 +1,8 @@
 // Beveiligde live-data endpoint. Alleen voor ingelogde gebruikers.
 // Haalt Metorik-cijfers per shop op (server-side, token blijft geheim) en cachet 30 min.
-const { getSession } = require("./_lib/util");
+const { getSession, readBody } = require("./_lib/util");
 const { allData, SHOPS } = require("./_lib/metorik");
+const { getKey, setKey } = require("./_lib/store");
 
 let cache = null, cacheAt = 0;
 const TTL = 30 * 60 * 1000;
@@ -313,15 +314,84 @@ async function fetchMarketSheet() {
   if (companies.length < 2) throw new Error("te weinig bedrijven uit sheet");
   return { source: "sheet", periods, companies };
 }
+// ---- Handmatige metingen in KV (vervangt de Google Sheet). Per datum een momentopname
+// (cumulatief aantal per concurrent); het systeem rekent zelf dagen-ertussen + daggemiddelde uit.
+const MKEY = "market:measurements";
+const DEF_COMPETITORS = ["ongediertewinkel.nl", "allestegenongedierte.nl", "ongedierteproducten.nl", "budgetongediertebestrijden.nl", "pestor.nl", "verminbuster.nl"];
+async function loadMeasurements() {
+  let s = null;
+  try { s = await getKey(MKEY); } catch (e) {}
+  if (!s || typeof s !== "object") s = {};
+  const competitors = Array.isArray(s.competitors) && s.competitors.length ? s.competitors : DEF_COMPETITORS.slice();
+  const entries = Array.isArray(s.entries) ? s.entries : [];
+  return { competitors, entries, updated: s.updated || "" };
+}
+function pLabel(dstr) { const p = String(dstr).split("-"); return p[2] + "-" + p[1]; }   // dd-mm
+function daysBetween(a, b) { return Math.round((new Date(b + "T00:00:00") - new Date(a + "T00:00:00")) / 86400000); }
+function computeFromEntries(st) {
+  const comps = st.competitors;
+  const entries = st.entries.slice().sort((a, b) => (a.date < b.date ? -1 : 1));
+  if (entries.length < 2) return null;
+  const periods = [], avgByComp = {};
+  comps.forEach((c) => (avgByComp[c] = []));
+  for (let i = 1; i < entries.length; i++) {
+    const d = daysBetween(entries[i - 1].date, entries[i].date);
+    periods.push(pLabel(entries[i - 1].date) + "–" + pLabel(entries[i].date));
+    comps.forEach((c) => {
+      const v0 = +(entries[i - 1].vals && entries[i - 1].vals[c]);
+      const v1 = +(entries[i].vals && entries[i].vals[c]);
+      const ok = isFinite(v0) && isFinite(v1) && d > 0;
+      avgByComp[c].push(ok ? Math.round(((v1 - v0) / d) * 10) / 10 : null);
+    });
+  }
+  const companies = comps.map((c) => ({ name: cleanName(c), us: /ongediertewinkel/i.test(c), avg: avgByComp[c] }));
+  return { source: "manual", periods, companies };
+}
 async function marketView(req, res) {
   const now = Date.now();
   if (mCache.market && now - mCache.market.at < MTTL && !(req.query && req.query.fresh)) return res.json(mCache.market.data);
-  let out;
-  try { out = await fetchMarketSheet(); }
-  catch (e) { out = Object.assign({}, MARKET_SNAPSHOT, { note: "live-sheet niet gelezen: " + (e.message || e) }); }
+  const st = await loadMeasurements();
+  let out = computeFromEntries(st);                         // handmatige metingen hebben voorrang
+  if (!out) {
+    try { out = await fetchMarketSheet(); }                 // val terug op de sheet zolang er <2 metingen zijn
+    catch (e) { out = Object.assign({}, MARKET_SNAPSHOT, { note: "nog geen (of te weinig) handmatige metingen en live-sheet niet gelezen: " + (e.message || e) }); }
+  }
+  out.competitors = st.competitors;                          // altijd meesturen voor het invoerscherm
+  out.entries = st.entries;
+  out.hasManual = st.entries.length >= 2;
   out.sheetUrl = "https://docs.google.com/spreadsheets/d/" + MARKET_SHEET + "/edit";
-  out.updated = new Date().toISOString();
+  out.updated = st.updated || new Date().toISOString();
   mCache.market = { at: now, data: out };
+  res.json(out);
+}
+async function marketWrite(req, res, s) {
+  if (!s || !s.admin) return res.status(403).json({ error: "alleen admin mag metingen wijzigen" });
+  let body;
+  try { body = await readBody(req); } catch (e) { return res.status(400).json({ error: "ongeldige body" }); }
+  const action = body && body.action;
+  const st = await loadMeasurements();
+  if (action === "save") {
+    const date = String(body.date || "").slice(0, 10);
+    if (!isDate(date)) return res.status(400).json({ error: "ongeldige datum (YYYY-MM-DD)" });
+    const vals = {};
+    st.competitors.forEach((c) => { const v = body.vals && body.vals[c]; if (v !== "" && v != null && isFinite(+v)) vals[c] = +v; });
+    const idx = st.entries.findIndex((e) => e.date === date);
+    if (idx >= 0) st.entries[idx] = { date, vals }; else st.entries.push({ date, vals });
+  } else if (action === "delete") {
+    const date = String(body.date || "").slice(0, 10);
+    st.entries = st.entries.filter((e) => e.date !== date);
+  } else if (action === "competitors") {
+    const list = Array.isArray(body.competitors) ? body.competitors.map((x) => cleanName(String(x))).filter(Boolean).slice(0, 20) : null;
+    if (list && list.length) st.competitors = [...new Set(list)];
+  } else return res.status(400).json({ error: "onbekende actie" });
+  st.entries.sort((a, b) => (a.date < b.date ? -1 : 1));
+  const updated = new Date().toISOString();
+  await setKey(MKEY, { competitors: st.competitors, entries: st.entries, updated });
+  mCache.market = null;
+  st.updated = updated;
+  let out = computeFromEntries(st) || { source: "manual-empty", periods: [], companies: [] };
+  out.competitors = st.competitors; out.entries = st.entries; out.hasManual = st.entries.length >= 2; out.updated = updated;
+  out.sheetUrl = "https://docs.google.com/spreadsheets/d/" + MARKET_SHEET + "/edit";
   res.json(out);
 }
 
@@ -471,6 +541,7 @@ async function geodiagView(req, res) {
 module.exports = async (req, res) => {
   const s = getSession(req);
   if (!s) return res.status(401).json({ error: "unauthorized" });
+  if (req.method === "POST" && req.query && req.query.view === "market") return marketWrite(req, res, s);
   if (req.query && req.query.view === "geodiag") return geodiagView(req, res);
   if (req.query && req.query.view === "metrics") return metricsView(req, res);
   if (req.query && req.query.view === "product") return productView(req, res);
