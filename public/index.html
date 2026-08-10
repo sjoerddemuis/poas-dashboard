@@ -3058,22 +3058,15 @@ window.__kernLoad=function(){
   function inputPanel(){
     if(!admin())return "";
     const comps=MK.competitors||[], entries=MK.entries||[];
-    const last=entries[entries.length-1];
-    const editEntry=editingDate?entries.find(e=>e.date===editingDate):null;
-    const base=editEntry||last;
-    const t=new Date(), td=t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0");
-    const dateVal=editingDate||td;
-    const ins=comps.map(c=>{ const pv=(base&&base.vals&&base.vals[c]!=null)?base.vals[c]:""; const url=/^https?:\/\//.test(c)?c:"https://"+c; return '<label class="mkinrow"><span class="mkinlbl">'+esc(c)+' <a class="mkopen" href="'+esc(url)+'" target="_blank" rel="noopener" title="shop openen in nieuw tabblad">↗</a> <button class="mkrmcomp" data-c="'+esc(c)+'" title="concurrent verwijderen">✕</button></span><input class="mkval" data-c="'+esc(c)+'" type="number" step="1" placeholder="ordernr" value="'+pv+'"></label>'; }).join("");
-    const eth='<tr><th>Datum</th>'+comps.map(c=>'<th>'+esc(c.replace(/\..*$/,""))+'</th>').join("")+'<th></th></tr>';
-    const rows=entries.slice().reverse().map(e=>'<tr'+(e.date===editingDate?' class="mkrowedit"':'')+'><td>'+esc(e.date)+'</td>'+comps.map(c=>'<td>'+(e.vals&&e.vals[c]!=null?e.vals[c].toLocaleString("nl-NL"):'—')+'</td>').join("")+'<td class="mkacts"><button class="mkedit" data-date="'+esc(e.date)+'" title="meting bewerken">✎</button><button class="mkdel" data-date="'+esc(e.date)+'" title="meting verwijderen">✕</button></td></tr>').join("");
+    const eth='<tr><th>Datum</th>'+comps.map(c=>'<th>'+esc(c.replace(/\..*$/,""))+'</th>').join("")+'</tr>';
+    const rows=entries.slice().reverse().map(e=>'<tr><td>'+esc(e.date)+'</td>'+comps.map(c=>'<td>'+(e.vals&&e.vals[c]!=null?e.vals[c].toLocaleString("nl-NL"):'—')+'</td>').join("")+'</tr>').join("");
+    const sheet=MK.sheetUrl||'#';
     return '<div class="mkadmin">'
-      +'<div class="mkah">'+(editingDate?'Meting bewerken':'Meting toevoegen')+'</div>'
-      +'<div class="mkasub">Vul per concurrent hun huidige <b>ordernummer</b> in (het volgnummer van hun laatste order) op een datum. Het systeem berekent zelf het aantal orders sinds de vorige meting, deelt door het aantal dagen ertussen en zet zo het gemiddelde aantal orders per dag. Vanaf 2 metingen verschijnen de gemiddeldes en het marktaandeel hierboven.</div>'
-      +'<div class="mkdaterow"><label class="mkinrow"><span class="mkinlbl">Datum</span><input id="mkdate" type="date" value="'+dateVal+'" max="'+td+'"></label></div>'
-      +'<div class="mkgrid">'+ins+'</div>'
-      +'<div class="mkabtns"><button class="mksave">'+(editingDate?'Meting bijwerken':'Meting opslaan')+'</button>'+(editingDate?'<button class="mkcancel">annuleren</button>':'')+'<span class="mksavemsg" id="mksavemsg">'+(editingDate?('bewerken: '+esc(editingDate)):'')+'</span></div>'
-      +(entries.length?'<div class="mkatbl"><table><thead>'+eth+'</thead><tbody>'+rows+'</tbody></table></div>':'<div class="mkaempty">Nog geen metingen opgeslagen.</div>')
-      +'<div class="mkaddc"><input id="mknewcomp" placeholder="concurrent toevoegen (bijv. voorbeeld.nl)"><button class="mkaddcomp">+ Concurrent</button></div>'
+      +'<div class="mkah">Metingen — uit je Google Sheet</div>'
+      +'<div class="mkasub">Voeg nieuwe metingen toe in de <b>gekoppelde Google Sheet</b>: één rij per datum, met per concurrent hun <b>ordernummer</b> (het volgnummer van hun laatste order) op die dag. De app leest de sheet automatisch uit, berekent het aantal orders sinds de vorige meting en het gemiddelde per dag, en toont het marktaandeel hierboven. Zo staat je data veilig in je eigen sheet.</div>'
+      +'<div class="mkabtns"><a href="'+esc(sheet)+'" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none;border-radius:9px;background:var(--green);color:#fff;font-size:13px;font-weight:700;padding:9px 18px">Open metingen-sheet ↗</a><span class="mksavemsg">Na wijzigen in de sheet: klik op ↻ Ververs rechtsboven.</span></div>'
+      +(MK.note?'<div style="font-size:12px;color:#C0392B;margin-bottom:12px">'+esc(MK.note)+'</div>':'')
+      +(entries.length?'<div class="mkatbl"><table><thead>'+eth+'</thead><tbody>'+rows+'</tbody></table></div>':'<div class="mkaempty">Nog geen datumrijen in de sheet.</div>')
       +'</div>';
   }
   function render(){
