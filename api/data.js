@@ -365,7 +365,7 @@ async function marketView(req, res) {
   res.json(out);
 }
 async function marketWrite(req, res, s) {
-  if (!s || !s.admin) return res.status(403).json({ error: "alleen admin mag metingen wijzigen" });
+  if (!s || s.role !== "admin") return res.status(403).json({ error: "alleen admin mag metingen wijzigen" });
   let body;
   try { body = await readBody(req); } catch (e) { return res.status(400).json({ error: "ongeldige body" }); }
   const action = body && body.action;
