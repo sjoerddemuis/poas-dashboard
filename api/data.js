@@ -262,7 +262,7 @@ async function productView(req, res) {
 // ---- Marktaandeel: reviewgroei-tracker per concurrent uit de Google Sheet.
 // Per maand het daggemiddelde (nieuwe reviews/dag) per shop; marktaandeel = aandeel
 // in de som van alle shops. Live via gviz-JSON; snapshot als de sheet niet deelbaar is.
-const MARKET_SHEET = process.env.MARKET_SHEET_ID || "1d7BsqR49SH1CjnYGHxNHWhVQoFsJhZjMuxSnS4BdRtg";
+const MARKET_SHEET = process.env.MARKET_SHEET_ID || "1uSNiUshJEtQAlLuEozzCIsmsiio4LOUu6AB5Bzls6Us";
 const MARKET_SNAPSHOT = {
   source: "snapshot",
   periods: ["oktober", "november", "december", "januari", "februari", "maart", "april & mei", "juni"],
@@ -314,8 +314,49 @@ async function fetchMarketSheet() {
   if (companies.length < 2) throw new Error("te weinig bedrijven uit sheet");
   return { source: "sheet", periods, companies };
 }
-// ---- Handmatige metingen in KV (vervangt de Google Sheet). Per datum een momentopname
-// (cumulatief aantal per concurrent); het systeem rekent zelf dagen-ertussen + daggemiddelde uit.
+// ---- Metingen-sheet (bron van waarheid): 1 rij per datum, kolommen = concurrenten,
+// cellen = het ordernummer op die datum. De app leest 'm en rekent orders/dag + marktaandeel uit.
+function parseSheetDate(s) {
+  if (s == null) return null;
+  s = String(s).trim(); if (!s) return null;
+  let m = s.match(/^Date\((\d+),(\d+),(\d+)/);
+  if (m) return m[1] + "-" + String(+m[2] + 1).padStart(2, "0") + "-" + String(+m[3]).padStart(2, "0");
+  m = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/);
+  if (m) return m[1] + "-" + m[2].padStart(2, "0") + "-" + m[3].padStart(2, "0");
+  m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);
+  if (m) return m[3] + "-" + m[2].padStart(2, "0") + "-" + m[1].padStart(2, "0");
+  const d = new Date(s); if (!isNaN(d)) return d.toISOString().slice(0, 10);
+  return null;
+}
+async function fetchOrderSheet() {
+  const url = "https://docs.google.com/spreadsheets/d/" + MARKET_SHEET + "/gviz/tq?tqx=out:json&headers=1";
+  const r = await fetch(url);
+  if (!r.ok) throw new Error("sheet " + r.status);
+  const t = await r.text();
+  const m = t.match(/setResponse\(([\s\S]*?)\);?\s*$/);
+  if (!m) throw new Error("geen gviz-json (sheet niet gedeeld?)");
+  const j = JSON.parse(m[1]);
+  if (!j.table || !j.table.cols) throw new Error("sheet niet leesbaar");
+  const compCols = [];
+  j.table.cols.forEach((c, i) => { if (i === 0) return; const nm = cleanName((c && c.label) || ""); if (nm) compCols.push({ idx: i, name: nm }); });
+  if (compCols.length < 1) throw new Error("geen concurrent-kolommen in sheet");
+  const competitors = [...new Set(compCols.map((c) => c.name))];
+  const num = (c) => { if (!c || c.v == null) return null; if (typeof c.v === "number") return c.v; const n = parseFloat(String(c.v).replace(/[^\d.-]/g, "")); return isNaN(n) ? null : n; };
+  const entries = [];
+  (j.table.rows || []).forEach((row) => {
+    const c = row.c || [];
+    const date = parseSheetDate(c[0] && (c[0].f != null ? c[0].f : c[0].v));
+    if (!date) return;
+    const vals = {};
+    compCols.forEach((cc) => { const v = num(c[cc.idx]); if (v != null) vals[cc.name] = v; });
+    if (Object.keys(vals).length) entries.push({ date, vals });
+  });
+  entries.sort((a, b) => (a.date < b.date ? -1 : 1));
+  if (!entries.length) throw new Error("geen datumrijen in sheet");
+  return { competitors, entries };
+}
+// ---- Handmatige metingen in KV (fallback als de sheet (nog) niet leesbaar is).
+// Per datum een momentopname (ordernummer per concurrent); dagen-ertussen + daggemiddelde.
 const MKEY = "market:measurements";
 const DEF_COMPETITORS = ["ongediertewinkel.nl", "allestegenongedierte.nl", "ongedierteproducten.nl", "budgetongediertebestrijden.nl", "pestor.nl", "verminbuster.nl"];
 async function loadMeasurements() {
@@ -350,17 +391,28 @@ function computeFromEntries(st) {
 async function marketView(req, res) {
   const now = Date.now();
   if (mCache.market && now - mCache.market.at < MTTL && !(req.query && req.query.fresh)) return res.json(mCache.market.data);
-  const st = await loadMeasurements();
-  let out = computeFromEntries(st);                         // handmatige metingen hebben voorrang
-  if (!out) {
-    try { out = await fetchMarketSheet(); }                 // val terug op de sheet zolang er <2 metingen zijn
-    catch (e) { out = Object.assign({}, MARKET_SNAPSHOT, { note: "nog geen (of te weinig) handmatige metingen en live-sheet niet gelezen: " + (e.message || e) }); }
+  let out = null, sheetErr = null, sheetData = null;
+  try { sheetData = await fetchOrderSheet(); }               // de Google Sheet is de bron van waarheid
+  catch (e) { sheetErr = e.message || String(e); }
+  if (sheetData) {
+    out = computeFromEntries(sheetData) || { source: "sheet", periods: [], companies: [] };
+    out.source = "sheet";
+    out.competitors = sheetData.competitors;
+    out.entries = sheetData.entries;
+    out.hasData = sheetData.entries.length >= 2;
+    if (sheetData.entries.length < 2) out.note = "Nog maar één meting in de sheet — voeg een tweede datumrij toe om orders/dag en marktaandeel te zien.";
+  } else {
+    const st = await loadMeasurements();                     // terugval: handmatige metingen in KV
+    out = computeFromEntries(st);
+    if (out) { out.competitors = st.competitors; out.entries = st.entries; out.hasData = st.entries.length >= 2; }
+    else {
+      out = Object.assign({}, MARKET_SNAPSHOT);
+      out.competitors = st.competitors; out.entries = st.entries; out.hasData = false;
+      out.note = "Sheet niet gelezen (" + sheetErr + "). Deel de sheet als 'iedereen met de link: lezer' zodat de app 'm kan uitlezen.";
+    }
   }
-  out.competitors = st.competitors;                          // altijd meesturen voor het invoerscherm
-  out.entries = st.entries;
-  out.hasManual = st.entries.length >= 2;
   out.sheetUrl = "https://docs.google.com/spreadsheets/d/" + MARKET_SHEET + "/edit";
-  out.updated = st.updated || new Date().toISOString();
+  out.updated = new Date().toISOString();
   mCache.market = { at: now, data: out };
   res.json(out);
 }
