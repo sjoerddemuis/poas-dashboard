@@ -3662,11 +3662,13 @@ window.__kernLoad=function(){
   const int0=n=>(n==null||!isFinite(n))?"—":Math.round(n).toLocaleString("nl-NL");
   const CCMAP={NL:"nl",DE:"de",FR:"fr",BE:"be"};
   const CENTER={NL:[52.15,5.3],DE:[51.1,10.2],FR:[46.7,2.4]};
+  const BOX={NL:[50.5,53.8,3.2,7.3],DE:[47.0,55.2,5.7,15.2],FR:[41.2,51.2,-5.3,9.7]};
+  function inBox(cc,ll){ if(!ll||!isFinite(ll[0])||!isFinite(ll[1]))return false; const b=BOX[cc]; if(!b)return (ll[0]!==0||ll[1]!==0); return ll[0]>=b[0]&&ll[0]<=b[1]&&ll[1]>=b[2]&&ll[1]<=b[3]; }
   let HT=null, inited=false, loading=false, map=null, layer=null;
   let shop="NL", mode="range", from="", to="", day="", weight="orders", view="heat";
   let CACHE=loadCache();
-  function loadCache(){ try{return JSON.parse(localStorage.getItem("poas_geocache")||"{}");}catch(e){return{};} }
-  function saveCache(){ try{localStorage.setItem("poas_geocache",JSON.stringify(CACHE));}catch(e){} }
+  function loadCache(){ try{return JSON.parse(localStorage.getItem("poas_geocache_v2")||"{}");}catch(e){return{};} }
+  function saveCache(){ try{localStorage.setItem("poas_geocache_v2",JSON.stringify(CACHE));}catch(e){} }
   function ymd(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
   function addDays(s,n){const d=new Date(s+"T00:00:00");d.setDate(d.getDate()+n);return ymd(d);}
   (function(){ const y=ymd(new Date(Date.now()-864e5)); day=y; to=y; from=addDays(y,-6); })();
@@ -3678,14 +3680,20 @@ window.__kernLoad=function(){
   function renderControls(){ document.getElementById("htdates").innerHTML=datesHtml(); }
   async function geocodeAll(stat){
     const pts=HT.points||[];
-    const todo=pts.filter(p=>CACHE[p.cc+"|"+p.pc]===undefined && CCMAP[p.cc]);
+    const todo=pts.filter(p=>CACHE[p.cc+"|"+p.pc]===undefined && (p.cc==="NL"||CCMAP[p.cc]));
     if(!todo.length) return;
     let done=0; const q=todo.slice();
     async function one(p){
       try{
-        const r=await fetch("https://api.zippopotam.us/"+CCMAP[p.cc]+"/"+encodeURIComponent(p.pc));
-        if(r.ok){const j=await r.json();const pl=j.places&&j.places[0];CACHE[p.cc+"|"+p.pc]=pl?[+pl.latitude,+pl.longitude]:null;}
-        else CACHE[p.cc+"|"+p.pc]=null;
+        let ll=null;
+        if(p.cc==="NL"){ // PDOK Locatieserver: betrouwbaar voor NL 4-cijferige postcodes
+          const r=await fetch("https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?rows=1&fl=centroide_ll&fq=type:postcode&q="+encodeURIComponent(p.pc));
+          if(r.ok){const j=await r.json();const d=j.response&&j.response.docs&&j.response.docs[0];const m=d&&d.centroide_ll&&d.centroide_ll.match(/POINT\(([-\d.]+) ([-\d.]+)\)/);if(m)ll=[+m[2],+m[1]];}
+        }else if(CCMAP[p.cc]){
+          const r=await fetch("https://api.zippopotam.us/"+CCMAP[p.cc]+"/"+encodeURIComponent(p.pc));
+          if(r.ok){const j=await r.json();const pl=j.places&&j.places[0];if(pl&&pl.latitude&&pl.longitude)ll=[+pl.latitude,+pl.longitude];}
+        }
+        CACHE[p.cc+"|"+p.pc]=inBox(p.cc,ll)?ll:null;
       }catch(e){/* laat ongecachet: probeer volgende keer opnieuw */}
       done++; if(done%25===0){ if(stat)stat.innerHTML='Postcodes opzoeken op de kaart… '+done+' / '+todo.length; saveCache(); }
     }
@@ -3693,7 +3701,7 @@ window.__kernLoad=function(){
     await Promise.all(workers); saveCache();
   }
   function draw(){
-    const pts=(HT&&HT.points||[]).map(p=>{const ll=CACHE[p.cc+"|"+p.pc];return ll?{ll,w:weight==="omzet"?p.omzet:p.count,p}:null;}).filter(Boolean);
+    const pts=(HT&&HT.points||[]).map(p=>{const ll=CACHE[p.cc+"|"+p.pc];return (ll&&inBox(p.cc,ll))?{ll,w:weight==="omzet"?p.omzet:p.count,p}:null;}).filter(Boolean);
     if(!map){ map=L.map("htmap",{scrollWheelZoom:true}).setView(CENTER[shop]||CENTER.NL,7); L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"&copy; OpenStreetMap",maxZoom:18}).addTo(map); }
     if(layer){map.removeLayer(layer);layer=null;}
     if(!pts.length){ map.setView(CENTER[shop]||CENTER.NL,6); return; }
