@@ -3061,7 +3061,7 @@ window.__kernLoad=function(){
   function addDayStr(ds,n){ const d=new Date(ds+"T00:00:00"); d.setDate(d.getDate()+n); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
   function daysBet(a,b){ return Math.round((new Date(b+"T00:00:00")-new Date(a+"T00:00:00"))/86400000); }
   function mondayOf(ds){ const d=new Date(ds+"T00:00:00"); const day=(d.getDay()+6)%7; d.setDate(d.getDate()-day); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
-  function bucketLabel(k,gran){ if(gran==="month"){ const p=k.split("-"); return MND[+p[1]-1]+" "+p[0]; } const p=k.split("-"); return "wk "+p[2]+"-"+p[1]; }
+  function bucketLabel(k,gran){ if(gran==="month"){ const p=k.split("-"); return MND[+p[1]-1]+" "+p[0]; } if(gran==="day"){ const p=k.split("-"); return p[2]+"-"+p[1]; } const p=k.split("-"); return "wk "+p[2]+"-"+p[1]; }
   function computeBuckets(entries, comps, gran, from, to){
     const sorted=entries.slice().sort((a,b)=>a.date<b.date?-1:1);
     const cov0=sorted[0].date, cov1=sorted[sorted.length-1].date;
@@ -3073,7 +3073,7 @@ window.__kernLoad=function(){
       comps.forEach(c=>{ const v0=+(sorted[i-1].vals&&sorted[i-1].vals[c]); const v1=+(sorted[i].vals&&sorted[i].vals[c]); rate[c]=(isFinite(v0)&&isFinite(v1))?(v1-v0)/nd:null; });
       let d=a;
       for(let k=0;k<nd;k++){
-        if(d>=lo&&d<=hi){ const key=gran==="month"?d.slice(0,7):mondayOf(d); const bk=buckets[key]||(buckets[key]={r:{}}); comps.forEach(c=>{ if(rate[c]!=null&&isFinite(rate[c])){ (bk.r[c]=bk.r[c]||[]).push(rate[c]); } }); }
+        if(d>=lo&&d<=hi){ const key=gran==="month"?d.slice(0,7):(gran==="day"?d:mondayOf(d)); const bk=buckets[key]||(buckets[key]={r:{}}); comps.forEach(c=>{ if(rate[c]!=null&&isFinite(rate[c])){ (bk.r[c]=bk.r[c]||[]).push(rate[c]); } }); }
         d=addDayStr(d,1);
       }
     }
@@ -3100,7 +3100,7 @@ window.__kernLoad=function(){
     const ds=series.map((s,i)=>{ const us=s.us; return {
       label:s.name, data:s.vals, borderColor:us?"#01B52D":COLORS[(i+1)%COLORS.length],
       backgroundColor:"transparent", borderWidth:us?3.5:1.8, tension:.3,
-      pointRadius:us?4:2.5, pointHoverRadius:5, spanGaps:true, order:us?0:1 }; });
+      pointRadius:(labels.length>45?0:(us?4:2.5)), pointHoverRadius:5, spanGaps:true, order:us?0:1 }; });
     mkChart=new Chart(box,{ type:"line", data:{labels, datasets:ds}, options:{ responsive:true, maintainAspectRatio:false,
       interaction:{mode:"index",intersect:false},
       plugins:{ legend:{position:"top",labels:{boxWidth:12,font:{size:11}}},
@@ -3146,14 +3146,14 @@ window.__kernLoad=function(){
       return '<tr class="'+(s.us?'usrow':'')+'"><td><b>'+esc(s.name)+'</b></td>'+cells+'</tr>';
     }).join("");
     const src = MK.source==="sheet" ? "live uit je Google Sheet" : MK.source==="manual" ? "handmatige metingen" : "voorbeeld-snapshot";
-    const granTxt = mkGran==="month" ? "per maand" : "per week";
+    const granTxt = mkGran==="month" ? "per maand" : (mkGran==="day" ? "per dag" : "per week");
     const sub = mkMode==="share"
       ? "Aandeel per concurrent in het totaal van gevolgde shops, "+granTxt+" · groei/daling in procentpunten (pp) · "
       : "Gemiddeld aantal orders per dag per concurrent, "+granTxt+" · groei/daling in % · ";
     let ctrls="";
     if(VIEW.bucketed){
       ctrls='<div class="mkctrls">'
-        +'<div class="knseg mkgranseg"><button data-g="week" class="'+(mkGran==="week"?"on":"")+'">Per week</button><button data-g="month" class="'+(mkGran==="month"?"on":"")+'">Per maand</button></div>'
+        +'<div class="knseg mkgranseg"><button data-g="day" class="'+(mkGran==="day"?"on":"")+'">Per dag</button><button data-g="week" class="'+(mkGran==="week"?"on":"")+'">Per week</button><button data-g="month" class="'+(mkGran==="month"?"on":"")+'">Per maand</button></div>'
         +'<label class="mktf">van <input type="date" id="mkfrom" value="'+mkFrom+'" min="'+VIEW.cov0+'" max="'+VIEW.cov1+'"></label>'
         +'<label class="mktf">tot <input type="date" id="mkto" value="'+mkTo+'" min="'+VIEW.cov0+'" max="'+VIEW.cov1+'"></label>'
         +((mkFrom||mkTo)?'<button class="mktfclear">✕ tijdvak wissen</button>':'')
