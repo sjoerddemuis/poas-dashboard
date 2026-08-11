@@ -3156,6 +3156,9 @@ window.__kernLoad=function(){
         +'<div class="knseg mkgranseg"><button data-g="day" class="'+(mkGran==="day"?"on":"")+'">Per dag</button><button data-g="week" class="'+(mkGran==="week"?"on":"")+'">Per week</button><button data-g="month" class="'+(mkGran==="month"?"on":"")+'">Per maand</button></div>'
         +'<label class="mktf">van <input type="date" id="mkfrom" value="'+mkFrom+'" min="'+VIEW.cov0+'" max="'+VIEW.cov1+'"></label>'
         +'<label class="mktf">tot <input type="date" id="mkto" value="'+mkTo+'" min="'+VIEW.cov0+'" max="'+VIEW.cov1+'"></label>'
+        +'<span class="mktf" style="color:var(--line)">|</span>'
+        +'<label class="mktf">maand <input type="month" id="mkmonth" value="'+(mkFrom?mkFrom.slice(0,7):"")+'" min="'+VIEW.cov0.slice(0,7)+'" max="'+VIEW.cov1.slice(0,7)+'"></label>'
+        +'<button class="mkthismonth" style="border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--greenDk);font-size:12px;font-weight:700;padding:6px 11px;cursor:pointer">Deze maand</button>'
         +((mkFrom||mkTo)?'<button class="mktfclear">✕ tijdvak wissen</button>':'')
         +'</div>';
     }
@@ -3189,10 +3192,12 @@ window.__kernLoad=function(){
       document.getElementById("mkcontent").addEventListener("click",e=>{
         const gb=e.target.closest(".mkgranseg button"); if(gb){ mkGran=gb.dataset.g; render(); return; }
         const cl=e.target.closest(".mktfclear"); if(cl){ mkFrom=""; mkTo=""; render(); return; }
+        const tm=e.target.closest(".mkthismonth"); if(tm){ const n=new Date(); const ym=n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0"); const last=new Date(n.getFullYear(),n.getMonth()+1,0).getDate(); mkFrom=ym+"-01"; mkTo=ym+"-"+String(last).padStart(2,"0"); render(); return; }
       });
       document.getElementById("mkcontent").addEventListener("change",e=>{
         if(e.target.id==="mkfrom"){ mkFrom=e.target.value; render(); }
         else if(e.target.id==="mkto"){ mkTo=e.target.value; render(); }
+        else if(e.target.id==="mkmonth"){ const v=e.target.value; if(v){ const p=v.split("-"); const last=new Date(+p[0],+p[1],0).getDate(); mkFrom=v+"-01"; mkTo=v+"-"+String(last).padStart(2,"0"); render(); } }
       });
       fetchMarket(); return;
     }
