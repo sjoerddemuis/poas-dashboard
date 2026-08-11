@@ -603,8 +603,10 @@ function normPc(cc, pc) {
 // KV-opslag: per shop per dag een compact aggregaat, zodat de kaart uit de database
 // leest i.p.v. elke keer Metorik te belasten. Wordt eenmalig gevuld (backfill) en
 // daarna elke nacht bijgewerkt (georefresh mode=daily).
-function gdKey(shop, d) { return "gd:" + shop + ":" + d; }   // dag-aggregaat
+function gdKey(shop, d) { return "gd:" + shop + ":" + d; }   // dag-aggregaat (postcode-totalen)
+function geKey(shop, d) { return "ge:" + shop + ":" + d; }   // dag-tijdlijn (per order een tijdstip+locatie)
 function gmKey(shop) { return "gm:" + shop; }                 // backfill-meta
+function normDate(s) { const m = String(s || "").match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); return m ? m[1] + "-" + m[2].padStart(2, "0") + "-" + m[3].padStart(2, "0") : null; }
 const GEO_SHOPS = ["NL", "DE", "FR"];
 const GEO_FLOOR = "2015-01-01";
 const CRON_KEY = process.env.CRON_KEY || "owgeo";
@@ -621,18 +623,22 @@ async function geoAggregateWindow(token, shop, from, to) {
     const rows = j.data || j.orders || [];
     if (!rows.length) break;
     rows.forEach((o) => {
-      const dt = dateOf(o); if (!dt || dt < from || dt > to) return;
+      const tstr = String(o.order_created_at || o.order_paid_at || o.created_at || "");
+      const dt = tstr.slice(0, 10); if (!dt || dt < from || dt > to) return;
       seen++;
       const cc = String(o.shipping_address_country || o.billing_address_country || "").toUpperCase();
       const pc = normPc(cc, o.shipping_address_postcode || o.billing_address_postcode);
       const plaats = o.shipping_address_city || o.billing_address_city || "";
       const rev = +(o.net != null ? o.net : o.total) || 0;
-      const day = days[dt] || (days[dt] = { o: 0, e: 0, p: {} });
+      const tm = tstr.slice(11, 16).match(/(\d{2}):(\d{2})/);
+      const minute = tm ? (+tm[1]) * 60 + (+tm[2]) : 0;
+      const day = days[dt] || (days[dt] = { o: 0, e: 0, p: {}, ev: [] });
       day.o++; day.e += rev;
       if (!cc || !pc) return;
       const k = cc + "|" + pc;
       const a = day.p[k] || (day.p[k] = [0, 0, plaats]);
       a[0]++; a[1] += rev; if (!a[2] && plaats) a[2] = plaats;
+      day.ev.push([minute, cc, pc, Math.round(rev)]);
     });
     if (rows.length < 100) break;
   }
@@ -641,7 +647,8 @@ async function geoAggregateWindow(token, shop, from, to) {
     const day = days[d];
     day.e = Math.round(day.e);
     Object.values(day.p).forEach((a) => { a[1] = Math.round(a[1]); });
-    try { await setKey(gdKey(shop, d), day); written.push(d); } catch (e) {}
+    const ev = (day.ev || []).sort((a, b) => a[0] - b[0]);
+    try { await setKey(gdKey(shop, d), { o: day.o, e: day.e, p: day.p }); await setKey(geKey(shop, d), ev); written.push(d); } catch (e) {}
   }
   return { wroteDays: written.length, orders: seen };
 }
@@ -668,18 +675,22 @@ async function geoRefreshView(req, res) {
     return res.json({ mode, updated: today, out });
   }
 
-  // backfill: kies de shop die het minst ver terug staat en doe één venster.
-  const WIN = Math.max(3, Math.min(30, parseInt(q.win || "14", 10)));
+  // backfill: één shop, één klein venster per call (blijft ruim onder de 60s-limiet).
+  const WIN = Math.max(2, Math.min(20, parseInt(q.win || "6", 10)));
+  const metas = {};
+  for (const shop of shops) { if (!shopToken(shop)) continue; let m = null; try { m = await getKey(gmKey(shop)); } catch (e) {} m = m || { cursor: today }; if (!m.cursor) m.cursor = today; metas[shop] = m; }
   let pick = null, meta = null;
-  for (const shop of shops) {
-    if (!shopToken(shop)) continue;
-    let m = null; try { m = await getKey(gmKey(shop)); } catch (e) {}
-    if (!m) m = { cursor: today };
-    if (m.done) continue;
-    if (!m.cursor) m.cursor = today;
-    if (!pick || m.cursor > meta.cursor) { pick = shop; meta = m; }
+  for (const shop of Object.keys(metas)) { const m = metas[shop]; if (m.done) continue; if (!pick || m.cursor > meta.cursor) { pick = shop; meta = m; } }
+  if (!pick) {
+    // Historie compleet → houd de recentste dagen actueel (nieuwe orders van vandaag/gisteren).
+    for (const shop of Object.keys(metas)) { const m = metas[shop]; if (!pick || (m.lastDaily || "") < (meta.lastDaily || "")) { pick = shop; meta = m; } }
+    if (!pick) return res.json({ mode, done: true, note: "geen shops" });
+    let rr = { wroteDays: 0, orders: 0 };
+    try { rr = await geoAggregateWindow(shopToken(pick), pick, addD(today, -2), today); } catch (e) {}
+    meta.lastDaily = today;
+    try { await setKey(gmKey(pick), meta); } catch (e) {}
+    return res.json({ mode, refresh: true, shop: pick, window: addD(today, -2) + ".." + today, wroteDays: rr.wroteDays, orders: rr.orders, done: true });
   }
-  if (!pick) return res.json({ mode, done: true, note: "alle shops volledig ingeladen" });
 
   // Bepaal (eenmalig) de vroegste maand met omzet, zodat we niet eindeloos leeg terugzoeken.
   if (!meta.earliest) {
@@ -687,10 +698,11 @@ async function geoRefreshView(req, res) {
       const rep = await metGet(shopToken(pick), "https://app.metorik.com/api/v1/store/reports/profit-by-date",
         { group_by: "month", start_date: GEO_FLOOR, end_date: today });
       const withRev = (rep.data || []).filter((d) => (d.orders || 0) > 0 || (d.net || 0) > 0);
-      meta.earliest = withRev.length ? String(withRev[0].date).slice(0, 7) + "-01" : GEO_FLOOR;
+      const first = withRev.length ? String(withRev[0].date) : null;
+      meta.earliest = first ? (normDate(first) || normDate(first.slice(0, 7) + "-01") || GEO_FLOOR) : GEO_FLOOR;
     } catch (e) { meta.earliest = GEO_FLOOR; }
   }
-  const floor = meta.earliest || GEO_FLOOR;
+  const floor = normDate(meta.earliest) || GEO_FLOOR;
   const winEnd = addD(meta.cursor, -1);
   let winStart = addD(winEnd, -(WIN - 1));
   if (winStart < floor) winStart = floor;
@@ -736,6 +748,18 @@ async function geoOrdersView(req, res) {
   });
 }
 
+// Play-modus: de tijdlijn van één dag (per order tijdstip + locatie), voor de afspeel-animatie.
+async function geoDayView(req, res) {
+  const q = req.query || {};
+  const shop = String(q.shop || "NL").toUpperCase();
+  if (!shopToken(shop)) return res.status(400).json({ error: "onbekende shop" });
+  const date = isDate(q.date) ? q.date : ymd(new Date());
+  let ev = null; try { ev = await getKey(geKey(shop, date)); } catch (e) {}
+  ev = Array.isArray(ev) ? ev : [];
+  const events = ev.map((e) => ({ m: e[0], cc: e[1], pc: e[2], omzet: e[3] || 0 }));
+  res.json({ shop, date, events, count: events.length, source: "kv" });
+}
+
 module.exports = async (req, res) => {
   if (req.query && req.query.view === "georefresh") return geoRefreshView(req, res);
   const s = getSession(req);
@@ -743,6 +767,7 @@ module.exports = async (req, res) => {
   if (req.method === "POST" && req.query && req.query.view === "market") return marketWrite(req, res, s);
   if (req.query && req.query.view === "geodiag") return geodiagView(req, res);
   if (req.query && req.query.view === "geoorders") return geoOrdersView(req, res);
+  if (req.query && req.query.view === "geoday") return geoDayView(req, res);
   if (req.query && req.query.view === "metrics") return metricsView(req, res);
   if (req.query && req.query.view === "product") return productView(req, res);
   if (req.query && req.query.view === "market") return marketView(req, res);
