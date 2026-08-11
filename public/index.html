@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dashboard · Ongediertewinkel</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
 <style>
 :root{color-scheme:light;--green:#01B52D;--greenDk:#018A24;--ink:#141B1F;--paper:#F5F6F5;--card:#FFFFFF;--line:#E7E9E7;--mute:#6A726E;--orange:#FD5900;--red:#E5484D;--lightg:#E8F7EC;--blue:#0A6CCB;--radius:14px;--shadow:0 1px 2px rgba(20,27,31,.04),0 1px 3px rgba(20,27,31,.05);--sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,Cantarell,"Noto Sans",sans-serif;--mono:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 *{box-sizing:border-box}
@@ -619,6 +622,7 @@ summary{border-radius:11px;font-weight:600}
       <div class="navmenu">
         <button class="snav" data-sec="prod">Productdata</button>
         <button class="snav" data-sec="market">Marktaandeel</button>
+        <button class="snav" data-sec="heat">Order-heatmap</button>
         <button class="snav" data-sec="ronada">Ronada-aandeel</button>
         <button class="snav" data-sec="prijs">Prijsmonitor</button>
       </div>
@@ -805,6 +809,50 @@ summary{border-radius:11px;font-weight:600}
     </div>
     <div id="mkcontent"><div class="knloading">Marktaandeel laden…</div></div>
   </div><!-- /sec-market -->
+
+  <div id="sec-heat" style="display:none">
+    <style>
+    #sec-heat .htsub{color:var(--mute);font-size:13px;margin:0 0 14px;line-height:1.5;max-width:900px}
+    #sec-heat .htbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 12px;margin-bottom:12px;box-shadow:var(--shadow)}
+    #sec-heat .knseg{display:inline-flex;border:1.5px solid var(--line);border-radius:9px;overflow:hidden}
+    #sec-heat .knseg button{border:0;border-right:1px solid var(--line);background:var(--card);color:var(--ink);font-size:12px;font-weight:700;padding:7px 12px;cursor:pointer}
+    #sec-heat .knseg button:last-child{border-right:0}
+    #sec-heat .knseg button.on{background:var(--green);color:#fff}
+    #sec-heat .htlbl{font-size:11px;color:var(--mute);font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+    #sec-heat .httf{font-size:12px;color:var(--mute);display:flex;align-items:center;gap:5px}
+    #sec-heat .httf input{font-size:12px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:5px 7px}
+    #sec-heat .htnav{border:1.5px solid var(--line);border-radius:7px;background:var(--card);color:var(--greenDk);font-size:14px;font-weight:700;padding:3px 10px;cursor:pointer;line-height:1}
+    #sec-heat .knsep{flex:1}
+    #sec-heat .knref{border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--mute);font-family:var(--mono);font-size:11px;font-weight:700;padding:7px 12px;cursor:pointer}
+    #sec-heat .knref:hover{border-color:var(--green);color:var(--greenDk)}
+    #sec-heat .htstat{font-size:12.5px;color:var(--ink);margin:0 2px 10px;line-height:1.5}
+    #sec-heat #htmap{height:520px;border-radius:12px;overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow);background:#e9eef0}
+    #sec-heat .httop{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px 14px 12px;box-shadow:var(--shadow);margin-top:14px}
+    #sec-heat .httoph{font-weight:700;font-size:13px;margin:8px 0 4px}
+    #sec-heat .httop table{width:100%;border-collapse:collapse;font-size:13px}
+    #sec-heat .httop th{color:var(--mute);font-weight:600;font-size:11px;text-align:right;padding:6px 10px;border-bottom:1px solid var(--line)}
+    #sec-heat .httop th:nth-child(2),#sec-heat .httop th:nth-child(3),#sec-heat .httop td:nth-child(2),#sec-heat .httop td:nth-child(3){text-align:left}
+    #sec-heat .httop th:first-child,#sec-heat .httop td:first-child{text-align:left;color:var(--mute);width:26px}
+    #sec-heat .httop td{padding:6px 10px;text-align:right;border-top:1px solid var(--line);white-space:nowrap}
+    </style>
+    <div class="htsub">Waar komen je bestellingen vandaan? Elk order valt in een postcodegebied (NL = 4 cijfers, DE/FR = PLZ/code postal). Kies een land, een <b>tijdvak</b> of <b>één dag</b>, en weeg op <b>aantal orders</b> of <b>omzet</b>. Postcodes worden client-side geocodeerd en gecachet, dus na de eerste keer laadt de kaart direct.</div>
+    <div class="htbar">
+      <span class="htlbl">Shop</span>
+      <div class="knseg" id="htshop"><button data-s="NL" class="on">NL</button><button data-s="DE">DE</button><button data-s="FR">FR</button></div>
+      <span class="htlbl">Periode</span>
+      <div class="knseg" id="htmode"><button data-m="range" class="on">Tijdvak</button><button data-m="day">Eén dag</button></div>
+      <span id="htdates" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"></span>
+      <span class="htlbl">Weging</span>
+      <div class="knseg" id="htweight"><button data-w="orders" class="on">Orders</button><button data-w="omzet">Omzet</button></div>
+      <span class="htlbl">Weergave</span>
+      <div class="knseg" id="htviewseg"><button data-v="heat" class="on">Heatmap</button><button data-v="dots">Stippen</button></div>
+      <span class="knsep"></span>
+      <button id="htref" class="knref">↻ Ververs</button>
+    </div>
+    <div id="htstat" class="htstat">Order-heatmap laden…</div>
+    <div id="htmap"></div>
+    <div id="httop" class="httop"></div>
+  </div><!-- /sec-heat -->
 
   <div id="sec-ronada" style="display:none">
     <div class="rsub">Aandeel eigen huismerk (<b>Ronada + RTM</b>) t.o.v. alle overige merken — maand op maand, live uit Metorik. Omzet = excl. btw &amp; verzending.</div>
@@ -3608,10 +3656,99 @@ window.__kernLoad=function(){
     if(!PM)fetchP(); else render();
   };
 })();
+/* ===== Order-heatmap (Leaflet + OSM, client-side geocoding via zippopotam) ===== */
+(function(){
+  const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+  const int0=n=>(n==null||!isFinite(n))?"—":Math.round(n).toLocaleString("nl-NL");
+  const CCMAP={NL:"nl",DE:"de",FR:"fr",BE:"be"};
+  const CENTER={NL:[52.15,5.3],DE:[51.1,10.2],FR:[46.7,2.4]};
+  let HT=null, inited=false, loading=false, map=null, layer=null;
+  let shop="NL", mode="range", from="", to="", day="", weight="orders", view="heat";
+  let CACHE=loadCache();
+  function loadCache(){ try{return JSON.parse(localStorage.getItem("poas_geocache")||"{}");}catch(e){return{};} }
+  function saveCache(){ try{localStorage.setItem("poas_geocache",JSON.stringify(CACHE));}catch(e){} }
+  function ymd(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+  function addDays(s,n){const d=new Date(s+"T00:00:00");d.setDate(d.getDate()+n);return ymd(d);}
+  (function(){ const y=ymd(new Date(Date.now()-864e5)); day=y; to=y; from=addDays(y,-6); })();
+  function seg(id,b){[...document.querySelectorAll("#"+id+" button")].forEach(x=>x.classList.toggle("on",x===b));}
+  function datesHtml(){
+    if(mode==="day") return '<button class="htnav" id="htprev" title="dag terug">‹</button><label class="httf"><input type="date" id="htday" value="'+day+'" max="'+to+'"></label><button class="htnav" id="htnext" title="dag verder">›</button>';
+    return '<label class="httf">van <input type="date" id="htfrom" value="'+from+'"></label><label class="httf">tot <input type="date" id="htto" value="'+to+'"></label>';
+  }
+  function renderControls(){ document.getElementById("htdates").innerHTML=datesHtml(); }
+  async function geocodeAll(stat){
+    const pts=HT.points||[];
+    const todo=pts.filter(p=>CACHE[p.cc+"|"+p.pc]===undefined && CCMAP[p.cc]);
+    if(!todo.length) return;
+    let done=0; const q=todo.slice();
+    async function one(p){
+      try{
+        const r=await fetch("https://api.zippopotam.us/"+CCMAP[p.cc]+"/"+encodeURIComponent(p.pc));
+        if(r.ok){const j=await r.json();const pl=j.places&&j.places[0];CACHE[p.cc+"|"+p.pc]=pl?[+pl.latitude,+pl.longitude]:null;}
+        else CACHE[p.cc+"|"+p.pc]=null;
+      }catch(e){/* laat ongecachet: probeer volgende keer opnieuw */}
+      done++; if(done%25===0){ if(stat)stat.innerHTML='Postcodes opzoeken op de kaart… '+done+' / '+todo.length; saveCache(); }
+    }
+    const workers=[]; for(let i=0;i<8;i++)workers.push((async()=>{while(q.length)await one(q.shift());})());
+    await Promise.all(workers); saveCache();
+  }
+  function draw(){
+    const pts=(HT&&HT.points||[]).map(p=>{const ll=CACHE[p.cc+"|"+p.pc];return ll?{ll,w:weight==="omzet"?p.omzet:p.count,p}:null;}).filter(Boolean);
+    if(!map){ map=L.map("htmap",{scrollWheelZoom:true}).setView(CENTER[shop]||CENTER.NL,7); L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"&copy; OpenStreetMap",maxZoom:18}).addTo(map); }
+    if(layer){map.removeLayer(layer);layer=null;}
+    if(!pts.length){ map.setView(CENTER[shop]||CENTER.NL,6); return; }
+    const max=Math.max(1,...pts.map(x=>x.w));
+    if(view==="heat"){
+      layer=L.heatLayer(pts.map(x=>[x.ll[0],x.ll[1],Math.max(.12,x.w/max)]),{radius:20,blur:15,maxZoom:12,minOpacity:.35,gradient:{0.2:"#0A6CCB",0.45:"#01B52D",0.75:"#FD5900",1:"#E5484D"}}).addTo(map);
+    }else{
+      const g=L.layerGroup();
+      pts.forEach(x=>{const r=4+18*Math.sqrt(x.w/max);const m=L.circleMarker(x.ll,{radius:r,color:"#018A24",weight:1,fillColor:"#01B52D",fillOpacity:.45});m.bindPopup("<b>"+esc(x.p.pc)+"</b> "+esc(x.p.plaats||"")+"<br>"+int0(x.p.count)+" orders &middot; &euro;"+int0(x.p.omzet));g.addLayer(m);});
+      layer=g.addTo(map);
+    }
+    try{ map.fitBounds(L.latLngBounds(pts.map(x=>x.ll)),{padding:[24,24],maxZoom:9}); }catch(e){}
+    setTimeout(()=>{try{map.invalidateSize();}catch(e){}},120);
+  }
+  function renderStat(){
+    const t=(HT&&HT.total)||{orders:0,omzet:0}; const pts=(HT&&HT.points)||[];
+    const geoc=pts.filter(p=>CACHE[p.cc+"|"+p.pc]).length;
+    const rangeTxt=mode==="day"?day:(from+" t/m "+to);
+    document.getElementById("htstat").innerHTML='<b>'+int0(t.orders)+'</b> orders &middot; <b>&euro;'+int0(t.omzet)+'</b> omzet &middot; '+pts.length+' postcodegebieden ('+geoc+' op kaart) &middot; '+esc(rangeTxt)+(HT&&HT.capped?' &middot; <span style="color:var(--orange)">grote periode, mogelijk afgekapt</span>':'');
+    const top=pts.slice(0,12).map((p,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(p.pc)+'</td><td>'+esc(p.plaats||"")+'</td><td>'+int0(p.count)+'</td><td>&euro;'+int0(p.omzet)+'</td></tr>').join("");
+    document.getElementById("httop").innerHTML='<div class="httoph">Top postcodegebieden ('+(weight==="omzet"?"gesorteerd op orders":"gesorteerd op orders")+')</div><div style="overflow-x:auto"><table><thead><tr><th>#</th><th>Postcode</th><th>Plaats</th><th>Orders</th><th>Omzet</th></tr></thead><tbody>'+(top||'<tr><td colspan="5" style="color:var(--mute)">Geen orders in deze periode.</td></tr>')+'</tbody></table></div>';
+  }
+  async function load(fresh){
+    if(loading)return; loading=true;
+    const stat=document.getElementById("htstat"); if(stat)stat.innerHTML='Orders ophalen uit Metorik…';
+    let s,e; if(mode==="day"){s=day;e=day;}else{s=from;e=to;}
+    try{
+      const r=await fetch("/api/data?view=geoorders&shop="+shop+"&start="+s+"&end="+e+(fresh?"&fresh=1":""),{cache:"no-store"});
+      if(r.status===401){location.href="/login.html";return;}
+      const d=await r.json(); if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
+      HT=d;
+      if(stat)stat.innerHTML='Postcodes opzoeken op de kaart…';
+      await geocodeAll(stat);
+      draw(); renderStat();
+    }catch(err){ if(stat)stat.innerHTML='<span style="color:var(--red)">Kon order-heatmap niet laden: '+esc(err.message||err)+'</span>'; }
+    loading=false;
+  }
+  window.__heatLoad=function(){
+    if(!inited){ inited=true; renderControls();
+      document.getElementById("htshop").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;shop=b.dataset.s;seg("htshop",b);load();});
+      document.getElementById("htmode").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;mode=b.dataset.m;seg("htmode",b);renderControls();load();});
+      document.getElementById("htweight").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;weight=b.dataset.w;seg("htweight",b);draw();renderStat();});
+      document.getElementById("htviewseg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;view=b.dataset.v;seg("htviewseg",b);draw();});
+      document.getElementById("htref").addEventListener("click",()=>load(true));
+      document.getElementById("htdates").addEventListener("change",e=>{ if(e.target.id==="htfrom"){from=e.target.value;load();} else if(e.target.id==="htto"){to=e.target.value;load();} else if(e.target.id==="htday"){day=e.target.value;load();} });
+      document.getElementById("htdates").addEventListener("click",e=>{ if(e.target.id==="htprev"){day=addDays(day,-1);renderControls();load();} else if(e.target.id==="htnext"){ const t=ymd(new Date(Date.now()-864e5)); if(day<t){day=addDays(day,1);renderControls();load();} } });
+      load(); return;
+    }
+    if(!HT)load(); else setTimeout(()=>{try{if(map)map.invalidateSize();}catch(e){}},60);
+  };
+})();
 /* ===== Sectienavigatie (onthoudt actieve tab via URL-hash) ===== */
 (function(){
   const nav=document.getElementById("secnav");
-  const SECS=["poas","kern","prod","market","ronada","prijs","voorraad","ads","reviews","kosten","forecast","doel","prest"];
+  const SECS=["poas","kern","prod","market","heat","ronada","prijs","voorraad","ads","reviews","kosten","forecast","doel","prest"];
   function activate(sec,updateHash){
     if(!SECS.includes(sec))sec="poas";
     const b=nav.querySelector('.snav[data-sec="'+sec+'"]');
@@ -3621,6 +3758,7 @@ window.__kernLoad=function(){
     if(sec==="kern"&&window.__kernLoad)window.__kernLoad();
     if(sec==="prod"&&window.__prodLoad)window.__prodLoad();
     if(sec==="market"&&window.__marketLoad)window.__marketLoad();
+    if(sec==="heat"&&window.__heatLoad)window.__heatLoad();
     if(sec==="ronada"&&window.__ronadaLoad)window.__ronadaLoad();
     if(sec==="prijs"&&window.__prijsLoad)window.__prijsLoad();
     if(sec==="voorraad"&&window.__voorraadLoad)window.__voorraadLoad();
