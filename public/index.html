@@ -834,6 +834,14 @@ summary{border-radius:11px;font-weight:600}
     #sec-heat .httop th:nth-child(2),#sec-heat .httop th:nth-child(3),#sec-heat .httop td:nth-child(2),#sec-heat .httop td:nth-child(3){text-align:left}
     #sec-heat .httop th:first-child,#sec-heat .httop td:first-child{text-align:left;color:var(--mute);width:26px}
     #sec-heat .httop td{padding:6px 10px;text-align:right;border-top:1px solid var(--line);white-space:nowrap}
+    #sec-heat .htplay{display:flex;flex-wrap:wrap;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 12px;margin-bottom:10px;box-shadow:var(--shadow)}
+    #sec-heat .htplbl{font-size:11px;color:var(--mute);font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+    #sec-heat .htpbtn{border:1.5px solid var(--green);border-radius:8px;background:var(--green);color:#fff;font-size:12px;font-weight:700;padding:7px 13px;cursor:pointer;white-space:nowrap}
+    #sec-heat .htpbtn:hover{background:var(--greenDk);border-color:var(--greenDk)}
+    #sec-heat .htprange{flex:1;min-width:160px;accent-color:var(--green)}
+    #sec-heat .htptime{font-family:var(--mono);font-size:14px;font-weight:700;min-width:48px;text-align:center}
+    #sec-heat .htpcount{font-size:12px;color:var(--ink);font-weight:600}
+    #sec-heat .htphint{font-size:11px;color:var(--mute);flex-basis:100%}
     </style>
     <div class="htsub">Waar komen je bestellingen vandaan? Elk order valt in een postcodegebied (NL = 4 cijfers, DE/FR = PLZ/code postal). Kies een land, een <b>tijdvak</b> of <b>één dag</b>, en weeg op <b>aantal orders</b> of <b>omzet</b>. Postcodes worden client-side geocodeerd en gecachet, dus na de eerste keer laadt de kaart direct.</div>
     <div class="htbar">
@@ -850,6 +858,7 @@ summary{border-radius:11px;font-weight:600}
       <button id="htref" class="knref">↻ Ververs</button>
     </div>
     <div id="htstat" class="htstat">Order-heatmap laden…</div>
+    <div id="htplay" class="htplay" style="display:none"></div>
     <div id="htmap"></div>
     <div id="httop" class="httop"></div>
   </div><!-- /sec-heat -->
@@ -3664,6 +3673,7 @@ window.__kernLoad=function(){
   function inBox(cc,ll){ if(!ll||!isFinite(ll[0])||!isFinite(ll[1]))return false; const b=BOX[cc]; if(!b)return (ll[0]!==0||ll[1]!==0); return ll[0]>=b[0]&&ll[0]<=b[1]&&ll[1]>=b[2]&&ll[1]<=b[3]; }
   let HT=null, inited=false, loading=false, map=null, layer=null;
   let shop="NL", mode="range", from="", to="", day="", weight="orders", view="heat";
+  let EV=null, EVG=null, playing=false, playMin=0, playTimer=null, playHeat=null;
   let CACHE=loadCache();
   function loadCache(){ try{return JSON.parse(localStorage.getItem("poas_geocache_v2")||"{}");}catch(e){return{};} }
   function saveCache(){ try{localStorage.setItem("poas_geocache_v2",JSON.stringify(CACHE));}catch(e){} }
@@ -3734,16 +3744,56 @@ window.__kernLoad=function(){
       if(stat)stat.innerHTML='Postcodes opzoeken op de kaart…';
       await geocodeAll(stat);
       draw(); renderStat();
+      const pb=document.getElementById("htplay");
+      if(mode==="day"){ if(pb)pb.style.display=""; setupPlay(); }
+      else { stopPlay(); if(pb){ pb.style.display="none"; pb.innerHTML=""; } }
     }catch(err){ if(stat)stat.innerHTML='<span style="color:var(--red)">Kon order-heatmap niet laden: '+esc(err.message||err)+'</span>'; }
     loading=false;
+  }
+  function fmtMin(m){ const h=Math.floor(m/60), mm=m%60; return String(h).padStart(2,"0")+":"+String(mm).padStart(2,"0"); }
+  function playBarHtml(){
+    return '<button class="htpbtn" id="htpplay">'+(playing?"⏸ Pauze":"▶ Speel dag af")+'</button>'
+      +'<input type="range" id="htpslider" class="htprange" min="0" max="1439" step="1" value="'+playMin+'">'
+      +'<span class="htptime" id="htptime">'+fmtMin(playMin)+'</span>'
+      +'<span class="htpcount" id="htpcount"></span>';
+  }
+  function ensureEVG(){ EVG=(EV||[]).map(e=>{const ll=CACHE[e.cc+"|"+e.pc];return (ll&&inBox(e.cc,ll))?{m:e.m,ll,omzet:e.omzet||0}:null;}).filter(Boolean).sort((a,b)=>a.m-b.m); }
+  function frame(minute){
+    if(!map||!EVG)return; playMin=minute;
+    const useOmz=weight==="omzet"; let ordersSoFar=0, omzetSoFar=0; const raw=[];
+    for(const x of EVG){ if(x.m>minute)break; ordersSoFar++; omzetSoFar+=x.omzet; raw.push([x.ll[0],x.ll[1], useOmz?x.omzet:1]); }
+    const maxW=useOmz?Math.max(1,...raw.map(p=>p[2])):1;
+    const pts=raw.map(p=>[p[0],p[1], useOmz?Math.max(.12,p[2]/maxW):0.5]);
+    if(layer){map.removeLayer(layer);layer=null;}
+    if(playHeat){ playHeat.setLatLngs(pts); } else { playHeat=L.heatLayer(pts,{radius:18,blur:14,maxZoom:12,minOpacity:.3,gradient:{0.2:"#0A6CCB",0.45:"#01B52D",0.75:"#FD5900",1:"#E5484D"}}).addTo(map); }
+    const sl=document.getElementById("htpslider"); if(sl&&document.activeElement!==sl)sl.value=minute;
+    const tl=document.getElementById("htptime"); if(tl)tl.textContent=fmtMin(minute);
+    const ct=document.getElementById("htpcount"); if(ct)ct.textContent=ordersSoFar+" orders · €"+Math.round(omzetSoFar).toLocaleString("nl-NL");
+  }
+  function stopPlay(){ playing=false; if(playTimer){clearInterval(playTimer);playTimer=null;} const b=document.getElementById("htpplay"); if(b)b.textContent="▶ Speel dag af"; }
+  function startPlay(){
+    if(!EVG||!EVG.length)return; if(playMin>=1439)playMin=0;
+    playing=true; const b=document.getElementById("htpplay"); if(b)b.textContent="⏸ Pauze";
+    playTimer=setInterval(()=>{ playMin+=8; if(playMin>=1439){ frame(1439); stopPlay(); return; } frame(playMin); }, 90);
+  }
+  async function setupPlay(){
+    const bar=document.getElementById("htplay"); if(!bar)return;
+    stopPlay(); if(playHeat&&map){map.removeLayer(playHeat);} playHeat=null; playMin=0; EV=null; EVG=null;
+    bar.style.display=""; bar.innerHTML='<span class="htplbl">Afspelen</span>'+playBarHtml()+'<span class="htphint">markers verschijnen op volgorde van binnenkomst</span>';
+    document.getElementById("htpcount").textContent="tijdlijn laden…";
+    try{ const r=await fetch("/api/data?view=geoday&shop="+shop+"&date="+day,{cache:"no-store"}); const d=await r.json(); EV=d.events||[]; }catch(e){ EV=[]; }
+    ensureEVG();
+    const ct=document.getElementById("htpcount"); if(ct)ct.textContent=(EVG.length?("0 orders · klaar om af te spelen ("+EVG.length+" op de kaart)"):"geen tijdlijn voor deze dag");
   }
   window.__heatLoad=function(){
     if(!inited){ inited=true; renderControls();
       document.getElementById("htshop").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;shop=b.dataset.s;seg("htshop",b);load();});
       document.getElementById("htmode").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;mode=b.dataset.m;seg("htmode",b);renderControls();load();});
-      document.getElementById("htweight").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;weight=b.dataset.w;seg("htweight",b);draw();renderStat();});
+      document.getElementById("htweight").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;weight=b.dataset.w;seg("htweight",b);draw();renderStat();if(mode==="day"&&EVG&&(playing||playMin>0))frame(playMin);});
       document.getElementById("htviewseg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;view=b.dataset.v;seg("htviewseg",b);draw();});
       document.getElementById("htref").addEventListener("click",()=>load(true));
+      document.getElementById("htplay").addEventListener("click",e=>{ if(e.target.closest("#htpplay")){ if(playing)stopPlay(); else startPlay(); } });
+      document.getElementById("htplay").addEventListener("input",e=>{ if(e.target.id==="htpslider"){ stopPlay(); frame(+e.target.value); } });
       document.getElementById("htdates").addEventListener("change",e=>{ if(e.target.id==="htfrom"){from=e.target.value;load();} else if(e.target.id==="htto"){to=e.target.value;load();} else if(e.target.id==="htday"){day=e.target.value;load();} });
       document.getElementById("htdates").addEventListener("click",e=>{ if(e.target.id==="htprev"){day=addDays(day,-1);renderControls();load();} else if(e.target.id==="htnext"){ const t=ymd(new Date(Date.now()-864e5)); if(day<t){day=addDays(day,1);renderControls();load();} } });
       load(); return;
