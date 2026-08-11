@@ -592,11 +592,73 @@ async function geodiagView(req, res) {
   }
 }
 
+// ---- Order-heatmap: orders in een periode aggregeren per postcode + land (met count + omzet).
+// De frontend geocodeert de postcodes client-side (zippopotam) en tekent de kaart.
+function normPc(cc, pc) {
+  pc = String(pc || "").toUpperCase().replace(/\s+/g, "");
+  if (!pc) return null;
+  if (cc === "NL") { const m = pc.match(/^(\d{4})/); return m ? m[1] : null; }        // PC4
+  const m = pc.match(/^(\d{4,5})/); return m ? m[1] : null;                           // DE/FR: PLZ / code postal
+}
+async function geoOrdersView(req, res) {
+  const q = req.query || {};
+  const shop = String(q.shop || "NL").toUpperCase();
+  const token = shopToken(shop);
+  if (!token) return res.status(400).json({ error: "onbekende shop" });
+  const today = ymd(new Date());
+  const d0 = new Date(); d0.setDate(d0.getDate() - 29);
+  let start = isDate(q.start) ? q.start : ymd(d0), end = isDate(q.end) ? q.end : today;
+  if (start > end) { const t = start; start = end; end = t; }
+  const now = Date.now();
+  const key = "geo_" + shop + "_" + start + "_" + end;
+  if (mCache[key] && now - mCache[key].at < MTTL && !q.fresh) return res.json(mCache[key].data);
+  const dateOf = (o) => String(o.order_created_at || o.order_paid_at || o.created_at || "").slice(0, 10);
+  try {
+    const agg = {}; let orders = 0, omzetTot = 0, capped = false, useFilter = true;
+    const filters = JSON.stringify([
+      { field: "created_at", operator: "gt", value: start + " 00:00:00" },
+      { field: "created_at", operator: "lt", value: end + " 23:59:59" },
+    ]);
+    for (let page = 1; page <= 80; page++) {
+      let j;
+      try { j = await metGet(token, PSTORE + "/orders", useFilter ? { per_page: "100", page: String(page), filters } : { per_page: "100", page: String(page) }); }
+      catch (e) { if (useFilter && page === 1) { useFilter = false; page = 0; continue; } break; }
+      const rows = j.data || j.orders || [];
+      if (!rows.length) break;
+      let anyInRange = false;
+      rows.forEach((o) => {
+        const dt = dateOf(o);
+        if (dt && (dt < start || dt > end)) return;
+        anyInRange = true;
+        const cc = String(o.shipping_address_country || o.billing_address_country || "").toUpperCase();
+        const pc = normPc(cc, o.shipping_address_postcode || o.billing_address_postcode);
+        const plaats = o.shipping_address_city || o.billing_address_city || "";
+        const rev = +(o.net != null ? o.net : o.total) || 0;
+        orders++; omzetTot += rev;
+        if (!cc || !pc) return;
+        const k = cc + "|" + pc;
+        const a = agg[k] || (agg[k] = { cc, pc, plaats, count: 0, omzet: 0 });
+        a.count++; a.omzet += rev; if (!a.plaats && plaats) a.plaats = plaats;
+      });
+      if (!anyInRange && page > 1) break;                 // voorbij de startdatum (newest-first)
+      if (rows.length < 100) break;
+      if (page === 80) capped = true;
+    }
+    const points = Object.values(agg).map((p) => ({ ...p, omzet: Math.round(p.omzet) })).sort((a, b) => b.count - a.count);
+    const out = { shop, start, end, points, total: { orders, omzet: Math.round(omzetTot) }, capped, updated: new Date().toISOString() };
+    mCache[key] = { at: now, data: out };
+    res.json(out);
+  } catch (e) {
+    res.status(500).json({ error: e.message || "geo-orders ophalen mislukt" });
+  }
+}
+
 module.exports = async (req, res) => {
   const s = getSession(req);
   if (!s) return res.status(401).json({ error: "unauthorized" });
   if (req.method === "POST" && req.query && req.query.view === "market") return marketWrite(req, res, s);
   if (req.query && req.query.view === "geodiag") return geodiagView(req, res);
+  if (req.query && req.query.view === "geoorders") return geoOrdersView(req, res);
   if (req.query && req.query.view === "metrics") return metricsView(req, res);
   if (req.query && req.query.view === "product") return productView(req, res);
   if (req.query && req.query.view === "market") return marketView(req, res);
