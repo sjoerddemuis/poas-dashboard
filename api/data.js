@@ -614,22 +614,16 @@ async function geoOrdersView(req, res) {
   if (mCache[key] && now - mCache[key].at < MTTL && !q.fresh) return res.json(mCache[key].data);
   const dateOf = (o) => String(o.order_created_at || o.order_paid_at || o.created_at || "").slice(0, 10);
   try {
-    const agg = {}; let orders = 0, omzetTot = 0, capped = false, useFilter = true;
-    const filters = JSON.stringify([
-      { field: "created_at", operator: "gt", value: start + " 00:00:00" },
-      { field: "created_at", operator: "lt", value: end + " 23:59:59" },
-    ]);
-    for (let page = 1; page <= 80; page++) {
+    const agg = {}; let orders = 0, omzetTot = 0, capped = false;
+    for (let page = 1; page <= 120; page++) {
       let j;
-      try { j = await metGet(token, PSTORE + "/orders", useFilter ? { per_page: "100", page: String(page), filters } : { per_page: "100", page: String(page) }); }
-      catch (e) { if (useFilter && page === 1) { useFilter = false; page = 0; continue; } break; }
+      try { j = await metGet(token, PSTORE + "/orders", { per_page: "100", page: String(page), start_date: start, end_date: end }); }
+      catch (e) { break; }
       const rows = j.data || j.orders || [];
       if (!rows.length) break;
-      let anyInRange = false;
       rows.forEach((o) => {
         const dt = dateOf(o);
-        if (dt && (dt < start || dt > end)) return;
-        anyInRange = true;
+        if (dt && (dt < start || dt > end)) return;       // veiligheidsnet
         const cc = String(o.shipping_address_country || o.billing_address_country || "").toUpperCase();
         const pc = normPc(cc, o.shipping_address_postcode || o.billing_address_postcode);
         const plaats = o.shipping_address_city || o.billing_address_city || "";
@@ -640,9 +634,8 @@ async function geoOrdersView(req, res) {
         const a = agg[k] || (agg[k] = { cc, pc, plaats, count: 0, omzet: 0 });
         a.count++; a.omzet += rev; if (!a.plaats && plaats) a.plaats = plaats;
       });
-      if (!anyInRange && page > 1) break;                 // voorbij de startdatum (newest-first)
       if (rows.length < 100) break;
-      if (page === 80) capped = true;
+      if (page === 120) capped = true;
     }
     const points = Object.values(agg).map((p) => ({ ...p, omzet: Math.round(p.omzet) })).sort((a, b) => b.count - a.count);
     const out = { shop, start, end, points, total: { orders, omzet: Math.round(omzetTot) }, capped, updated: new Date().toISOString() };
