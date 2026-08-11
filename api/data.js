@@ -752,12 +752,18 @@ async function geoOrdersView(req, res) {
 async function geoDayView(req, res) {
   const q = req.query || {};
   const shop = String(q.shop || "NL").toUpperCase();
-  if (!shopToken(shop)) return res.status(400).json({ error: "onbekende shop" });
+  const token = shopToken(shop);
+  if (!token) return res.status(400).json({ error: "onbekende shop" });
   const date = isDate(q.date) ? q.date : ymd(new Date());
   let ev = null; try { ev = await getKey(geKey(shop, date)); } catch (e) {}
+  let src = "kv";
+  if (!Array.isArray(ev) && !q.nofetch) {
+    // Nog niet in opslag → deze ene dag live ophalen en cachen (één dag = licht voor Metorik).
+    try { await geoAggregateWindow(token, shop, date, date); ev = await getKey(geKey(shop, date)); src = "live"; } catch (e) {}
+  }
   ev = Array.isArray(ev) ? ev : [];
   const events = ev.map((e) => ({ m: e[0], cc: e[1], pc: e[2], omzet: e[3] || 0 }));
-  res.json({ shop, date, events, count: events.length, source: "kv" });
+  res.json({ shop, date, events, count: events.length, source: src });
 }
 
 module.exports = async (req, res) => {
