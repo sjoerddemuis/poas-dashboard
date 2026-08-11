@@ -3535,8 +3535,6 @@ window.__kernLoad=function(){
     c.innerHTML=''
       +'<div class="dcards">'+cards+'</div>'
       +'<div class="dpanel"><div class="hd">Doelen instellen</div><div class="hs">Kies per shop of je op kosten (AVK) of op marge stuurt, en zet de drempel. Wordt onthouden in deze browser.</div><div class="dcfg">'+cfgHtml+'</div></div>'
-      +'<div class="dpanel"><div class="hd">Overzicht — '+MNAMES[R.mo-1]+' '+R.y+'</div><div class="hs">De vetgedrukte kolom is waar de shop op stuurt; groen = binnen doel, rood = eroverheen.</div>'
-      +'<table><thead><tr><th>Shop</th><th>Omzet</th><th>Verkoopkosten</th><th>Winst</th><th>AVK</th><th>Marge</th><th>Doel &amp; status</th></tr></thead><tbody>'+body+'</tbody></table></div>'
       +daily
       +'<div class="dnote">Verkoopkosten = transactie- + advertentie- + operationele kosten uit Metorik. AVK = verkoopkosten ÷ omzet. Marge = winst ÷ omzet (winst = omzet minus alle kosten). '+(R.isCur?'Prognose = maand-tot-nu + resterende dagen × het 7-daags daggemiddelde (laatste 7 volledige dagen) — dezelfde run-rate-methode als de Prognose-tab.':'Volledige maand.')+'</div>';
   }
