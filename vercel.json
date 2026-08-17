@@ -6,6 +6,6 @@
   },
   "crons": [
     { "path": "/api/pricing", "schedule": "0 6 * * *" },
-    { "path": "/api/data?view=georefresh&mode=backfill&key=owgeo", "schedule": "*/6 * * * *" }
+    { "path": "/api/data?view=georefresh&mode=backfill&key=owgeo", "schedule": "0 4 * * *" }
   ]
 }
