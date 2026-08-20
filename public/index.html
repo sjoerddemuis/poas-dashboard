@@ -634,6 +634,7 @@ summary{border-radius:11px;font-weight:600}
         <button class="snav" data-sec="kosten">Verkoopkosten</button>
         <button class="snav" data-sec="ads">Google Ads</button>
         <button class="snav" data-sec="reviews">Reviews</button>
+        <button class="snav" data-sec="tel">Telefonie</button>
       </div>
     </div>
   </div>
@@ -870,6 +871,61 @@ summary{border-radius:11px;font-weight:600}
     <div id="htmap"></div>
     <div id="httop" class="httop"></div>
   </div><!-- /sec-heat -->
+
+  <div id="sec-tel" style="display:none">
+    <style>
+    #sec-tel .tsub{color:var(--mute);font-size:13px;margin:0 0 14px;line-height:1.5;max-width:940px}
+    #sec-tel .tbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 12px;margin-bottom:14px;box-shadow:var(--shadow)}
+    #sec-tel .knseg{display:inline-flex;border:1.5px solid var(--line);border-radius:9px;overflow:hidden}
+    #sec-tel .knseg button{border:0;border-right:1px solid var(--line);background:var(--card);color:var(--ink);font-size:12px;font-weight:700;padding:7px 13px;cursor:pointer}
+    #sec-tel .knseg button:last-child{border-right:0}
+    #sec-tel .knseg button.on{background:var(--green);color:#fff}
+    #sec-tel .tlbl{font-size:11px;color:var(--mute);font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+    #sec-tel .ttf{font-size:12px;color:var(--mute);display:flex;align-items:center;gap:5px}
+    #sec-tel .ttf input{font-size:12px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:5px 7px}
+    #sec-tel .tsep{flex:1}
+    #sec-tel .tclear{border:none;background:none;color:var(--mute);cursor:pointer;font-size:12px;text-decoration:underline}
+    #sec-tel .tcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px}
+    #sec-tel .tcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 15px;box-shadow:var(--shadow);border-left:5px solid var(--line)}
+    #sec-tel .tcard.in{border-left-color:var(--green)}
+    #sec-tel .tcard.out{border-left-color:var(--blue)}
+    #sec-tel .tcard.miss{border-left-color:var(--orange)}
+    #sec-tel .tcard .tt{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--mute)}
+    #sec-tel .tcard .tv{font-size:27px;font-weight:800;line-height:1.05;margin-top:6px;letter-spacing:-.5px}
+    #sec-tel .tcard .th{font-size:11.5px;color:var(--mute);margin-top:5px;line-height:1.45}
+    #sec-tel .tchartwrap{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);margin-bottom:16px}
+    #sec-tel .tcharthd{font-weight:700;font-size:14px;margin-bottom:3px}
+    #sec-tel .tchartsub{font-size:11.5px;color:var(--mute);margin-bottom:10px}
+    #sec-tel .tchartbox{position:relative;height:330px}
+    #sec-tel .ttbl{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:4px 14px 12px;box-shadow:var(--shadow)}
+    #sec-tel .ttscroll{overflow-x:auto;border-radius:8px;border:1px solid var(--line)}
+    #sec-tel table{width:100%;border-collapse:collapse;font-size:13px;min-width:720px}
+    #sec-tel th{color:var(--mute);font-weight:600;font-size:10px;letter-spacing:.3px;text-transform:uppercase;text-align:right;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+    #sec-tel th:first-child,#sec-tel td:first-child{text-align:left;position:sticky;left:0;background:var(--card);box-shadow:1px 0 0 var(--line)}
+    #sec-tel td{padding:8px 10px;text-align:right;border-top:1px solid var(--line);white-space:nowrap}
+    #sec-tel .tin{color:var(--greenDk);font-weight:700}
+    #sec-tel .tout{color:var(--blue);font-weight:700}
+    #sec-tel .tupl{margin-top:20px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow)}
+    #sec-tel .tuph{font-weight:700;font-size:14px}
+    #sec-tel .tupsub{font-size:11.5px;color:var(--mute);margin:3px 0 12px;line-height:1.5;max-width:860px}
+    #sec-tel .tupbtn{display:inline-block;border-radius:9px;background:var(--green);color:#fff;font-size:13px;font-weight:700;padding:9px 18px;cursor:pointer;border:0}
+    #sec-tel .tupmsg{font-size:12px;color:var(--mute);margin-left:12px}
+    #sec-tel .tloading,#sec-tel .terr{padding:40px;text-align:center;color:var(--mute)}
+    </style>
+    <div class="tsub">Hoeveel tijd gaat er op aan bellen? Per <b>maand</b> of per <b>dag</b>, met <b>inkomend</b> en <b>uitgaand</b> apart. Gespreksduur telt alleen opgenomen gesprekken; oproepen van 0 seconden staan apart als <b>gemist / niet opgenomen</b>.</div>
+    <div class="tbar">
+      <span class="tlbl">Weergave</span>
+      <div class="knseg" id="tgran"><button data-g="month" class="on">Per maand</button><button data-g="day">Per dag</button></div>
+      <span class="tlbl">Meten in</span>
+      <div class="knseg" id="tmetric"><button data-m="hours" class="on">Uren</button><button data-m="calls">Gesprekken</button></div>
+      <label class="ttf">van <input type="date" id="tfrom"></label>
+      <label class="ttf">tot <input type="date" id="tto"></label>
+      <button class="tclear" id="tclear">✕ tijdvak wissen</button>
+      <span class="tsep"></span>
+      <button id="tref" class="tclear">↻ Ververs</button>
+    </div>
+    <div id="telcontent"><div class="tloading">Telefoniedata laden…</div></div>
+  </div><!-- /sec-tel -->
 
   <div id="sec-ronada" style="display:none">
     <div class="rsub">Aandeel eigen huismerk (<b>Ronada + RTM</b>) t.o.v. alle overige merken — maand op maand, live uit Metorik. Omzet = excl. btw &amp; verzending.</div>
@@ -3821,10 +3877,166 @@ window.__kernLoad=function(){
     if(!HT)load(); else setTimeout(()=>{try{if(map)map.invalidateSize();}catch(e){}},60);
   };
 })();
+/* ===== Telefonie (belminuten per maand/dag, inkomend vs uitgaand) ===== */
+(function(){
+  const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+  const MND=["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
+  let TEL=null, tInited=false, tChart=null, tGran="month", tMetric="hours", tFrom="", tTo="";
+  const admin=()=>!!(window.isAdmin&&window.isAdmin());
+  const int0=n=>(n==null||!isFinite(n))?"—":Math.round(n).toLocaleString("nl-NL");
+  const h1=n=>(n==null||!isFinite(n))?"—":(Math.round(n/360)/10).toLocaleString("nl-NL",{minimumFractionDigits:1,maximumFractionDigits:1})+" u";
+  function hms(sec){ if(sec==null||!isFinite(sec))return "—"; sec=Math.round(sec); const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),x=sec%60;
+    return h?(h+"u "+String(m).padStart(2,"0")+"m"):(m?(m+"m "+String(x).padStart(2,"0")+"s"):(x+"s")); }
+  function label(k){ if(tGran==="month"){const p=k.split("-");return MND[+p[1]-1]+" "+p[0];} const p=k.split("-"); return p[2]+"-"+p[1]; }
+
+  // ---- CSV inlezen (puntkomma-gescheiden export, waarden tussen aanhalingstekens)
+  function splitLine(l){ const out=[]; let cur="",q=false;
+    for(let i=0;i<l.length;i++){ const c=l[i];
+      if(c==='"'){ if(q&&l[i+1]==='"'){cur+='"';i++;} else q=!q; }
+      else if(c===";"&&!q){ out.push(cur); cur=""; }
+      else cur+=c; }
+    out.push(cur); return out; }
+  function parseCsv(text){
+    const lines=text.split(/\r?\n/).filter(l=>l.trim().length);
+    if(lines.length<2) return {days:{},rows:0};
+    const head=splitLine(lines[0]).map(h=>h.replace(/"/g,"").toLowerCase().trim());
+    const iDate=head.findIndex(h=>h.indexOf("datum")>=0);
+    const iDir=head.findIndex(h=>h.indexOf("inkomend")>=0||h.indexOf("richting")>=0);
+    const iDur=head.findIndex(h=>h.indexOf("tijdsduur")>=0||h.indexOf("duur")>=0);
+    if(iDate<0||iDir<0||iDur<0) return {days:{},rows:0,err:"kolommen Datum / Inkomend-Uitgaand / Tijdsduur niet gevonden"};
+    const days={}; let rows=0;
+    for(let i=1;i<lines.length;i++){
+      const c=splitLine(lines[i]).map(x=>x.replace(/^"|"$/g,"").trim());
+      const date=(c[iDate]||"").slice(0,10); if(!/^\d{4}-\d{2}-\d{2}$/.test(date))continue;
+      const dir=(c[iDir]||"").toLowerCase().indexOf("inkom")>=0?"in":"out";
+      const sec=Math.max(0,parseInt(c[iDur]||"0",10)||0);
+      const d=days[date]||(days[date]={in:{calls:0,sec:0,missed:0},out:{calls:0,sec:0,missed:0}});
+      d[dir].calls++; d[dir].sec+=sec; if(sec===0)d[dir].missed++;
+      rows++;
+    }
+    return {days,rows};
+  }
+
+  function inRange(date){ if(tFrom&&date<tFrom)return false; if(tTo&&date>tTo)return false; return true; }
+  function buckets(){
+    const days=(TEL&&TEL.days)||[];
+    const map={};
+    days.forEach(d=>{ if(!inRange(d.date))return;
+      const k=tGran==="month"?d.date.slice(0,7):d.date;
+      const b=map[k]||(map[k]={in:{calls:0,sec:0,missed:0},out:{calls:0,sec:0,missed:0}});
+      ["in","out"].forEach(w=>{ b[w].calls+=d[w].calls; b[w].sec+=d[w].sec; b[w].missed+=d[w].missed; });
+    });
+    return Object.keys(map).sort().map(k=>({key:k,label:label(k),...map[k]}));
+  }
+  function drawChart(bks){
+    if(typeof Chart==="undefined")return; const box=document.getElementById("telchart"); if(!box)return;
+    if(tChart){tChart.destroy();tChart=null;}
+    const labels=bks.map(b=>b.label);
+    const val=(b,w)=>tMetric==="hours"?Math.round(b[w].sec/360)/10:b[w].calls;
+    tChart=new Chart(box,{type:"bar",
+      data:{labels,datasets:[
+        {label:"Inkomend",data:bks.map(b=>val(b,"in")),backgroundColor:"#01B52D",borderRadius:4,stack:"s"},
+        {label:"Uitgaand",data:bks.map(b=>val(b,"out")),backgroundColor:"#0A6CCB",borderRadius:4,stack:"s"}]},
+      options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
+        plugins:{legend:{position:"top",labels:{boxWidth:12,font:{size:11}}},
+          tooltip:{callbacks:{label:ctx=>{const b=bks[ctx.dataIndex],w=ctx.datasetIndex===0?"in":"out";
+            return ctx.dataset.label+": "+(tMetric==="hours"?hms(b[w].sec):int0(b[w].calls)+" gesprekken")+
+              " · "+(tMetric==="hours"?(int0(b[w].calls)+" gesprekken"):hms(b[w].sec));}}}},
+        scales:{x:{stacked:true,grid:{display:false},ticks:{maxRotation:0,autoSkip:true}},
+          y:{stacked:true,beginAtZero:true,title:{display:true,text:tMetric==="hours"?"uren":"gesprekken"}}}}});
+  }
+  function uploadPanel(){
+    if(!admin())return "";
+    return '<div class="tupl"><div class="tuph">Belgegevens toevoegen</div>'
+      +'<div class="tupsub">Upload de CSV-export van je telefooncentrale (kolommen <b>Datum</b>, <b>Inkomend / Uitgaand</b>, <b>Tijdsduur</b>). Je kunt meerdere maandbestanden tegelijk kiezen. Een dag die je opnieuw uploadt wordt overschreven, dus dubbel uploaden kan geen kwaad.</div>'
+      +'<input type="file" id="telfile" accept=".csv,text/csv" multiple style="display:none">'
+      +'<button class="tupbtn" id="telpick">CSV-bestand(en) kiezen</button>'
+      +'<span class="tupmsg" id="telmsg">'+(TEL&&TEL.updated?("laatst bijgewerkt "+esc(String(TEL.updated).slice(0,10))):"")+'</span></div>';
+  }
+  function render(){
+    const c=document.getElementById("telcontent"); if(!c)return;
+    if(!TEL){ c.innerHTML='<div class="tloading">Telefoniedata laden…</div>'; return; }
+    const bks=buckets();
+    if(!bks.length){
+      c.innerHTML='<div class="tchartwrap"><div class="tcharthd">Nog geen telefoniedata</div><div class="tchartsub">'
+        +(admin()?"Upload hieronder je CSV-export om te beginnen.":"Vraag een beheerder om de belgegevens te uploaden.")+'</div></div>'+uploadPanel();
+      return;
+    }
+    let tin=0,tout=0,cin=0,cout=0,min=0,mout=0;
+    bks.forEach(b=>{tin+=b.in.sec;tout+=b.out.sec;cin+=b.in.calls;cout+=b.out.calls;min+=b.in.missed;mout+=b.out.missed;});
+    const totSec=tin+tout, totCalls=cin+cout;
+    const perLbl=tGran==="month"?"maand":"dag";
+    const cards='<div class="tcards">'
+      +'<div class="tcard"><div class="tt">Totale beltijd</div><div class="tv">'+hms(totSec)+'</div><div class="th">'+int0(totCalls)+' gesprekken · gem. '+hms(totCalls?totSec/totCalls:0)+'</div></div>'
+      +'<div class="tcard in"><div class="tt">Inkomend</div><div class="tv" style="color:var(--greenDk)">'+hms(tin)+'</div><div class="th">'+int0(cin)+' gesprekken · gem. '+hms(cin?tin/cin:0)+'<br>'+(totSec?Math.round(tin/totSec*100):0)+'% van alle beltijd</div></div>'
+      +'<div class="tcard out"><div class="tt">Uitgaand</div><div class="tv" style="color:var(--blue)">'+hms(tout)+'</div><div class="th">'+int0(cout)+' gesprekken · gem. '+hms(cout?tout/cout:0)+'<br>'+(totSec?Math.round(tout/totSec*100):0)+'% van alle beltijd</div></div>'
+      +'<div class="tcard"><div class="tt">Gemiddeld per '+perLbl+'</div><div class="tv">'+hms(totSec/bks.length)+'</div><div class="th">'+int0(totCalls/bks.length)+' gesprekken per '+perLbl+' · '+bks.length+' '+perLbl+'en met data</div></div>'
+      +'<div class="tcard miss"><div class="tt">Gemist / niet opgenomen</div><div class="tv" style="color:var(--orange)">'+int0(min+mout)+'</div><div class="th">'+int0(min)+' inkomend · '+int0(mout)+' uitgaand<br>oproepen van 0 seconden</div></div>'
+      +'</div>';
+    const chart='<div class="tchartwrap"><div class="tcharthd">Beltijd per '+perLbl+'</div>'
+      +'<div class="tchartsub">Gestapeld: inkomend (groen) en uitgaand (blauw)'+(tMetric==="hours"?" in uren":" in aantal gesprekken")+' · hover voor de exacte tijd</div>'
+      +'<div class="tchartbox"><canvas id="telchart"></canvas></div></div>';
+    const th='<tr><th>'+(tGran==="month"?"Maand":"Dag")+'</th><th>Gesprekken in</th><th>Tijd in</th><th>Gem. in</th><th>Gesprekken uit</th><th>Tijd uit</th><th>Gem. uit</th><th>Totale tijd</th><th>Gemist</th></tr>';
+    const body=bks.slice().reverse().map(b=>{
+      const ts=b.in.sec+b.out.sec;
+      return '<tr><td><b>'+esc(b.label)+'</b></td>'
+        +'<td>'+int0(b.in.calls)+'</td><td class="tin">'+hms(b.in.sec)+'</td><td>'+hms(b.in.calls?b.in.sec/b.in.calls:0)+'</td>'
+        +'<td>'+int0(b.out.calls)+'</td><td class="tout">'+hms(b.out.sec)+'</td><td>'+hms(b.out.calls?b.out.sec/b.out.calls:0)+'</td>'
+        +'<td><b>'+hms(ts)+'</b></td><td>'+int0(b.in.missed+b.out.missed)+'</td></tr>';
+    }).join("");
+    const tbl='<div class="ttbl"><div class="ttscroll"><table><thead>'+th+'</thead><tbody>'+body+'</tbody></table></div></div>';
+    c.innerHTML=cards+chart+tbl+uploadPanel();
+    drawChart(bks);
+  }
+  async function fetchCalls(){
+    const c=document.getElementById("telcontent"); if(c&&!TEL)c.innerHTML='<div class="tloading">Telefoniedata laden…</div>';
+    try{
+      const r=await fetch("/api/data?view=calls",{cache:"no-store"});
+      if(r.status===401){location.href="/login.html";return;}
+      const d=await r.json(); if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
+      TEL=d; render();
+    }catch(e){ const el=document.getElementById("telcontent"); if(el)el.innerHTML='<div class="terr">Kon telefoniedata niet laden.<br><small>'+esc(e.message||e)+'</small></div>'; }
+  }
+  async function handleFiles(files){
+    const msg=document.getElementById("telmsg");
+    const all={}; let rows=0, err="";
+    for(const f of files){
+      try{ const txt=await f.text(); const p=parseCsv(txt);
+        if(p.err){ err=p.err; continue; }
+        rows+=p.rows;
+        Object.keys(p.days).forEach(dt=>{ const a=all[dt]||(all[dt]={in:{calls:0,sec:0,missed:0},out:{calls:0,sec:0,missed:0}});
+          ["in","out"].forEach(w=>{ a[w].calls+=p.days[dt][w].calls; a[w].sec+=p.days[dt][w].sec; a[w].missed+=p.days[dt][w].missed; }); });
+      }catch(e){ err=String(e.message||e); }
+    }
+    const dagen=Object.keys(all).length;
+    if(!dagen){ if(msg)msg.textContent="Geen bruikbare regels gevonden"+(err?(" — "+err):""); return; }
+    if(msg)msg.textContent="Bezig met opslaan… ("+rows+" gesprekken, "+dagen+" dagen)";
+    try{
+      const r=await fetch("/api/data?view=calls",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({days:all})});
+      const d=await r.json(); if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
+      if(msg)msg.textContent="Opgeslagen: "+rows+" gesprekken over "+dagen+" dagen.";
+      await fetchCalls();
+    }catch(e){ if(msg)msg.textContent="Opslaan mislukt: "+(e.message||e); }
+  }
+  window.__telLoad=function(){
+    if(!tInited){ tInited=true;
+      document.getElementById("tgran").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;tGran=b.dataset.g;[...document.querySelectorAll("#tgran button")].forEach(x=>x.classList.toggle("on",x===b));render();});
+      document.getElementById("tmetric").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;tMetric=b.dataset.m;[...document.querySelectorAll("#tmetric button")].forEach(x=>x.classList.toggle("on",x===b));render();});
+      document.getElementById("tfrom").addEventListener("change",e=>{tFrom=e.target.value;render();});
+      document.getElementById("tto").addEventListener("change",e=>{tTo=e.target.value;render();});
+      document.getElementById("tclear").addEventListener("click",()=>{tFrom="";tTo="";document.getElementById("tfrom").value="";document.getElementById("tto").value="";render();});
+      document.getElementById("tref").addEventListener("click",()=>fetchCalls());
+      document.getElementById("telcontent").addEventListener("click",e=>{ if(e.target.closest("#telpick")){ const f=document.getElementById("telfile"); if(f)f.click(); } });
+      document.getElementById("telcontent").addEventListener("change",e=>{ if(e.target.id==="telfile"&&e.target.files&&e.target.files.length){ handleFiles([...e.target.files]); e.target.value=""; } });
+      fetchCalls(); return;
+    }
+    if(!TEL)fetchCalls(); else render();
+  };
+})();
 /* ===== Sectienavigatie (onthoudt actieve tab via URL-hash) ===== */
 (function(){
   const nav=document.getElementById("secnav");
-  const SECS=["poas","kern","prod","market","heat","ronada","prijs","voorraad","ads","reviews","kosten","forecast","doel","prest"];
+  const SECS=["poas","kern","prod","market","heat","ronada","prijs","voorraad","ads","reviews","tel","kosten","forecast","doel","prest"];
   function activate(sec,updateHash){
     if(!SECS.includes(sec))sec="poas";
     const b=nav.querySelector('.snav[data-sec="'+sec+'"]');
@@ -3840,6 +4052,7 @@ window.__kernLoad=function(){
     if(sec==="voorraad"&&window.__voorraadLoad)window.__voorraadLoad();
     if(sec==="ads"&&window.__adsLoad)window.__adsLoad();
     if(sec==="reviews"&&window.__reviewsLoad)window.__reviewsLoad();
+    if(sec==="tel"&&window.__telLoad)window.__telLoad();
     if(sec==="kosten"&&window.__kostenLoad)window.__kostenLoad();
     if(sec==="forecast"){ if(window.__forecastLoad)window.__forecastLoad(); if(window.__scenarioInit)window.__scenarioInit(); }
     if(sec==="doel"&&window.__doelLoad)window.__doelLoad();
