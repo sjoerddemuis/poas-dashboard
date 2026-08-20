@@ -766,17 +766,65 @@ async function geoDayView(req, res) {
   res.json({ shop, date, events, count: events.length, source: src });
 }
 
+// ---- Telefonie: belminuten per dag, inkomend/uitgaand gescheiden.
+// De browser leest de CSV-export uit en stuurt per dag een aggregaat; dat bewaren we in KV.
+const CALLS_KEY = "calls:agg";
+async function loadCalls() {
+  try { const d = await getKey(CALLS_KEY); return (d && d.days && typeof d.days === "object") ? d : { days: {}, updated: "" }; }
+  catch (e) { return { days: {}, updated: "" }; }
+}
+async function callsView(req, res) {
+  try {
+    const d = await loadCalls();
+    const days = d.days || {};
+    const out = Object.keys(days).sort().map((date) => {
+      const x = days[date] || {}, inn = x.in || {}, uit = x.out || {};
+      return {
+        date,
+        in: { calls: +inn.calls || 0, sec: +inn.sec || 0, missed: +inn.missed || 0 },
+        out: { calls: +uit.calls || 0, sec: +uit.sec || 0, missed: +uit.missed || 0 },
+      };
+    });
+    res.json({ days: out, updated: d.updated || "", source: "kv" });
+  } catch (e) { res.status(500).json({ error: e.message || "telefonie ophalen mislukt" }); }
+}
+async function callsWrite(req, res, s) {
+  if (!s || s.role !== "admin") return res.status(403).json({ error: "alleen admin mag telefoniedata wijzigen" });
+  let body;
+  try { body = await readBody(req); } catch (e) { return res.status(400).json({ error: "ongeldige body" }); }
+  const st = await loadCalls();
+  if (body && body.action === "clear") {
+    st.days = {};
+  } else {
+    const days = (body && body.days) || {};
+    let n = 0;
+    Object.keys(days).forEach((date) => {
+      if (!isDate(date) || n++ > 4000) return;
+      const x = days[date] || {}, inn = x.in || {}, uit = x.out || {};
+      st.days[date] = {                                  // hele dag vervangen: opnieuw uploaden geeft dezelfde uitkomst
+        in: { calls: Math.max(0, +inn.calls || 0), sec: Math.max(0, +inn.sec || 0), missed: Math.max(0, +inn.missed || 0) },
+        out: { calls: Math.max(0, +uit.calls || 0), sec: Math.max(0, +uit.sec || 0), missed: Math.max(0, +uit.missed || 0) },
+      };
+    });
+  }
+  st.updated = new Date().toISOString();
+  try { await setKey(CALLS_KEY, st); } catch (e) { return res.status(500).json({ error: "opslaan mislukt" }); }
+  res.json({ ok: true, dagen: Object.keys(st.days).length, updated: st.updated });
+}
+
 module.exports = async (req, res) => {
   if (req.query && req.query.view === "georefresh") return geoRefreshView(req, res);
   const s = getSession(req);
   if (!s) return res.status(401).json({ error: "unauthorized" });
   if (req.method === "POST" && req.query && req.query.view === "market") return marketWrite(req, res, s);
+  if (req.method === "POST" && req.query && req.query.view === "calls") return callsWrite(req, res, s);
   if (req.query && req.query.view === "geodiag") return geodiagView(req, res);
   if (req.query && req.query.view === "geoorders") return geoOrdersView(req, res);
   if (req.query && req.query.view === "geoday") return geoDayView(req, res);
   if (req.query && req.query.view === "metrics") return metricsView(req, res);
   if (req.query && req.query.view === "product") return productView(req, res);
   if (req.query && req.query.view === "market") return marketView(req, res);
+  if (req.query && req.query.view === "calls") return callsView(req, res);
   if (req.query && req.query.view === "forecast") return forecastView(req, res);
   const now = Date.now();
   if (cache && now - cacheAt < TTL) return res.json(cache);
