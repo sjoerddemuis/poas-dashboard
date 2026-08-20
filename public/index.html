@@ -3966,11 +3966,13 @@ window.__kernLoad=function(){
     bks.forEach(b=>{tin+=b.in.sec;tout+=b.out.sec;cin+=b.in.calls;cout+=b.out.calls;min+=b.in.missed;mout+=b.out.missed;});
     const totSec=tin+tout, totCalls=cin+cout;
     const perLbl=tGran==="month"?"maand":"dag";
+    // Gemiddelde alleen over periodes waarin echt gebeld is (0 seconden gesproken telt niet mee)
+    const act=bks.filter(b=>(b.in.sec+b.out.sec)>0).length, skip=bks.length-act;
     const cards='<div class="tcards">'
       +'<div class="tcard"><div class="tt">Totale beltijd</div><div class="tv">'+hms(totSec)+'</div><div class="th">'+int0(totCalls)+' gesprekken · gem. '+hms(totCalls?totSec/totCalls:0)+'</div></div>'
       +'<div class="tcard in"><div class="tt">Inkomend</div><div class="tv" style="color:var(--greenDk)">'+hms(tin)+'</div><div class="th">'+int0(cin)+' gesprekken · gem. '+hms(cin?tin/cin:0)+'<br>'+(totSec?Math.round(tin/totSec*100):0)+'% van alle beltijd</div></div>'
       +'<div class="tcard out"><div class="tt">Uitgaand</div><div class="tv" style="color:var(--blue)">'+hms(tout)+'</div><div class="th">'+int0(cout)+' gesprekken · gem. '+hms(cout?tout/cout:0)+'<br>'+(totSec?Math.round(tout/totSec*100):0)+'% van alle beltijd</div></div>'
-      +'<div class="tcard"><div class="tt">Gemiddeld per '+perLbl+'</div><div class="tv">'+hms(totSec/bks.length)+'</div><div class="th">'+int0(totCalls/bks.length)+' gesprekken per '+perLbl+' · '+bks.length+' '+perLbl+'en met data</div></div>'
+      +'<div class="tcard"><div class="tt">Gemiddeld per '+perLbl+'</div><div class="tv">'+hms(act?totSec/act:0)+'</div><div class="th">'+int0(act?totCalls/act:0)+' gesprekken per '+perLbl+' · '+act+' '+perLbl+'en met gesprekken'+(skip?(' · '+skip+' zonder gesprekken niet meegeteld'):'')+'</div></div>'
       +'<div class="tcard miss"><div class="tt">Gemist / niet opgenomen</div><div class="tv" style="color:var(--orange)">'+int0(min+mout)+'</div><div class="th">'+int0(min)+' inkomend · '+int0(mout)+' uitgaand<br>oproepen van 0 seconden</div></div>'
       +'</div>';
     const chart='<div class="tchartwrap"><div class="tcharthd">Beltijd per '+perLbl+'</div>'
