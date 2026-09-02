@@ -3693,16 +3693,19 @@ window.__kernLoad=function(){
     const upd=document.getElementById("prupd"); if(upd)upd.textContent=SLABEL[pShop]+" · "+yms.length+" maanden";
     // ---- Maandtabel (nieuwste boven) ----
     const body=yms.slice().reverse().map(ym=>{
-      const m=metr(map[ym]); const y=+ym.slice(0,4), mo=+ym.slice(5,7);
+      const y=+ym.slice(0,4), mo=+ym.slice(5,7);
       const prevYm=(y-1)+"-"+String(mo).padStart(2,"0"); const isCur=ym===curMonth;
+      // Lopende maand: alleen volledig afgeronde dagen meetellen (vandaag telt niet mee).
+      const lastDay=isCur?Math.max(0,+todayY().slice(8,10)-1):0;
+      const m=isCur?metr(partialAgg(pShop,ym,lastDay)):metr(map[ym]);
       // Lopende maand: vergelijk t/m dezelfde dag vorig jaar (dag-op-dag), niet tegen de héle maand.
-      const pv=isCur?metr(partialAgg(pShop,prevYm,+todayY().slice(8,10))):(map[prevYm]?metr(map[prevYm]):null);
-      return '<tr><td>'+MN[mo-1]+' '+y+(isCur?' <span style="color:var(--mute);font-weight:400">(lopend)</span>':'')+'</td>'
+      const pv=isCur?metr(partialAgg(pShop,prevYm,lastDay)):(map[prevYm]?metr(map[prevYm]):null);
+      return '<tr><td>'+MN[mo-1]+' '+y+(isCur?' <span style="color:var(--mute);font-weight:400">(t/m '+lastDay+' '+MN[mo-1]+')</span>':'')+'</td>'
         +'<td>'+num0(m.orders)+'</td><td>'+eur0(m.omzet)+'</td><td>'+eur0(m.winst)+'</td>'
         +'<td>'+pct1(m.marge)+'</td><td>'+eur2(m.aov)+'</td><td>'+pct1(m.avk)+'</td>'
         +gcell(pv?growth(m.orders,pv.orders):null)+gcell(pv?growth(m.omzet,pv.omzet):null)+gcell(pv?growth(m.winst,pv.winst):null)+'</tr>';
     }).join("");
-    const mth='<div class="ppanel"><div class="hd">Per maand — '+pesc(SLABEL[pShop])+'</div><div class="hs">Nieuwste maand bovenaan. Groei = t.o.v. dezelfde maand vorig jaar; de lopende maand wordt vergeleken t/m dezelfde dag als vorig jaar.</div>'
+    const mth='<div class="ppanel"><div class="hd">Per maand — '+pesc(SLABEL[pShop])+'</div><div class="hs">De lopende maand telt alleen volledig afgeronde dagen mee — vandaag doet niet mee, ook niet in de vergelijking met vorig jaar. Nieuwste maand bovenaan. Groei = t.o.v. dezelfde maand vorig jaar; de lopende maand wordt vergeleken t/m dezelfde dag als vorig jaar.</div>'
       +'<div class="ptbl"><table><thead><tr><th>Maand</th><th>Orders</th><th>Omzet</th><th>Winst</th><th>Marge</th><th>AOV</th><th>AVK</th><th>Δ Orders</th><th>Δ Omzet</th><th>Δ Winst</th></tr></thead><tbody>'+body+'</tbody></table></div></div>';
     // ---- Jaartabel ----
     function yearFull(yr){ const a=blank(); Object.keys(map).forEach(ym=>{ if(+ym.slice(0,4)!==yr)return; if(ym===curMonth)return; addAgg(a,map[ym]); }); return a; }
