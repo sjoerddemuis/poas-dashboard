@@ -2507,6 +2507,12 @@ const ADSNAME="Advertentiekosten (Metorik)";
 function itemsOf(m){ return kAds?Object.assign({},m.items,{[ADSNAME]:(K.ads&&K.ads[m.key])||0}):m.items; }
 function totalOf(m){ return kAds?(m.total||0)+((K.ads&&K.ads[m.key])||0):(m.total||0); }
 function allNames(){ return kAds?K.names.concat([ADSNAME]):K.names; }
+// De betaalkosten uit Metorik (transactiekosten per land) tellen we op bij de sheetpost "Payments".
+const PAYPOST="Payments";
+function mergePayments(){ const T=K.transByLand||{}; const codes=Object.keys(T); if(!codes.length)return;
+  (K.months||[]).forEach(m=>{ const extra=codes.reduce((a,c)=>a+((T[c]&&T[c][m.key])||0),0); if(!extra)return;
+    m.items=m.items||{}; m.items[PAYPOST]=(m.items[PAYPOST]||0)+extra; m.total=(m.total||0)+extra; });
+  if(Array.isArray(K.names)&&K.names.indexOf(PAYPOST)<0){ K.names.push(PAYPOST); K.names.sort((a,b)=>a.localeCompare(b,"nl")); } }
 
 /* --- Dagmodel ---
    Sheet-kosten zijn maandfacturen: die spreiden we gelijk over de dagen van die maand.
@@ -2687,7 +2693,7 @@ function krender(){
   </div>`;
 
   const chart=`<div class="kpanel"><div class="kh">${focus?esc(kPost):"Alle verkoopkosten"} per ${GLBL}</div>
-    <div class="ksub">Maandkosten uit je sheet zijn gelijk verdeeld over de dagen van die maand${kAds?"; adskosten komen per dag uit Metorik":""}. De oranje lijn is kosten als % van je netto-omzet.</div>
+    <div class="ksub">Maandkosten uit je sheet zijn gelijk verdeeld over de dagen van die maand${kAds?"; adskosten komen per dag uit Metorik":""}. Payments = je sheetbedrag plus de transactiekosten uit Metorik. De oranje lijn is kosten als % van je netto-omzet.</div>
     <div class="kchartbox"><canvas id="kchart"></canvas></div></div>`;
 
   // Tabel: alle posten over het bereik (naar rato van de dagen in beeld)
@@ -2776,7 +2782,7 @@ async function kload(fresh){
     if(r.status===401){location.href="/login.html";return;}
     const d=await r.json();
     if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
-    K=d;reindex();
+    K=d; mergePayments();reindex();
     // Standaard datumbereik: hele sheet (eerste maand t/m vandaag of einde laatste maand)
     if(!kFrom||!kTo){
       const ms=K.months||[];
