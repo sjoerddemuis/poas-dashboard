@@ -3455,13 +3455,9 @@ window.__kernLoad=function(){
     const stbl=`<div class="fpanel"><div class="hd"><div class="fph">Per shop — 2026</div><div class="fpsub">Omzet = werkelijk jan–jul + projectie aug–dec. MP staat op €0 sinds feb 2026.</div></div>`
       +`<table><thead><tr><th>Shop</th><th>Jaaromzet 2026</th><th>vs 2025</th><th>H1 (werkelijk)</th><th>H2 (projectie)</th></tr></thead><tbody>${shopRows}</tbody>`
       +`<tfoot><tr><td>Totaal</td><td>${eur(R.jaaromzet)}</td><td>${chg(R.jaaromzet,OM2025)}</td><td>${eur(h1om("NL")+h1om("DE")+h1om("FR")+h1om("MP"))}</td><td>${eur(R.h2omzet)}</td></tr></tfoot></table></div>`;
-    // ad-budget per H2-maand NL/DE
-    const adRows=[7,8,9,10,11].map((m,i)=>{const nl=ST.vk/100*R.per.NL.monShop[i]-OPC.NL; const de=ST.vk/100*R.per.DE.monShop[i]-OPC.DE; return `<tr><td>${MND[m]}</td><td>${eur(nl)}</td><td>${eur(de)}</td></tr>`;}).join("");
-    const adtbl=`<div class="fpanel"><div class="hd"><div class="fph">Benodigd advertentiebudget per maand (H2) — bij ${ST.vk}% verkoopkosten</div><div class="fpsub">Ad-budget = verkoopkosten% × omzet − operationele kosten. Referentie juli 2026: NL ${eur(JUL_AD.NL)}, DE ${eur(JUL_AD.DE)}.</div></div>`
-      +`<table><thead><tr><th>Maand</th><th>NL ad-budget</th><th>DE ad-budget</th></tr></thead><tbody>${adRows}</tbody></table></div>`;
     const chartp=`<div class="fpanel"><div class="hd"><div class="fph">Maandomzet 2025 vs 2026 (alle shops)</div><div class="fpsub">2026 jan–jul werkelijk, aug–dec geprojecteerd (gestippeld).</div></div><div style="padding:12px 16px"><div class="scchartbox"><canvas id="scchart"></canvas></div></div></div>`;
     const note=`<div class="fnote">Winst = Metorik-winst: vóór personeelskosten en overige overhead. · MP herstart telt er bovenop als het weer aangaat. · Juli 2026 is bijna compleet (t/m 30 juli). · Marginale ROAS bij de juli-push: ~2,4× ex btw; verwacht dalend bij verder opschalen. · Scenario's zijn indicatief — pas de aannames aan naar eigen inzicht.</div>`;
-    out.innerHTML=cards+stbl+adtbl+chartp+note;
+    out.innerHTML=cards+stbl+chartp+note;
     drawChart(R);
   }
   function drawChart(R){
