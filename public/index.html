@@ -632,7 +632,6 @@ summary{border-radius:11px;font-weight:600}
       <div class="navmenu">
         <button class="snav" data-sec="voorraad">Voorraad</button>
         <button class="snav" data-sec="kosten">Verkoopkosten</button>
-        <button class="snav" data-sec="ads">Google Ads</button>
         <button class="snav" data-sec="reviews">Reviews</button>
         <button class="snav" data-sec="tel">Telefonie</button>
       </div>
@@ -4043,7 +4042,7 @@ window.__kernLoad=function(){
 /* ===== Sectienavigatie (onthoudt actieve tab via URL-hash) ===== */
 (function(){
   const nav=document.getElementById("secnav");
-  const SECS=["poas","kern","prod","market","heat","ronada","prijs","voorraad","ads","reviews","tel","kosten","forecast","doel","prest"];
+  const SECS=["poas","kern","prod","market","heat","ronada","prijs","voorraad","reviews","tel","kosten","forecast","doel","prest"];
   function activate(sec,updateHash){
     if(!SECS.includes(sec))sec="poas";
     const b=nav.querySelector('.snav[data-sec="'+sec+'"]');
@@ -4057,7 +4056,6 @@ window.__kernLoad=function(){
     if(sec==="ronada"&&window.__ronadaLoad)window.__ronadaLoad();
     if(sec==="prijs"&&window.__prijsLoad)window.__prijsLoad();
     if(sec==="voorraad"&&window.__voorraadLoad)window.__voorraadLoad();
-    if(sec==="ads"&&window.__adsLoad)window.__adsLoad();
     if(sec==="reviews"&&window.__reviewsLoad)window.__reviewsLoad();
     if(sec==="tel"&&window.__telLoad)window.__telLoad();
     if(sec==="kosten"&&window.__kostenLoad)window.__kostenLoad();
