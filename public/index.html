@@ -3352,6 +3352,9 @@ window.__kernLoad=function(){
   const METS={omzet:{label:"Omzet",f:eur0},orders:{label:"Orders",f:int0},winst:{label:"Winst",f:eur0}};
   const mv=o=>o?o[fMet]:null;
   const projOf=o=>{ if(!o)return null; return fBasis==="runrate" ? (o.avg7?o.avg7[fMet]*FC.daysInMonth:null) : (o.proj?o.proj[fMet]:null); };
+  // Marge = winst ÷ omzet; schaalt mee, dus dezelfde marge voor run-rate en realisatie+run-rate.
+  const margeOf=o=>(o&&o.omzet>0)?o.winst/o.omzet*100:null;
+  const projMarge=o=>o?margeOf(fBasis==="runrate"?o.avg7:o.proj):null;
   function render(){
     const c=document.getElementById("fccontent"); if(!c)return;
     if(!FC){c.innerHTML='<div class="floading">Prognose laden…</div>';return;}
@@ -3360,11 +3363,12 @@ window.__kernLoad=function(){
       +`<div class="fcard"><div class="l">7-daags gem. / dag</div><div class="v">${M.f(mv(t.avg7))}</div><div class="s">gem. ${esc(FC.last7.start)} t/m ${esc(FC.last7.end)}</div></div>`
       +`<div class="fcard"><div class="l">Deze maand tot nu (t/m dag ${FC.completedDays})</div><div class="v">${M.f(mv(t.mtd))}</div><div class="s">t/m ${esc(FC.asof)} · vandaag telt nog niet mee</div></div>`
       +`<div class="fcard hl"><div class="l">Prognose ${esc(FC.monthLabel)}</div><div class="v">${M.f(projOf(t))}</div><div class="s">${fBasis==="runrate"?("7-daags gem. × "+FC.daysInMonth+" dagen"):("tot nu + "+FC.daysRemaining+" dagen × 7-daags gem.")}</div></div>`
++`<div class="fcard"><div class="l">Marge prognose</div><div class="v">${pct1(projMarge(t))}</div><div class="s">winst ÷ omzet van de prognose</div></div>`
       +`</div>`;
-    const mrows=landen.map(L=>{const s=FC.shops[L.code]||{};return `<tr class="${L.code==="NL"?"us":""}"><td><b>${esc(L.label)}</b></td><td>${M.f(mv(s.avg7))}</td><td>${M.f(mv(s.mtd))}</td><td><b>${M.f(projOf(s))}</b></td></tr>`;}).join("");
+    const mrows=landen.map(L=>{const s=FC.shops[L.code]||{};return `<tr class="${L.code==="NL"?"us":""}"><td><b>${esc(L.label)}</b></td><td>${M.f(mv(s.avg7))}</td><td>${M.f(mv(s.mtd))}</td><td><b>${M.f(projOf(s))}</b></td><td>${pct1(projMarge(s))}</td></tr>`;}).join("");
     const mtbl=`<div class="fpanel"><div class="hd"><div class="fph">Maandprognose per land — ${esc(FC.monthLabel)}</div><div class="fpsub">${fBasis==="runrate"?("Puur op current run-rate: het 7-daags daggemiddelde × "+FC.daysInMonth+" dagen — alsof je dit tempo de hele maand aanhoudt (negeert wat al is gerealiseerd).") :("Realisatie + run-rate: wat deze maand tot nu toe is gerealiseerd, plus "+FC.daysRemaining+" resterende dagen aan het huidige 7-daags daggemiddelde.")}</div></div>`
-      +`<table><thead><tr><th>Land</th><th>7-daags / dag</th><th>Deze maand tot nu</th><th>Prognose maand</th></tr></thead><tbody>${mrows}</tbody>`
-      +`<tfoot><tr><td>Totaal</td><td>${M.f(mv(t.avg7))}</td><td>${M.f(mv(t.mtd))}</td><td>${M.f(projOf(t))}</td></tr></tfoot></table></div>`;
+      +`<table><thead><tr><th>Land</th><th>7-daags / dag</th><th>Deze maand tot nu</th><th>Prognose maand</th><th>Marge prognose</th></tr></thead><tbody>${mrows}</tbody>`
+      +`<tfoot><tr><td>Totaal</td><td>${M.f(mv(t.avg7))}</td><td>${M.f(mv(t.mtd))}</td><td>${M.f(projOf(t))}</td><td>${pct1(projMarge(t))}</td></tr></tfoot></table></div>`;
     const yc=`<div class="fcards">`
       +`<div class="fcard"><div class="l">Omzet ${FC.year} YTD</div><div class="v">${eur0(t.ytd.omzet)}</div></div>`
       +`<div class="fcard"><div class="l">Orders ${FC.year} YTD</div><div class="v">${int0(t.ytd.orders)}</div></div>`
