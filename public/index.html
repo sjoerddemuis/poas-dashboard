@@ -3863,6 +3863,8 @@ window.__kernLoad=function(){
   // ---- Laden per modus
   async function load(fresh){
     ensureMap(); staticLayer.clearLayers(); blob.clear(); TL=[]; DATA=null;
+    // De kaart kan nog 0 px breed zijn als de sectie net zichtbaar werd; dan even wachten op de layout.
+    map.invalidateSize(); if(!map.getSize().x){ await new Promise(r=>setTimeout(r,200)); map.invalidateSize(); }
     document.getElementById("httop").innerHTML="";
     try{
       if(mode==="range") await loadRange();
@@ -3882,7 +3884,7 @@ window.__kernLoad=function(){
     const keys=[...new Set(pts.map(p=>p.cc+"|"+p.pc))];
     await geocodeKeys(keys,(d,n)=>stat("Postcodes geocoderen… "+d+"/"+n));
     const items=pts.map(p=>{ const ll=CACHE[p.cc+"|"+p.pc]; return ll?{ll,w:weight==="omzet"?p.omzet:p.count,p}:null; }).filter(Boolean);
-    if(view==="heat"){
+    if(view==="heat"&&map.getSize().x){
       const mx=Math.max(1,...items.map(i=>i.w));
       L.heatLayer(items.map(i=>[i.ll[0],i.ll[1],Math.min(1,0.15+i.w/mx)]),{radius:22,blur:18,maxZoom:11,max:1,gradient:{0.2:"#c7f0d2",0.5:"#01B52D",0.8:"#E8710A",1:"#d1242f"}}).addTo(staticLayer);
     }else{
