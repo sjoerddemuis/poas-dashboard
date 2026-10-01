@@ -664,6 +664,17 @@ async function geoRefreshView(req, res) {
   const mode = q.mode || "daily";
   const today = ymd(new Date());
   const shops = q.shop ? [String(q.shop).toUpperCase()] : GEO_SHOPS;
+  // fill (admin): een willekeurig venster van max 14 dagen (opnieuw) inladen, bv. een gat na een pauze.
+  if (mode === "fill") {
+    if (!(s && s.role === "admin")) return res.status(403).json({ error: "alleen admin" });
+    const shop = shops[0]; const token = shopToken(shop); if (!token) return res.status(400).json({ error: "onbekende shop" });
+    let from = isDate(q.from) ? q.from : addD(today, -3), to = isDate(q.to) ? q.to : today;
+    if (from > to) { const t = from; from = to; to = t; }
+    if (addD(from, 14) < to) to = addD(from, 14);
+    let rr = { wroteDays: 0, orders: 0 };
+    try { rr = await geoAggregateWindow(token, shop, from, to); } catch (e) { return res.status(500).json({ error: e.message }); }
+    return res.json({ mode, shop, window: from + ".." + to, wroteDays: rr.wroteDays, orders: rr.orders });
+  }
   if (mode === "status") {
     const metas = {};
     for (const shop of GEO_SHOPS) { let m = null; try { m = await getKey(gmKey(shop)); } catch (e) {} metas[shop] = m || null; }
