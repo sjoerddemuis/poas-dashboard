@@ -3644,9 +3644,9 @@ window.__kernLoad=function(){
   const START="2024-08-01";
   let PM=null, pShop="TOT", pInited=false;
   const pesc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
-  const eur0=n=>isFinite(n)?"€"+Math.round(n).toLocaleString("nl-NL"):"—";
-  const eur2=n=>isFinite(n)?"€"+n.toLocaleString("nl-NL",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
-  const num0=n=>isFinite(n)?Math.round(n).toLocaleString("nl-NL"):"—";
+  const eur0=n=>(n!=null&&isFinite(n))?"€"+Math.round(n).toLocaleString("nl-NL"):"—";
+  const eur2=n=>(n!=null&&isFinite(n))?"€"+n.toLocaleString("nl-NL",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
+  const num0=n=>(n!=null&&isFinite(n))?Math.round(n).toLocaleString("nl-NL"):"—";
   const pct1=n=>(n==null||!isFinite(n))?"—":n.toLocaleString("nl-NL",{minimumFractionDigits:1,maximumFractionDigits:1})+"%";
   function todayY(){ const x=new Date(); return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); }
   function blank(){ return {orders:0,net:0,vk:0,winst:0}; }
