@@ -618,8 +618,8 @@ async function geoAggregateWindow(token, shop, from, to) {
   let seen = 0;
   for (let page = 1; page <= 200; page++) {
     let j;
-    try { j = await metGet(token, PSTORE + "/orders", { per_page: "100", page: String(page), filters: JSON.stringify([{ field: "order_created_at", operator: "gte", value: from + " 00:00:00" }, { field: "order_created_at", operator: "lte", value: to + " 23:59:59" }]) }); }
-    catch (e) { break; }
+    // Fout (bv. Metorik 429) gooien we door: de aanroeper mag de cursor dan NIET verzetten.
+    { j = await metGet(token, PSTORE + "/orders", { per_page: "100", page: String(page), filters: JSON.stringify([{ field: "order_created_at", operator: "gte", value: from + " 00:00:00" }, { field: "order_created_at", operator: "lte", value: to + " 23:59:59" }]) }); }
     const rows = j.data || j.orders || [];
     if (!rows.length) break;
     rows.forEach((o) => {
@@ -722,7 +722,8 @@ async function geoRefreshView(req, res) {
   let winStart = addD(winEnd, -(WIN - 1));
   if (winStart < floor) winStart = floor;
   let r = { wroteDays: 0, orders: 0 };
-  try { r = await geoAggregateWindow(shopToken(pick), pick, winStart, winEnd); } catch (e) {}
+  try { r = await geoAggregateWindow(shopToken(pick), pick, winStart, winEnd); }
+  catch (e) { return res.status(503).json({ mode, shop: pick, window: winStart + ".." + winEnd, error: e.message || String(e), retry: true, cursor: meta.cursor }); }
   meta.cursor = winStart;
   meta.lastWindow = winStart + ".." + winEnd;
   if (winStart <= floor) meta.done = true;
