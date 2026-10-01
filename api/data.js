@@ -766,6 +766,42 @@ async function geoDayView(req, res) {
   res.json({ shop, date, events, count: events.length, source: src });
 }
 
+// Diagnose (admin): welke datumparameters begrijpt Metorik's orders-endpoint echt?
+async function geoProbeView(req, res) {
+  const q = req.query || {};
+  const shop = String(q.shop || "NL").toUpperCase();
+  const token = shopToken(shop);
+  if (!token) return res.status(400).json({ error: "onbekende shop" });
+  const from = isDate(q.from) ? q.from : "2026-03-02", to = isDate(q.to) ? q.to : "2026-03-03";
+  const F = (field, op, value) => JSON.stringify([{ field, operator: op, value }]);
+  const variants = {
+    start_end: { start_date: from, end_date: to },
+    f_created_between: { filters: F("created_at", "between", [from, to]) },
+    f_order_created_between: { filters: F("order_created_at", "between", [from, to]) },
+    f_date_between: { filters: F("date", "between", [from, to]) },
+    f_created_gte: { filters: JSON.stringify([{ field: "created_at", operator: "gte", value: from }, { field: "created_at", operator: "lte", value: to + " 23:59:59" }]) },
+    f_order_created_gte: { filters: JSON.stringify([{ field: "order_created_at", operator: "gte", value: from }, { field: "order_created_at", operator: "lte", value: to + " 23:59:59" }]) },
+    date_from_to: { date_from: from, date_to: to },
+    after_before: { after: from, before: to },
+  };
+  const out = {};
+  for (const k of Object.keys(variants)) {
+    const t0 = Date.now();
+    try {
+      const u = new URL(PSTORE + "/orders");
+      u.searchParams.set("per_page", "5");
+      Object.entries(variants[k]).forEach(([a, b]) => u.searchParams.set(a, b));
+      const r = await fetch(u, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+      const txt = await r.text();
+      let j = null; try { j = JSON.parse(txt); } catch (e) {}
+      const rows = (j && (j.data || j.orders)) || [];
+      const dates = rows.map((o) => String(o.order_created_at || o.created_at || "").slice(0, 16));
+      out[k] = { ms: Date.now() - t0, status: r.status, n: rows.length, dates, meta: j && (j.meta || j.pagination || null), err: r.ok ? null : txt.slice(0, 160) };
+    } catch (e) { out[k] = { ms: Date.now() - t0, error: e.message }; }
+  }
+  res.json({ shop, from, to, out });
+}
+
 // ---- Telefonie: belminuten per dag, inkomend/uitgaand gescheiden.
 // De browser leest de CSV-export uit en stuurt per dag een aggregaat; dat bewaren we in KV.
 const CALLS_KEY = "calls:agg";
@@ -819,6 +855,7 @@ module.exports = async (req, res) => {
   if (req.method === "POST" && req.query && req.query.view === "market") return marketWrite(req, res, s);
   if (req.method === "POST" && req.query && req.query.view === "calls") return callsWrite(req, res, s);
   if (req.query && req.query.view === "geodiag") return geodiagView(req, res);
+  if (req.query && req.query.view === "geoprobe") return geoProbeView(req, res);
   if (req.query && req.query.view === "geoorders") return geoOrdersView(req, res);
   if (req.query && req.query.view === "geoday") return geoDayView(req, res);
   if (req.query && req.query.view === "metrics") return metricsView(req, res);
