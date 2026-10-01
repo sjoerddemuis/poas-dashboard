@@ -4000,7 +4000,7 @@ window.__kernLoad=function(){
   }
   async function runHist(s){
     if(histBusy)return; histBusy=true; histStop=false; histPanel();
-    let n=0, orders=0;
+    let n=0, orders=0, fails=0;
     try{
       for(;;){
         if(histStop)break;
@@ -4009,7 +4009,9 @@ window.__kernLoad=function(){
         n++; orders+=j.orders||0;
         const msg=document.getElementById("hthistmsg"); if(msg)msg.textContent="venster "+n+": "+(j.window||j.note||"")+" · "+int0(j.orders||0)+" orders"+(j.cursor?" · nu t/m "+j.cursor:"");
         const bar=document.querySelector("#hthist .bar i"); if(bar&&j.cursor&&j.earliest){ const tot=(new Date(today)-new Date(j.earliest))/864e5, done=(new Date(today)-new Date(j.cursor))/864e5; bar.style.width=(tot>0?Math.round(done/tot*100):0)+"%"; }
-        if(!r.ok||j.done||j.refresh)break;
+        if(!r.ok){ fails++; if(fails>8)break; await new Promise(x=>setTimeout(x,4000)); continue; }   // bv. Metorik-limiet: even wachten en hetzelfde venster opnieuw
+        fails=0;
+        if(j.done||j.refresh)break;
         if(n>2000)break;
       }
     }catch(e){}
