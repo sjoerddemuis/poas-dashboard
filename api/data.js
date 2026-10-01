@@ -618,7 +618,7 @@ async function geoAggregateWindow(token, shop, from, to) {
   let seen = 0;
   for (let page = 1; page <= 200; page++) {
     let j;
-    try { j = await metGet(token, PSTORE + "/orders", { per_page: "100", page: String(page), start_date: from, end_date: to }); }
+    try { j = await metGet(token, PSTORE + "/orders", { per_page: "100", page: String(page), filters: JSON.stringify([{ field: "order_created_at", operator: "gte", value: from + " 00:00:00" }, { field: "order_created_at", operator: "lte", value: to + " 23:59:59" }]) }); }
     catch (e) { break; }
     const rows = j.data || j.orders || [];
     if (!rows.length) break;
@@ -640,7 +640,7 @@ async function geoAggregateWindow(token, shop, from, to) {
       a[0]++; a[1] += rev; if (!a[2] && plaats) a[2] = plaats;
       day.ev.push([minute, cc, pc, Math.round(rev)]);
     });
-    if (rows.length < 100) break;
+    if (rows.length < 100 || (j.meta && j.meta.has_more_pages === false)) break;
   }
   const written = [];
   for (const d of Object.keys(days)) {
@@ -664,6 +664,11 @@ async function geoRefreshView(req, res) {
   const mode = q.mode || "daily";
   const today = ymd(new Date());
   const shops = q.shop ? [String(q.shop).toUpperCase()] : GEO_SHOPS;
+  if (mode === "status") {
+    const metas = {};
+    for (const shop of GEO_SHOPS) { let m = null; try { m = await getKey(gmKey(shop)); } catch (e) {} metas[shop] = m || null; }
+    return res.json({ mode, today, metas });
+  }
 
   if (mode === "daily") {
     const out = {};
@@ -676,20 +681,19 @@ async function geoRefreshView(req, res) {
   }
 
   // backfill: één shop, één klein venster per call (blijft ruim onder de 60s-limiet).
-  const WIN = Math.max(2, Math.min(20, parseInt(q.win || "6", 10)));
+  const WIN = Math.max(1, Math.min(31, parseInt(q.win || "7", 10)));
   const metas = {};
   for (const shop of shops) { if (!shopToken(shop)) continue; let m = null; try { m = await getKey(gmKey(shop)); } catch (e) {} m = m || { cursor: today }; if (!m.cursor) m.cursor = today; metas[shop] = m; }
   let pick = null, meta = null;
   for (const shop of Object.keys(metas)) { const m = metas[shop]; if (m.done) continue; if (!pick || m.cursor > meta.cursor) { pick = shop; meta = m; } }
   if (!pick) {
-    // Historie compleet → houd de recentste dagen actueel (nieuwe orders van vandaag/gisteren).
-    for (const shop of Object.keys(metas)) { const m = metas[shop]; if (!pick || (m.lastDaily || "") < (meta.lastDaily || "")) { pick = shop; meta = m; } }
-    if (!pick) return res.json({ mode, done: true, note: "geen shops" });
-    let rr = { wroteDays: 0, orders: 0 };
-    try { rr = await geoAggregateWindow(shopToken(pick), pick, addD(today, -2), today); } catch (e) {}
-    meta.lastDaily = today;
-    try { await setKey(gmKey(pick), meta); } catch (e) {}
-    return res.json({ mode, refresh: true, shop: pick, window: addD(today, -2) + ".." + today, wroteDays: rr.wroteDays, orders: rr.orders, done: true });
+    // Historie compleet → houd voor alle shops de recentste dagen actueel (nieuwe orders van vandaag/gisteren).
+    const out = {};
+    for (const shop of Object.keys(metas)) {
+      try { out[shop] = await geoAggregateWindow(shopToken(shop), shop, addD(today, -3), today); } catch (e) { out[shop] = { error: e.message }; }
+      metas[shop].lastDaily = today; try { await setKey(gmKey(shop), metas[shop]); } catch (e) {}
+    }
+    return res.json({ mode, refresh: true, window: addD(today, -3) + ".." + today, out, done: true });
   }
 
   // Bepaal (eenmalig) de vroegste maand met omzet, zodat we niet eindeloos leeg terugzoeken.
@@ -802,6 +806,25 @@ async function geoProbeView(req, res) {
   res.json({ shop, from, to, out });
 }
 
+// Afspeel-modus over meerdere dagen: tijdlijnen uit KV voor [start..end] (max 62 dagen).
+async function geoEventsView(req, res) {
+  const q = req.query || {};
+  const shop = String(q.shop || "NL").toUpperCase();
+  if (!shopToken(shop)) return res.status(400).json({ error: "onbekende shop" });
+  const today = ymd(new Date());
+  let start = isDate(q.start) ? q.start : addD(today, -30), end = isDate(q.end) ? q.end : today;
+  if (start > end) { const t = start; start = end; end = t; }
+  const dates = []; for (let d = start; d <= end && dates.length < 62; d = addD(d, 1)) dates.push(d);
+  const r = kv();
+  let vals = [];
+  if (r && dates.length) { try { vals = await r.mget(...dates.map((d) => geKey(shop, d))); } catch (e) { vals = []; } }
+  const days = {}, missing = []; let count = 0;
+  dates.forEach((d, i) => { const ev = vals[i]; if (Array.isArray(ev)) { days[d] = ev; count += ev.length; } else missing.push(d); });
+  let meta = null; try { meta = await getKey(gmKey(shop)); } catch (e) {}
+  res.json({ shop, start, end, days, missing, count, source: "kv",
+    backfill: meta ? { cursor: meta.cursor || null, earliest: meta.earliest || null, done: !!meta.done } : null });
+}
+
 // ---- Telefonie: belminuten per dag, inkomend/uitgaand gescheiden.
 // De browser leest de CSV-export uit en stuurt per dag een aggregaat; dat bewaren we in KV.
 const CALLS_KEY = "calls:agg";
@@ -858,6 +881,7 @@ module.exports = async (req, res) => {
   if (req.query && req.query.view === "geoprobe") return geoProbeView(req, res);
   if (req.query && req.query.view === "geoorders") return geoOrdersView(req, res);
   if (req.query && req.query.view === "geoday") return geoDayView(req, res);
+  if (req.query && req.query.view === "geoevents") return geoEventsView(req, res);
   if (req.query && req.query.view === "metrics") return metricsView(req, res);
   if (req.query && req.query.view === "product") return productView(req, res);
   if (req.query && req.query.view === "market") return marketView(req, res);
