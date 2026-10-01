@@ -854,7 +854,7 @@ summary{border-radius:11px;font-weight:600}
 #sec-heat .hthist .bar i{display:block;height:100%;background:var(--green);width:0;transition:width .3s}
 #sec-heat .htlegend{font-size:11px;color:var(--mute);margin-top:6px}
 </style>
-<div class="htsub">Waar komen je bestellingen vandaan? Elk order valt in een postcodegebied (NL = 4 cijfers, DE/FR = PLZ/code postal). Kies <b>Tijdvak</b> voor een optelsom op de kaart, of <b>Dag</b> / <b>Maand</b> en druk op <b>▶ Afspelen</b> om de tijd te zien lopen terwijl orders op de kaart opploppen. Alle orders staan in de eigen database; Metorik wordt alleen belast bij het inladen van historie.</div>
+<div class="htsub">Waar komen je bestellingen vandaan? Elk order valt in een postcodegebied (NL = 4 cijfers, DE/FR = PLZ/code postal). Kies bij Weergave <b>Heatmap</b> of <b>Stippen</b> voor de optelsom over een tijdvak, of <b>▶ Verloop</b> en druk op Afspelen: de tijd loopt per dag of per maand en orders poppen op de kaart op waar ze binnenkomen. Alle orders staan in de eigen database; Metorik wordt alleen belast bij het inladen van historie.</div>
 <div class="htbar" id="htbar"></div>
 <div id="htstat" class="htstat">Order-heatmap laden…</div>
 <div id="htplay" class="htplay" style="display:none"></div>
@@ -3785,7 +3785,7 @@ window.__kernLoad=function(){
 
   // ---- State
   let inited=false, map=null, staticLayer=null, blob=null;
-  let shop="NL", mode="range", weight="orders", view="heat";
+  let shop="NL", mode="month", weight="orders", view="play";   // start op Verloop (maand), zodat de afspeelknop meteen zichtbaar is
   const today=ymd(new Date());
   let from=addD(today,-29), to=today, day=addD(today,-1), month=today.slice(0,7);
   let DATA=null;            // laatste geladen dataset voor de huidige modus
@@ -3829,16 +3829,17 @@ window.__kernLoad=function(){
   function stat(html){ const el=document.getElementById("htstat"); if(el)el.innerHTML=html; }
 
   // ---- Werkbalk
+  // view: heat | dots (statische kaart over een tijdvak) | play (verloop afspelen per dag of maand)
   function bar(){
     const b=document.getElementById("htbar"); if(!b)return;
     const seg=(name,opts,val)=>'<span class="knseg" data-k="'+name+'">'+opts.map(o=>'<button data-v="'+o[0]+'" class="'+(o[0]===val?"on":"")+'">'+o[1]+'</button>').join("")+'</span>';
     let per="";
-    if(mode==="range") per='<span class="httf">van <input type="date" id="htfrom" value="'+from+'"> tot <input type="date" id="htto" value="'+to+'"></span>';
-    else if(mode==="day") per='<span class="httf"><button class="htnav" data-nav="-1">&#9664;</button><input type="date" id="htday" value="'+day+'"><button class="htnav" data-nav="1">&#9654;</button></span>';
-    else per='<span class="httf"><button class="htnav" data-nav="-1">&#9664;</button><input type="month" id="htmonth" value="'+month+'"><button class="htnav" data-nav="1">&#9654;</button></span>';
+    if(view!=="play") per='<span class="httf">van <input type="date" id="htfrom" value="'+from+'"> tot <input type="date" id="htto" value="'+to+'"></span><span class="htlbl">Weging</span>'+seg("weight",[["orders","Orders"],["omzet","Omzet"]],weight);
+    else if(mode==="day") per=seg("mode",[["day","Dag"],["month","Maand"]],mode)+'<span class="httf"><button class="htnav" data-nav="-1">&#9664;</button><input type="date" id="htday" value="'+day+'"><button class="htnav" data-nav="1">&#9654;</button></span>';
+    else per=seg("mode",[["day","Dag"],["month","Maand"]],mode)+'<span class="httf"><button class="htnav" data-nav="-1">&#9664;</button><input type="month" id="htmonth" value="'+month+'"><button class="htnav" data-nav="1">&#9654;</button></span>';
     b.innerHTML='<span class="htlbl">Shop</span>'+seg("shop",[["NL","NL"],["DE","DE"],["FR","FR"]],shop)
-      +'<span class="htlbl">Periode</span>'+seg("mode",[["range","Tijdvak"],["day","Dag"],["month","Maand"]],mode)+per
-      +(mode==="range"?'<span class="htlbl">Weging</span>'+seg("weight",[["orders","Orders"],["omzet","Omzet"]],weight)+'<span class="htlbl">Weergave</span>'+seg("view",[["heat","Heatmap"],["dots","Stippen"]],view):"")
+      +'<span class="htlbl">Weergave</span>'+seg("view",[["heat","Heatmap"],["dots","Stippen"],["play","&#9654; Verloop"]],view)
+      +'<span class="htlbl">'+(view==="play"?"Afspelen per":"Periode")+'</span>'+per
       +'<span class="knsep"></span><button class="knref" id="htref">&#8635; Ververs</button>';
     b.querySelectorAll(".knseg button").forEach(btn=>btn.addEventListener("click",()=>{
       const k=btn.parentElement.dataset.k, v=btn.dataset.v;
@@ -3860,14 +3861,14 @@ window.__kernLoad=function(){
     document.getElementById("htref").addEventListener("click",()=>{ stopPlay(); load(true); });
   }
 
-  // ---- Laden per modus
+  // ---- Laden per weergave
   async function load(fresh){
     ensureMap(); staticLayer.clearLayers(); blob.clear(); TL=[]; DATA=null;
     // De kaart kan nog 0 px breed zijn als de sectie net zichtbaar werd; dan even wachten op de layout.
     map.invalidateSize(); if(!map.getSize().x){ await new Promise(r=>setTimeout(r,200)); map.invalidateSize(); }
     document.getElementById("httop").innerHTML="";
     try{
-      if(mode==="range") await loadRange();
+      if(view!=="play") await loadRange();
       else if(mode==="day") await loadTimeline(day,day,"Dag");
       else { const [y,m]=month.split("-").map(Number); const first=month+"-01"; let last=ymd(new Date(y,m,0)); if(last>today)last=today; await loadTimeline(first,last,"Maand"); }
     }catch(e){ stat('<span style="color:var(--red)">Kon order-heatmap niet laden: '+esc(e.message||e)+'</span>'); }
