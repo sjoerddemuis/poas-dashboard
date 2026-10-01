@@ -3891,7 +3891,7 @@ window.__kernLoad=function(){
       const mx=Math.max(1,...items.map(i=>i.w));
       items.forEach(i=>L.circleMarker(i.ll,{radius:3+10*Math.sqrt(i.w/mx),color:"#018A24",weight:1,fillColor:"#01B52D",fillOpacity:.55}).bindTooltip("<b>"+esc(i.p.cc+" "+i.p.pc)+"</b> "+esc(i.p.plaats||"")+"<br>"+int0(i.p.count)+" orders · "+eur0(i.p.omzet)).addTo(staticLayer));
     }
-    if(items.length){ try{ map.fitBounds(L.latLngBounds(items.map(i=>i.ll)),{padding:[20,20],maxZoom:9}); }catch(e){} }
+    map.setView(CENTER[shop][0],CENTER[shop][1]);
     const miss=(j.daysRequested||0)-(j.daysCovered||0);
     stat("<b>"+int0(j.total.orders)+" orders</b> · "+eur0(j.total.omzet)+" omzet · "+int0(pts.length)+" postcodegebieden ("+int0(items.length)+" op kaart) · "+from+" t/m "+to
       +(miss>0?' · <span style="color:var(--orange)">'+miss+" van "+j.daysRequested+" dagen nog niet in opslag</span>":""));
@@ -3930,7 +3930,7 @@ window.__kernLoad=function(){
     const when=start===end?fmtDate(start):(MND[+start.slice(5,7)-1]+" "+start.slice(0,4));
     stat("<b>"+int0(TL.length)+" orders</b> · "+eur0(omzet)+" omzet · "+int0(onMap)+" op kaart · "+when
       +(missing.length?' · <span style="color:var(--orange)">'+missing.length+" dag"+(missing.length>1?"en":"")+" nog niet in opslag"+(isAdmin()?" — laad hieronder de historie in":"")+"</span>":""));
-    if(TL.length){ try{ map.fitBounds(L.latLngBounds(TL.filter(e=>e.ll).map(e=>e.ll)),{padding:[20,20],maxZoom:9}); }catch(e){} }
+    map.setView(CENTER[shop][0],CENTER[shop][1]);
     cur=0; setupPlay(); frame(0);
   }
 
