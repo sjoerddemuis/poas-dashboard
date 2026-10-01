@@ -818,58 +818,50 @@ summary{border-radius:11px;font-weight:600}
     <div id="mkcontent"><div class="knloading">Marktaandeel laden…</div></div>
   </div><!-- /sec-market -->
 
-  <div id="sec-heat" style="display:none">
-    <style>
-    #sec-heat .htsub{color:var(--mute);font-size:13px;margin:0 0 14px;line-height:1.5;max-width:900px}
-    #sec-heat .htbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 12px;margin-bottom:12px;box-shadow:var(--shadow)}
-    #sec-heat .knseg{display:inline-flex;border:1.5px solid var(--line);border-radius:9px;overflow:hidden}
-    #sec-heat .knseg button{border:0;border-right:1px solid var(--line);background:var(--card);color:var(--ink);font-size:12px;font-weight:700;padding:7px 12px;cursor:pointer}
-    #sec-heat .knseg button:last-child{border-right:0}
-    #sec-heat .knseg button.on{background:var(--green);color:#fff}
-    #sec-heat .htlbl{font-size:11px;color:var(--mute);font-weight:700;text-transform:uppercase;letter-spacing:.3px}
-    #sec-heat .httf{font-size:12px;color:var(--mute);display:flex;align-items:center;gap:5px}
-    #sec-heat .httf input{font-size:12px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:5px 7px}
-    #sec-heat .htnav{border:1.5px solid var(--line);border-radius:7px;background:var(--card);color:var(--greenDk);font-size:14px;font-weight:700;padding:3px 10px;cursor:pointer;line-height:1}
-    #sec-heat .knsep{flex:1}
-    #sec-heat .knref{border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--mute);font-family:var(--mono);font-size:11px;font-weight:700;padding:7px 12px;cursor:pointer}
-    #sec-heat .knref:hover{border-color:var(--green);color:var(--greenDk)}
-    #sec-heat .htstat{font-size:12.5px;color:var(--ink);margin:0 2px 10px;line-height:1.5}
-    #sec-heat #htmap{height:520px;border-radius:12px;overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow);background:#e9eef0}
-    #sec-heat .httop{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px 14px 12px;box-shadow:var(--shadow);margin-top:14px}
-    #sec-heat .httoph{font-weight:700;font-size:13px;margin:8px 0 4px}
-    #sec-heat .httop table{width:100%;border-collapse:collapse;font-size:13px}
-    #sec-heat .httop th{color:var(--mute);font-weight:600;font-size:11px;text-align:right;padding:6px 10px;border-bottom:1px solid var(--line)}
-    #sec-heat .httop th:nth-child(2),#sec-heat .httop th:nth-child(3),#sec-heat .httop td:nth-child(2),#sec-heat .httop td:nth-child(3){text-align:left}
-    #sec-heat .httop th:first-child,#sec-heat .httop td:first-child{text-align:left;color:var(--mute);width:26px}
-    #sec-heat .httop td{padding:6px 10px;text-align:right;border-top:1px solid var(--line);white-space:nowrap}
-    #sec-heat .htplay{display:flex;flex-wrap:wrap;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 12px;margin-bottom:10px;box-shadow:var(--shadow)}
-    #sec-heat .htplbl{font-size:11px;color:var(--mute);font-weight:700;text-transform:uppercase;letter-spacing:.3px}
-    #sec-heat .htpbtn{border:1.5px solid var(--green);border-radius:8px;background:var(--green);color:#fff;font-size:12px;font-weight:700;padding:7px 13px;cursor:pointer;white-space:nowrap}
-    #sec-heat .htpbtn:hover{background:var(--greenDk);border-color:var(--greenDk)}
-    #sec-heat .htprange{flex:1;min-width:160px;accent-color:var(--green)}
-    #sec-heat .htptime{font-family:var(--mono);font-size:14px;font-weight:700;min-width:48px;text-align:center}
-    #sec-heat .htpcount{font-size:12px;color:var(--ink);font-weight:600}
-    #sec-heat .htphint{font-size:11px;color:var(--mute);flex-basis:100%}
-    </style>
-    <div class="htsub">Waar komen je bestellingen vandaan? Elk order valt in een postcodegebied (NL = 4 cijfers, DE/FR = PLZ/code postal). Kies een land, een <b>tijdvak</b> of <b>één dag</b>, en weeg op <b>aantal orders</b> of <b>omzet</b>. Postcodes worden client-side geocodeerd en gecachet, dus na de eerste keer laadt de kaart direct.</div>
-    <div class="htbar">
-      <span class="htlbl">Shop</span>
-      <div class="knseg" id="htshop"><button data-s="NL" class="on">NL</button><button data-s="DE">DE</button><button data-s="FR">FR</button></div>
-      <span class="htlbl">Periode</span>
-      <div class="knseg" id="htmode"><button data-m="range" class="on">Tijdvak</button><button data-m="day">Eén dag</button></div>
-      <span id="htdates" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"></span>
-      <span class="htlbl">Weging</span>
-      <div class="knseg" id="htweight"><button data-w="orders" class="on">Orders</button><button data-w="omzet">Omzet</button></div>
-      <span class="htlbl">Weergave</span>
-      <div class="knseg" id="htviewseg"><button data-v="heat" class="on">Heatmap</button><button data-v="dots">Stippen</button></div>
-      <span class="knsep"></span>
-      <button id="htref" class="knref">↻ Ververs</button>
-    </div>
-    <div id="htstat" class="htstat">Order-heatmap laden…</div>
-    <div id="htplay" class="htplay" style="display:none"></div>
-    <div id="htmap"></div>
-    <div id="httop" class="httop"></div>
-  </div><!-- /sec-heat -->
+<div id="sec-heat" style="display:none">
+<style>
+#sec-heat .htsub{color:var(--mute);font-size:13px;margin:0 0 12px;line-height:1.5}
+#sec-heat .htbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:10px}
+#sec-heat .knseg{display:inline-flex;border:1.5px solid var(--line);border-radius:9px;overflow:hidden}
+#sec-heat .knseg button{border:0;border-right:1px solid var(--line);background:#fff;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink);font-family:inherit}
+#sec-heat .knseg button:last-child{border-right:0}
+#sec-heat .knseg button.on{background:var(--green);color:#fff}
+#sec-heat .htlbl{font-size:11px;color:var(--mute);font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin-left:6px}
+#sec-heat .httf{font-size:12px;color:var(--mute);display:flex;align-items:center;gap:5px}
+#sec-heat .httf input{font-size:12px;border:1.5px solid var(--line);border-radius:8px;padding:5px 8px;font-family:inherit;color:var(--ink)}
+#sec-heat .htnav{border:1.5px solid var(--line);border-radius:8px;background:#fff;padding:4px 9px;cursor:pointer;font-weight:700;color:var(--ink);font-family:inherit}
+#sec-heat .knsep{flex:1}
+#sec-heat .knref{border:1px solid var(--line);border-radius:9px;background:#fff;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink);font-family:inherit}
+#sec-heat .knref:hover{border-color:var(--green);color:var(--greenDk)}
+#sec-heat .htstat{font-size:12.5px;color:var(--ink);margin:0 0 8px;min-height:18px}
+#sec-heat #htmap{height:540px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#e9eef2}
+#sec-heat .htplay{display:flex;flex-wrap:wrap;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:0 0 10px}
+#sec-heat .htpbtn{border:1.5px solid var(--green);border-radius:9px;background:var(--green);color:#fff;font-weight:700;font-size:13px;padding:7px 16px;cursor:pointer;min-width:96px;font-family:inherit}
+#sec-heat .htpbtn:hover{background:var(--greenDk);border-color:var(--greenDk)}
+#sec-heat .htprange{flex:1;min-width:180px;accent-color:var(--green)}
+#sec-heat .htptime{font-family:var(--mono);font-size:15px;font-weight:700;min-width:170px;color:var(--ink)}
+#sec-heat .htpcount{font-size:12px;color:var(--ink);font-weight:600;min-width:170px}
+#sec-heat .htpspeed{font-size:12px;border:1.5px solid var(--line);border-radius:8px;padding:5px 8px;background:#fff;font-family:inherit;color:var(--ink)}
+#sec-heat .htphint{font-size:11px;color:var(--mute);flex-basis:100%}
+#sec-heat .httop{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px 14px 10px;margin-top:10px}
+#sec-heat .httoph{font-weight:700;font-size:13px;margin:8px 0 6px}
+#sec-heat .httop table{width:100%;border-collapse:collapse;font-size:12.5px}
+#sec-heat .httop th{color:var(--mute);font-weight:600;font-size:10px;letter-spacing:.4px;text-transform:uppercase;text-align:right;padding:6px 10px;border-bottom:1px solid var(--line)}
+#sec-heat .httop th:first-child,#sec-heat .httop td:first-child{text-align:left}
+#sec-heat .httop td{padding:6px 10px;text-align:right;border-bottom:1px solid var(--line)}
+#sec-heat .hthist{background:#FFF8EE;border:1px solid #F3D9B0;border-radius:12px;padding:10px 14px;margin-top:10px;font-size:12.5px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;color:var(--ink)}
+#sec-heat .hthist .bar{flex-basis:100%;height:6px;border-radius:4px;background:#F3D9B0;overflow:hidden}
+#sec-heat .hthist .bar i{display:block;height:100%;background:var(--green);width:0;transition:width .3s}
+#sec-heat .htlegend{font-size:11px;color:var(--mute);margin-top:6px}
+</style>
+<div class="htsub">Waar komen je bestellingen vandaan? Elk order valt in een postcodegebied (NL = 4 cijfers, DE/FR = PLZ/code postal). Kies <b>Tijdvak</b> voor een optelsom op de kaart, of <b>Dag</b> / <b>Maand</b> en druk op <b>▶ Afspelen</b> om de tijd te zien lopen terwijl orders op de kaart opploppen. Alle orders staan in de eigen database; Metorik wordt alleen belast bij het inladen van historie.</div>
+<div class="htbar" id="htbar"></div>
+<div id="htstat" class="htstat">Order-heatmap laden…</div>
+<div id="htplay" class="htplay" style="display:none"></div>
+<div id="htmap"></div>
+<div id="hthist" class="hthist" style="display:none"></div>
+<div id="httop" class="httop"></div>
+</div><!-- /sec-heat -->
 
   <div id="sec-tel" style="display:none">
     <style>
@@ -3747,142 +3739,285 @@ window.__kernLoad=function(){
     if(!PM)fetchP(); else render();
   };
 })();
-/* ===== Order-heatmap (Leaflet + OSM, client-side geocoding via zippopotam) ===== */
+/* ===== Order-heatmap + afspelen (Leaflet + OSM, orders uit eigen KV-opslag, client-side geocoding) ===== */
 (function(){
-  const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
-  const int0=n=>(n==null||!isFinite(n))?"—":Math.round(n).toLocaleString("nl-NL");
-  const CCMAP={NL:"nl",DE:"de",FR:"fr",BE:"be"};
-  const CENTER={NL:[52.15,5.3],DE:[51.1,10.2],FR:[46.7,2.4]};
-  const BOX={NL:[50.5,53.8,3.2,7.3],DE:[47.0,55.2,5.7,15.2],FR:[41.2,51.2,-5.3,9.7]};
+  "use strict";
+  const Q=String.fromCharCode(63);
+  const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+  const eur0=n=>"€"+Math.round(+n||0).toLocaleString("nl-NL");
+  const int0=n=>Math.round(+n||0).toLocaleString("nl-NL");
+  const pad2=n=>String(n).padStart(2,"0");
+  const ymd=d=>d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
+  const addD=(s,n)=>{ const d=new Date(s+"T00:00:00"); d.setDate(d.getDate()+n); return ymd(d); };
+  const MND=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
+  const MABBR=["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
+  const DAGS=["zo","ma","di","wo","do","vr","za"];
+  const isAdmin=()=>(typeof ROLE!=="undefined"&&ROLE==="admin");
+
+  // ---- Geocoding (PDOK voor NL-postcode4, zippopotam voor de rest), met cache in localStorage.
+  const BOX={NL:[50.5,53.8,3.2,7.3],DE:[47.0,55.2,5.7,15.2],FR:[41.2,51.2,-5.3,9.7],BE:[49.4,51.6,2.5,6.5]};
+  const CCMAP={DE:"de",FR:"fr",BE:"be",AT:"at",LU:"lu",CH:"ch",ES:"es",IT:"it",DK:"dk",PL:"pl",GB:"gb"};
   function inBox(cc,ll){ if(!ll||!isFinite(ll[0])||!isFinite(ll[1]))return false; const b=BOX[cc]; if(!b)return (ll[0]!==0||ll[1]!==0); return ll[0]>=b[0]&&ll[0]<=b[1]&&ll[1]>=b[2]&&ll[1]<=b[3]; }
-  let HT=null, inited=false, loading=false, map=null, layer=null;
-  let shop="NL", mode="range", from="", to="", day="", weight="orders", view="heat";
-  let EV=null, EVG=null, playing=false, playMin=0, playTimer=null, playHeat=null;
-  let CACHE=loadCache();
-  function loadCache(){ try{return JSON.parse(localStorage.getItem("poas_geocache_v2")||"{}");}catch(e){return{};} }
-  function saveCache(){ try{localStorage.setItem("poas_geocache_v2",JSON.stringify(CACHE));}catch(e){} }
-  function ymd(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
-  function addDays(s,n){const d=new Date(s+"T00:00:00");d.setDate(d.getDate()+n);return ymd(d);}
-  (function(){ const y=ymd(new Date(Date.now()-864e5)); day=y; to=y; from=addDays(y,-6); })();
-  function seg(id,b){[...document.querySelectorAll("#"+id+" button")].forEach(x=>x.classList.toggle("on",x===b));}
-  function datesHtml(){
-    if(mode==="day") return '<button class="htnav" id="htprev" title="dag terug">‹</button><label class="httf"><input type="date" id="htday" value="'+day+'" max="'+to+'"></label><button class="htnav" id="htnext" title="dag verder">›</button>';
-    return '<label class="httf">van <input type="date" id="htfrom" value="'+from+'"></label><label class="httf">tot <input type="date" id="htto" value="'+to+'"></label>';
-  }
-  function renderControls(){ document.getElementById("htdates").innerHTML=datesHtml(); }
-  async function geocodeAll(stat){
-    const pts=HT.points||[];
-    const todo=pts.filter(p=>CACHE[p.cc+"|"+p.pc]===undefined && (p.cc==="NL"||CCMAP[p.cc]));
-    if(!todo.length) return;
-    let done=0; const q=todo.slice();
-    async function one(p){
-      try{
-        let ll=null;
-        if(p.cc==="NL"){ // PDOK Locatieserver: betrouwbaar voor NL 4-cijferige postcodes
-          const r=await fetch("https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?rows=1&fl=centroide_ll&fq=type:postcode&q="+encodeURIComponent(p.pc));
-          if(r.ok){const j=await r.json();const d=j.response&&j.response.docs&&j.response.docs[0];const m=d&&d.centroide_ll&&d.centroide_ll.match(/POINT\(([-\d.]+) ([-\d.]+)\)/);if(m)ll=[+m[2],+m[1]];}
-        }else if(CCMAP[p.cc]){
-          const r=await fetch("https://api.zippopotam.us/"+CCMAP[p.cc]+"/"+encodeURIComponent(p.pc));
-          if(r.ok){const j=await r.json();const pl=j.places&&j.places[0];if(pl&&pl.latitude&&pl.longitude)ll=[+pl.latitude,+pl.longitude];}
-        }
-        CACHE[p.cc+"|"+p.pc]=inBox(p.cc,ll)?ll:null;
-      }catch(e){/* laat ongecachet: probeer volgende keer opnieuw */}
-      done++; if(done%25===0){ if(stat)stat.innerHTML='Postcodes opzoeken op de kaart… '+done+' / '+todo.length; saveCache(); }
-    }
-    const workers=[]; for(let i=0;i<8;i++)workers.push((async()=>{while(q.length)await one(q.shift());})());
-    await Promise.all(workers); saveCache();
-  }
-  function draw(){
-    const pts=(HT&&HT.points||[]).map(p=>{const ll=CACHE[p.cc+"|"+p.pc];return (ll&&inBox(p.cc,ll))?{ll,w:weight==="omzet"?p.omzet:p.count,p}:null;}).filter(Boolean);
-    if(!map){ map=L.map("htmap",{scrollWheelZoom:true}).setView(CENTER[shop]||CENTER.NL,7); L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"&copy; OpenStreetMap",maxZoom:18}).addTo(map); }
-    if(layer){map.removeLayer(layer);layer=null;}
-    if(!pts.length){ map.setView(CENTER[shop]||CENTER.NL,6); return; }
-    const max=Math.max(1,...pts.map(x=>x.w));
-    if(view==="heat"){
-      layer=L.heatLayer(pts.map(x=>[x.ll[0],x.ll[1],Math.max(.12,x.w/max)]),{radius:20,blur:15,maxZoom:12,minOpacity:.35,gradient:{0.2:"#0A6CCB",0.45:"#01B52D",0.75:"#FD5900",1:"#E5484D"}}).addTo(map);
-    }else{
-      const g=L.layerGroup();
-      pts.forEach(x=>{const r=4+18*Math.sqrt(x.w/max);const m=L.circleMarker(x.ll,{radius:r,color:"#018A24",weight:1,fillColor:"#01B52D",fillOpacity:.45});m.bindPopup("<b>"+esc(x.p.pc)+"</b> "+esc(x.p.plaats||"")+"<br>"+int0(x.p.count)+" orders &middot; &euro;"+int0(x.p.omzet));g.addLayer(m);});
-      layer=g.addTo(map);
-    }
-    try{ map.fitBounds(L.latLngBounds(pts.map(x=>x.ll)),{padding:[24,24],maxZoom:9}); }catch(e){}
-    setTimeout(()=>{try{map.invalidateSize();}catch(e){}},120);
-  }
-  function renderStat(){
-    const t=(HT&&HT.total)||{orders:0,omzet:0}; const pts=(HT&&HT.points)||[];
-    const geoc=pts.filter(p=>CACHE[p.cc+"|"+p.pc]).length;
-    const rangeTxt=mode==="day"?day:(from+" t/m "+to);
-    document.getElementById("htstat").innerHTML='<b>'+int0(t.orders)+'</b> orders &middot; <b>&euro;'+int0(t.omzet)+'</b> omzet &middot; '+pts.length+' postcodegebieden ('+geoc+' op kaart) &middot; '+esc(rangeTxt)+(HT&&HT.capped?' &middot; <span style="color:var(--orange)">grote periode, mogelijk afgekapt</span>':'');
-    const top=pts.slice(0,12).map((p,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(p.pc)+'</td><td>'+esc(p.plaats||"")+'</td><td>'+int0(p.count)+'</td><td>&euro;'+int0(p.omzet)+'</td></tr>').join("");
-    document.getElementById("httop").innerHTML='<div class="httoph">Top postcodegebieden ('+(weight==="omzet"?"gesorteerd op orders":"gesorteerd op orders")+')</div><div style="overflow-x:auto"><table><thead><tr><th>#</th><th>Postcode</th><th>Plaats</th><th>Orders</th><th>Omzet</th></tr></thead><tbody>'+(top||'<tr><td colspan="5" style="color:var(--mute)">Geen orders in deze periode.</td></tr>')+'</tbody></table></div>';
-  }
-  async function load(fresh){
-    if(loading)return; loading=true;
-    const stat=document.getElementById("htstat"); if(stat)stat.innerHTML='Orders ophalen uit Metorik…';
-    let s,e; if(mode==="day"){s=day;e=day;}else{s=from;e=to;}
+  let CACHE={};
+  function loadCache(){ try{ CACHE=JSON.parse(localStorage.getItem("poas_geocache_v2")||"{}")||{}; }catch(e){ CACHE={}; } }
+  function saveCache(){ try{ localStorage.setItem("poas_geocache_v2",JSON.stringify(CACHE)); }catch(e){} }
+  async function geocodeOne(cc,pc){
+    let ll=null;
     try{
-      const r=await fetch("/api/data?view=geoorders&shop="+shop+"&start="+s+"&end="+e+(fresh?"&fresh=1":""),{cache:"no-store"});
-      if(r.status===401){location.href="/login.html";return;}
-      const d=await r.json(); if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
-      HT=d;
-      if(stat)stat.innerHTML='Postcodes opzoeken op de kaart…';
-      await geocodeAll(stat);
-      draw(); renderStat();
-      const pb=document.getElementById("htplay");
-      if(mode==="day"){ if(pb)pb.style.display=""; setupPlay(); }
-      else { stopPlay(); if(pb){ pb.style.display="none"; pb.innerHTML=""; } }
-    }catch(err){ if(stat)stat.innerHTML='<span style="color:var(--red)">Kon order-heatmap niet laden: '+esc(err.message||err)+'</span>'; }
-    loading=false;
+      if(cc==="NL"){
+        const r=await fetch("https://api.pdok.nl/bzk/locatieserver/search/v3_1/free"+Q+"q="+encodeURIComponent(pc)+"&fq=type:postcode&rows=1&fl=centroide_ll");
+        if(r.ok){ const j=await r.json(); const d=j.response&&j.response.docs&&j.response.docs[0]; const m=d&&String(d.centroide_ll||"").match(/POINT\(([-\d.]+) ([-\d.]+)\)/); if(m)ll=[+m[2],+m[1]]; }
+      }else if(CCMAP[cc]){
+        const r=await fetch("https://api.zippopotam.us/"+CCMAP[cc]+"/"+encodeURIComponent(pc));
+        if(r.ok){ const j=await r.json(); const p=j.places&&j.places[0]; if(p)ll=[+p.latitude,+p.longitude]; }
+      }
+    }catch(e){}
+    return inBox(cc,ll)?ll:null;
   }
-  function fmtMin(m){ const h=Math.floor(m/60), mm=m%60; return String(h).padStart(2,"0")+":"+String(mm).padStart(2,"0"); }
-  function playBarHtml(){
-    return '<button class="htpbtn" id="htpplay">'+(playing?"⏸ Pauze":"▶ Speel dag af")+'</button>'
-      +'<input type="range" id="htpslider" class="htprange" min="0" max="1439" step="1" value="'+playMin+'">'
-      +'<span class="htptime" id="htptime">'+fmtMin(playMin)+'</span>'
-      +'<span class="htpcount" id="htpcount"></span>';
+  // Geocodeer een lijst unieke "CC|PC"-sleutels; rapporteert voortgang via cb(done,total).
+  async function geocodeKeys(keys,cb){
+    const todo=keys.filter(k=>!(k in CACHE));
+    let done=0, idx=0;
+    async function worker(){ while(idx<todo.length){ const k=todo[idx++]; const i=k.indexOf("|"); CACHE[k]=await geocodeOne(k.slice(0,i),k.slice(i+1)); done++; if(cb&&done%10===0)cb(done,todo.length); } }
+    await Promise.all([0,1,2,3,4,5].map(worker));
+    if(todo.length)saveCache();
   }
-  function ensureEVG(){ EVG=(EV||[]).map(e=>{const ll=CACHE[e.cc+"|"+e.pc];return (ll&&inBox(e.cc,ll))?{m:e.m,ll,omzet:e.omzet||0}:null;}).filter(Boolean).sort((a,b)=>a.m-b.m); }
-  function frame(minute){
-    if(!map||!EVG)return; playMin=minute;
-    const useOmz=weight==="omzet"; let ordersSoFar=0, omzetSoFar=0; const raw=[];
-    for(const x of EVG){ if(x.m>minute)break; ordersSoFar++; omzetSoFar+=x.omzet; raw.push([x.ll[0],x.ll[1], useOmz?x.omzet:1]); }
-    const maxW=useOmz?Math.max(1,...raw.map(p=>p[2])):1;
-    const pts=raw.map(p=>[p[0],p[1], useOmz?Math.max(.12,p[2]/maxW):0.5]);
-    if(layer){map.removeLayer(layer);layer=null;}
-    if(playHeat){ playHeat.setLatLngs(pts); } else { playHeat=L.heatLayer(pts,{radius:18,blur:14,maxZoom:12,minOpacity:.3,gradient:{0.2:"#0A6CCB",0.45:"#01B52D",0.75:"#FD5900",1:"#E5484D"}}).addTo(map); }
-    const sl=document.getElementById("htpslider"); if(sl&&document.activeElement!==sl)sl.value=minute;
-    const tl=document.getElementById("htptime"); if(tl)tl.textContent=fmtMin(minute);
-    const ct=document.getElementById("htpcount"); if(ct)ct.textContent=ordersSoFar+" orders · €"+Math.round(omzetSoFar).toLocaleString("nl-NL");
-  }
-  function stopPlay(){ playing=false; if(playTimer){clearInterval(playTimer);playTimer=null;} const b=document.getElementById("htpplay"); if(b)b.textContent="▶ Speel dag af"; }
-  function startPlay(){
-    if(!EVG||!EVG.length)return; if(playMin>=1439)playMin=0;
-    playing=true; const b=document.getElementById("htpplay"); if(b)b.textContent="⏸ Pauze";
-    playTimer=setInterval(()=>{ playMin+=8; if(playMin>=1439){ frame(1439); stopPlay(); return; } frame(playMin); }, 90);
-  }
-  async function setupPlay(){
-    const bar=document.getElementById("htplay"); if(!bar)return;
-    stopPlay(); if(playHeat&&map){map.removeLayer(playHeat);} playHeat=null; playMin=0; EV=null; EVG=null;
-    bar.style.display=""; bar.innerHTML='<span class="htplbl">Afspelen</span>'+playBarHtml()+'<span class="htphint">markers verschijnen op volgorde van binnenkomst</span>';
-    document.getElementById("htpcount").textContent="tijdlijn laden…";
-    try{ const r=await fetch("/api/data?view=geoday&shop="+shop+"&date="+day,{cache:"no-store"}); const d=await r.json(); EV=d.events||[]; }catch(e){ EV=[]; }
-    ensureEVG();
-    const ct=document.getElementById("htpcount"); if(ct)ct.textContent=(EVG.length?("0 orders · klaar om af te spelen ("+EVG.length+" op de kaart)"):"geen tijdlijn voor deze dag");
-  }
-  window.__heatLoad=function(){
-    if(!inited){ inited=true; renderControls();
-      document.getElementById("htshop").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;shop=b.dataset.s;seg("htshop",b);load();});
-      document.getElementById("htmode").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;mode=b.dataset.m;seg("htmode",b);renderControls();load();});
-      document.getElementById("htweight").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;weight=b.dataset.w;seg("htweight",b);draw();renderStat();if(mode==="day"&&EVG&&(playing||playMin>0))frame(playMin);});
-      document.getElementById("htviewseg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;view=b.dataset.v;seg("htviewseg",b);draw();});
-      document.getElementById("htref").addEventListener("click",()=>load(true));
-      document.getElementById("htplay").addEventListener("click",e=>{ if(e.target.closest("#htpplay")){ if(playing)stopPlay(); else startPlay(); } });
-      document.getElementById("htplay").addEventListener("input",e=>{ if(e.target.id==="htpslider"){ stopPlay(); frame(+e.target.value); } });
-      document.getElementById("htdates").addEventListener("change",e=>{ if(e.target.id==="htfrom"){from=e.target.value;load();} else if(e.target.id==="htto"){to=e.target.value;load();} else if(e.target.id==="htday"){day=e.target.value;load();} });
-      document.getElementById("htdates").addEventListener("click",e=>{ if(e.target.id==="htprev"){day=addDays(day,-1);renderControls();load();} else if(e.target.id==="htnext"){ const t=ymd(new Date(Date.now()-864e5)); if(day<t){day=addDays(day,1);renderControls();load();} } });
-      load(); return;
+
+  // ---- State
+  let inited=false, map=null, staticLayer=null, blob=null;
+  let shop="NL", mode="range", weight="orders", view="heat";
+  const today=ymd(new Date());
+  let from=addD(today,-29), to=today, day=addD(today,-1), month=today.slice(0,7);
+  let DATA=null;            // laatste geladen dataset voor de huidige modus
+  let TL=[], tMax=1440;     // tijdlijn voor afspelen: [{t,ll,rev,cc,pc}], t in minuten vanaf begin van de periode
+  let cur=0, playing=false, rafId=null, lastTs=0, speedMul=1;
+  let histTimer=null, histBusy=false, histStop=false;
+  const CENTER={NL:[[52.2,5.3],7],DE:[[51.1,10.4],6],FR:[[46.6,2.4],6]};
+
+  // ---- Canvas-laag voor de "blobjes" (snel, ook bij duizenden orders)
+  const BlobLayer=L.Layer.extend({
+    onAdd(m){ this._map=m; this._c=document.createElement("canvas"); this._c.style.pointerEvents="none"; this._c.className="leaflet-zoom-hide"; m.getPanes().overlayPane.appendChild(this._c); m.on("moveend zoomend resize",this._reset,this); this._reset(); },
+    onRemove(m){ L.DomUtil.remove(this._c); m.off("moveend zoomend resize",this._reset,this); },
+    _reset(){ const m=this._map, s=m.getSize(); this._c.width=s.x; this._c.height=s.y; L.DomUtil.setPosition(this._c,m.containerPointToLayerPoint([0,0])); if(this._last)this.draw(this._last.items,this._last.cur,this._last.pop); },
+    clear(){ this._last=null; const c=this._c; if(c)c.getContext("2d").clearRect(0,0,c.width,c.height); },
+    // items: tijdlijn; cur: huidige tijd; pop: hoe lang (in tijdlijn-minuten) een order "popt"
+    draw(items,cur,pop){
+      this._last={items,cur,pop}; const c=this._c; if(!c)return; const ctx=c.getContext("2d"); ctx.clearRect(0,0,c.width,c.height);
+      const m=this._map; const z=m.getZoom(); const base=z>=10?4:(z>=8?3:2.4);
+      const settled=[], fresh=[];
+      for(let i=0;i<items.length;i++){ const it=items[i]; if(it.t>cur)break; if(!it.ll)continue; const age=cur-it.t; (age<pop?fresh:settled).push(it); }
+      ctx.fillStyle="rgba(1,181,45,.55)";
+      for(const it of settled){ const p=m.latLngToContainerPoint(it.ll); ctx.beginPath(); ctx.arc(p.x,p.y,base,0,6.283); ctx.fill(); }
+      for(const it of fresh){
+        const f=(cur-it.t)/pop;                       // 0 = net binnen, 1 = uitgepopt
+        const p=m.latLngToContainerPoint(it.ll);
+        const r=base+ (1-f)*(14+Math.min(10,Math.sqrt(it.rev||0)/4));
+        ctx.beginPath(); ctx.arc(p.x,p.y,r,0,6.283); ctx.fillStyle="rgba(232,113,10,"+(0.12+0.35*(1-f)).toFixed(3)+")"; ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x,p.y,base+1.5,0,6.283); ctx.fillStyle="rgba(232,113,10,.95)"; ctx.fill();
+      }
     }
-    if(!HT)load(); else setTimeout(()=>{try{if(map)map.invalidateSize();}catch(e){}},60);
+  });
+
+  function ensureMap(){
+    if(map)return;
+    map=L.map("htmap",{preferCanvas:true}).setView(CENTER[shop][0],CENTER[shop][1]);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,attribution:"&copy; OpenStreetMap"}).addTo(map);
+    staticLayer=L.layerGroup().addTo(map);
+    blob=new BlobLayer(); blob.addTo(map);
+    setTimeout(()=>map.invalidateSize(),50);
+  }
+  function stat(html){ const el=document.getElementById("htstat"); if(el)el.innerHTML=html; }
+
+  // ---- Werkbalk
+  function bar(){
+    const b=document.getElementById("htbar"); if(!b)return;
+    const seg=(name,opts,val)=>'<span class="knseg" data-k="'+name+'">'+opts.map(o=>'<button data-v="'+o[0]+'" class="'+(o[0]===val?"on":"")+'">'+o[1]+'</button>').join("")+'</span>';
+    let per="";
+    if(mode==="range") per='<span class="httf">van <input type="date" id="htfrom" value="'+from+'"> tot <input type="date" id="htto" value="'+to+'"></span>';
+    else if(mode==="day") per='<span class="httf"><button class="htnav" data-nav="-1">&#9664;</button><input type="date" id="htday" value="'+day+'"><button class="htnav" data-nav="1">&#9654;</button></span>';
+    else per='<span class="httf"><button class="htnav" data-nav="-1">&#9664;</button><input type="month" id="htmonth" value="'+month+'"><button class="htnav" data-nav="1">&#9654;</button></span>';
+    b.innerHTML='<span class="htlbl">Shop</span>'+seg("shop",[["NL","NL"],["DE","DE"],["FR","FR"]],shop)
+      +'<span class="htlbl">Periode</span>'+seg("mode",[["range","Tijdvak"],["day","Dag"],["month","Maand"]],mode)+per
+      +(mode==="range"?'<span class="htlbl">Weging</span>'+seg("weight",[["orders","Orders"],["omzet","Omzet"]],weight)+'<span class="htlbl">Weergave</span>'+seg("view",[["heat","Heatmap"],["dots","Stippen"]],view):"")
+      +'<span class="knsep"></span><button class="knref" id="htref">&#8635; Ververs</button>';
+    b.querySelectorAll(".knseg button").forEach(btn=>btn.addEventListener("click",()=>{
+      const k=btn.parentElement.dataset.k, v=btn.dataset.v;
+      if(k==="shop"){ shop=v; if(map)map.setView(CENTER[shop][0],CENTER[shop][1]); }
+      else if(k==="mode"){ mode=v; }
+      else if(k==="weight"){ weight=v; } else if(k==="view"){ view=v; }
+      stopPlay(); bar(); load();
+    }));
+    const f=document.getElementById("htfrom"), t=document.getElementById("htto"), d=document.getElementById("htday"), mo=document.getElementById("htmonth");
+    if(f)f.addEventListener("change",()=>{ from=f.value||from; load(); });
+    if(t)t.addEventListener("change",()=>{ to=t.value||to; load(); });
+    if(d)d.addEventListener("change",()=>{ day=d.value||day; stopPlay(); load(); });
+    if(mo)mo.addEventListener("change",()=>{ month=mo.value||month; stopPlay(); load(); });
+    b.querySelectorAll(".htnav").forEach(n=>n.addEventListener("click",()=>{
+      const dir=+n.dataset.nav;
+      if(mode==="day"){ day=addD(day,dir); } else { const [y,m]=month.split("-").map(Number); const nd=new Date(y,m-1+dir,1); month=nd.getFullYear()+"-"+pad2(nd.getMonth()+1); }
+      stopPlay(); bar(); load();
+    }));
+    document.getElementById("htref").addEventListener("click",()=>{ stopPlay(); load(true); });
+  }
+
+  // ---- Laden per modus
+  async function load(fresh){
+    ensureMap(); staticLayer.clearLayers(); blob.clear(); TL=[]; DATA=null;
+    document.getElementById("httop").innerHTML="";
+    try{
+      if(mode==="range") await loadRange();
+      else if(mode==="day") await loadTimeline(day,day,"Dag");
+      else { const [y,m]=month.split("-").map(Number); const first=month+"-01"; let last=ymd(new Date(y,m,0)); if(last>today)last=today; await loadTimeline(first,last,"Maand"); }
+    }catch(e){ stat('<span style="color:var(--red)">Kon order-heatmap niet laden: '+esc(e.message||e)+'</span>'); }
+    histPanel();
+  }
+
+  async function loadRange(){
+    stat("Orders ophalen uit de database…");
+    const r=await fetch("/api/data"+Q+"view=geoorders&shop="+shop+"&start="+from+"&end="+to);
+    if(r.status===401){ location.href="/login.html"; return; }
+    const j=await r.json(); if(!r.ok)throw new Error(j.error||("HTTP "+r.status));
+    DATA=j;
+    const pts=j.points||[];
+    const keys=[...new Set(pts.map(p=>p.cc+"|"+p.pc))];
+    await geocodeKeys(keys,(d,n)=>stat("Postcodes geocoderen… "+d+"/"+n));
+    const items=pts.map(p=>{ const ll=CACHE[p.cc+"|"+p.pc]; return ll?{ll,w:weight==="omzet"?p.omzet:p.count,p}:null; }).filter(Boolean);
+    if(view==="heat"){
+      const mx=Math.max(1,...items.map(i=>i.w));
+      L.heatLayer(items.map(i=>[i.ll[0],i.ll[1],Math.min(1,0.15+i.w/mx)]),{radius:22,blur:18,maxZoom:11,max:1,gradient:{0.2:"#c7f0d2",0.5:"#01B52D",0.8:"#E8710A",1:"#d1242f"}}).addTo(staticLayer);
+    }else{
+      const mx=Math.max(1,...items.map(i=>i.w));
+      items.forEach(i=>L.circleMarker(i.ll,{radius:3+10*Math.sqrt(i.w/mx),color:"#018A24",weight:1,fillColor:"#01B52D",fillOpacity:.55}).bindTooltip("<b>"+esc(i.p.cc+" "+i.p.pc)+"</b> "+esc(i.p.plaats||"")+"<br>"+int0(i.p.count)+" orders · "+eur0(i.p.omzet)).addTo(staticLayer));
+    }
+    if(items.length){ try{ map.fitBounds(L.latLngBounds(items.map(i=>i.ll)),{padding:[20,20],maxZoom:9}); }catch(e){} }
+    const miss=(j.daysRequested||0)-(j.daysCovered||0);
+    stat("<b>"+int0(j.total.orders)+" orders</b> · "+eur0(j.total.omzet)+" omzet · "+int0(pts.length)+" postcodegebieden ("+int0(items.length)+" op kaart) · "+from+" t/m "+to
+      +(miss>0?' · <span style="color:var(--orange)">'+miss+" van "+j.daysRequested+" dagen nog niet in opslag</span>":""));
+    topTable(pts.map(p=>({cc:p.cc,pc:p.pc,plaats:p.plaats,count:p.count,omzet:p.omzet})));
+    document.getElementById("htplay").style.display="none";
+  }
+
+  // Dag of maand: tijdlijn uit KV (dag: met live-terugval voor één dag).
+  async function loadTimeline(start,end,label){
+    stat("Tijdlijn ophalen…");
+    let daysObj={}, missing=[];
+    if(start===end){
+      const r=await fetch("/api/data"+Q+"view=geoday&shop="+shop+"&date="+start);
+      if(r.status===401){ location.href="/login.html"; return; }
+      const j=await r.json(); if(!r.ok)throw new Error(j.error||("HTTP "+r.status));
+      daysObj[start]=(j.events||[]).map(e=>[e.m,e.cc,e.pc,e.omzet]);
+    }else{
+      const r=await fetch("/api/data"+Q+"view=geoevents&shop="+shop+"&start="+start+"&end="+end);
+      if(r.status===401){ location.href="/login.html"; return; }
+      const j=await r.json(); if(!r.ok)throw new Error(j.error||("HTTP "+r.status));
+      daysObj=j.days||{}; missing=j.missing||[];
+      // Dagen zonder key maar binnen het al ingeladen bereik zijn gewoon dagen zonder orders.
+      const cur=j.backfill&&j.backfill.cursor; if(cur) missing=missing.filter(d=>d<cur);
+    }
+    const dates=[]; for(let d=start; d<=end; d=addD(d,1)) dates.push(d);
+    const nDays=dates.length; tMax=nDays*1440;
+    const raw=[]; dates.forEach((d,di)=>(daysObj[d]||[]).forEach(e=>raw.push({t:di*1440+(+e[0]||0),cc:e[1],pc:e[2],rev:+e[3]||0,d})));
+    raw.sort((a,b)=>a.t-b.t);
+    const keys=[...new Set(raw.filter(e=>e.cc&&e.pc).map(e=>e.cc+"|"+e.pc))];
+    await geocodeKeys(keys,(d,n)=>stat("Postcodes geocoderen… "+d+"/"+n));
+    TL=raw.map(e=>Object.assign(e,{ll:(e.cc&&e.pc)?CACHE[e.cc+"|"+e.pc]:null}));
+    DATA={start,end,dates,nDays,missing,label};
+    const onMap=TL.filter(e=>e.ll).length, omzet=TL.reduce((a,e)=>a+e.rev,0);
+    const per={}; TL.forEach(e=>{ if(!e.cc||!e.pc)return; const k=e.cc+"|"+e.pc; const a=per[k]||(per[k]={cc:e.cc,pc:e.pc,plaats:"",count:0,omzet:0}); a.count++; a.omzet+=e.rev; });
+    topTable(Object.values(per));
+    const when=start===end?fmtDate(start):(MND[+start.slice(5,7)-1]+" "+start.slice(0,4));
+    stat("<b>"+int0(TL.length)+" orders</b> · "+eur0(omzet)+" omzet · "+int0(onMap)+" op kaart · "+when
+      +(missing.length?' · <span style="color:var(--orange)">'+missing.length+" dag"+(missing.length>1?"en":"")+" nog niet in opslag"+(isAdmin()?" — laad hieronder de historie in":"")+"</span>":""));
+    if(TL.length){ try{ map.fitBounds(L.latLngBounds(TL.filter(e=>e.ll).map(e=>e.ll)),{padding:[20,20],maxZoom:9}); }catch(e){} }
+    cur=0; setupPlay(); frame(0);
+  }
+
+  function fmtDate(s){ const d=new Date(s+"T00:00:00"); return DAGS[d.getDay()]+" "+d.getDate()+" "+MABBR[d.getMonth()]+" "+d.getFullYear(); }
+  function fmtT(t){
+    const di=Math.floor(t/1440), m=Math.floor(t%1440);
+    const hm=pad2(Math.floor(m/60))+":"+pad2(m%60);
+    if(mode==="day")return hm;
+    const d=DATA&&DATA.dates[Math.min(di,DATA.nDays-1)]; return (d?fmtDate(d).replace(/ \d{4}$/,""):"")+" · "+hm;
+  }
+  function topTable(rows){
+    const el=document.getElementById("httop"); if(!el)return;
+    rows=rows.slice().sort((a,b)=>b.count-a.count).slice(0,25);
+    if(!rows.length){ el.innerHTML='<div class="httoph">Top postcodegebieden</div><div style="font-size:12.5px;color:var(--mute);padding:4px 0 6px">Geen orders in deze periode.</div>'; return; }
+    el.innerHTML='<div class="httoph">Top postcodegebieden (gesorteerd op orders)</div><table><thead><tr><th>#</th><th style="text-align:left">Postcode</th><th style="text-align:left">Plaats</th><th>Orders</th><th>Omzet</th></tr></thead><tbody>'
+      +rows.map((r,i)=>'<tr><td>'+(i+1)+'</td><td style="text-align:left"><b>'+esc(r.cc+" "+r.pc)+'</b></td><td style="text-align:left">'+esc(r.plaats||"")+'</td><td>'+int0(r.count)+'</td><td>'+eur0(r.omzet)+'</td></tr>').join("")+'</tbody></table>';
+  }
+
+  // ---- Afspelen
+  function rate(){ return (mode==="day"?40:720)*speedMul; }       // tijdlijn-minuten per echte seconde
+  function popLen(){ return mode==="day"?45:300; }                 // hoe lang een order "popt"
+  function setupPlay(){
+    const p=document.getElementById("htplay"); p.style.display="";
+    p.innerHTML='<button class="htpbtn" id="htpbtn">&#9654; Afspelen</button><button class="knref" id="htpreset" title="Terug naar begin">&#8634;</button>'
+      +'<input type="range" class="htprange" id="htprange" min="0" max="'+tMax+'" step="1" value="0">'
+      +'<span class="htptime" id="htptime"></span><span class="htpcount" id="htpcount"></span>'
+      +'<select class="htpspeed" id="htpspeed"><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option></select>'
+      +'<span class="htphint">'+(mode==="day"?"Eén dag van 00:00 tot 24:00; op 1× duurt een dag ongeveer 36 seconden.":"Elke dag duurt op 1× ongeveer 2 seconden; oranje = net binnengekomen, groen = eerder vandaag/deze maand.")+' Sleep de schuif om te spoelen.</span>';
+    document.getElementById("htpbtn").addEventListener("click",()=>playing?stopPlay():startPlay());
+    document.getElementById("htpreset").addEventListener("click",()=>{ stopPlay(); cur=0; frame(0); });
+    document.getElementById("htprange").addEventListener("input",e=>{ cur=+e.target.value; frame(cur,true); });
+    document.getElementById("htpspeed").addEventListener("change",e=>{ speedMul=+e.target.value||1; });
+  }
+  function frame(t,fromSlider){
+    cur=Math.max(0,Math.min(tMax,t));
+    blob.draw(TL,cur,popLen());
+    const rng=document.getElementById("htprange"); if(rng&&!fromSlider)rng.value=cur;
+    const tm=document.getElementById("htptime"); if(tm)tm.textContent=fmtT(cur);
+    let n=0, om=0; for(let i=0;i<TL.length;i++){ if(TL[i].t>cur)break; n++; om+=TL[i].rev; }
+    const c=document.getElementById("htpcount"); if(c)c.textContent=int0(n)+" orders · "+eur0(om)+" tot nu";
+  }
+  function startPlay(){
+    if(!TL.length&&!tMax)return;
+    if(cur>=tMax)cur=0;
+    playing=true; const b=document.getElementById("htpbtn"); if(b)b.innerHTML="&#10074;&#10074; Pauze";
+    lastTs=performance.now();
+    const step=ts=>{ if(!playing)return; const dt=(ts-lastTs)/1000; lastTs=ts; frame(cur+dt*rate()); if(cur>=tMax){ stopPlay(); return; } rafId=requestAnimationFrame(step); };
+    rafId=requestAnimationFrame(step);
+  }
+  function stopPlay(){ playing=false; if(rafId)cancelAnimationFrame(rafId); rafId=null; const b=document.getElementById("htpbtn"); if(b)b.innerHTML="&#9654; Afspelen"; }
+
+  // ---- Historie inladen (admin): loopt de backfill venster-voor-venster af tot de historie compleet is.
+  async function histPanel(){
+    const el=document.getElementById("hthist"); if(!el)return;
+    if(!isAdmin()){ el.style.display="none"; return; }
+    el.style.display="";
+    let st=null; try{ st=await fetch("/api/data"+Q+"view=georefresh&mode=status").then(r=>r.json()); }catch(e){}
+    const m=(st&&st.metas&&st.metas[shop])||null;
+    const earliest=m&&m.earliest?String(m.earliest):null, cursor=m&&m.cursor?String(m.cursor):null;
+    let pct=0; if(m&&m.done)pct=100; else if(earliest&&cursor){ const tot=(new Date(today)-new Date(earliest))/864e5, done=(new Date(today)-new Date(cursor))/864e5; pct=tot>0?Math.max(0,Math.min(100,Math.round(done/tot*100))):0; }
+    el.innerHTML='<b>Historie '+shop+'</b> '+(m?(m.done?"compleet (vanaf "+esc(earliest||"?")+")":"ingeladen t/m "+esc(cursor||"?")+" terug"+(earliest?" · eerste orders "+esc(earliest):"")+" · "+pct+"%"):"nog niets ingeladen")
+      +(histBusy?' <span id="hthistmsg" style="color:var(--mute)"></span><button class="knref" id="hthiststop">Stop</button>':(m&&m.done?'<button class="knref" id="hthistgo">Recente dagen bijwerken</button>':'<button class="knref" id="hthistgo">Historie inladen ('+shop+')</button>'))
+      +'<div class="bar"><i style="width:'+pct+'%"></i></div>';
+    const go=document.getElementById("hthistgo"), stop=document.getElementById("hthiststop");
+    if(go)go.addEventListener("click",()=>runHist(shop));
+    if(stop)stop.addEventListener("click",()=>{ histStop=true; });
+  }
+  async function runHist(s){
+    if(histBusy)return; histBusy=true; histStop=false; histPanel();
+    let n=0, orders=0;
+    try{
+      for(;;){
+        if(histStop)break;
+        const r=await fetch("/api/data"+Q+"view=georefresh&mode=backfill&shop="+s+"&win=7");
+        const j=await r.json().catch(()=>({}));
+        n++; orders+=j.orders||0;
+        const msg=document.getElementById("hthistmsg"); if(msg)msg.textContent="venster "+n+": "+(j.window||j.note||"")+" · "+int0(j.orders||0)+" orders"+(j.cursor?" · nu t/m "+j.cursor:"");
+        const bar=document.querySelector("#hthist .bar i"); if(bar&&j.cursor&&j.earliest){ const tot=(new Date(today)-new Date(j.earliest))/864e5, done=(new Date(today)-new Date(j.cursor))/864e5; bar.style.width=(tot>0?Math.round(done/tot*100):0)+"%"; }
+        if(!r.ok||j.done||j.refresh)break;
+        if(n>2000)break;
+      }
+    }catch(e){}
+    histBusy=false; histPanel(); if(s===shop)load();
+  }
+
+  window.__heatLoad=function(){
+    if(!inited){ inited=true; loadCache(); bar(); }
+    else if(map)setTimeout(()=>map.invalidateSize(),50);
+    if(!DATA)load();
   };
 })();
 /* ===== Telefonie (belminuten per maand/dag, inkomend vs uitgaand) ===== */
