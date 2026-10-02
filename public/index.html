@@ -1280,326 +1280,232 @@ function destroyCharts(){Object.values(charts).forEach(c=>{try{c.destroy();}catc
 
 /* ---- model ---- */
 function row(r){const cogs=r[4]+r[5]+r[6]+r[7];const bw=r[1]-cogs;const wva=bw-r[8];
-return{label:r[0],net:r[1],adv:r[2],orders:r[3],cogs,bw,opex:r[8],trans:r[6],wva,marge:r[1]?bw/r[1]:NaN,netto:wva-r[2],poas:r[2]?wva/r[2]:NaN,roas:r[2]?r[1]/r[2]:NaN,avkPct:r[1]?(r[2]+r[8]+r[6])/r[1]:NaN,cpa:r[3]?r[2]/r[3]:NaN,aov:r[3]?r[1]/r[3]:NaN,bwPer:r[3]?bw/r[3]:NaN};}
+return{label:r[0],net:r[1],adv:r[2],orders:r[3],cogs,bw,opex:r[8],trans:r[6],wva,marge:r[1]?bw/r[1]:NaN,netto:wva-r[2],poas:r[2]?wva/r[2]:NaN,avkPct:r[1]?(r[2]+r[8]+r[6])/r[1]:NaN,cpa:r[3]?r[2]/r[3]:NaN,aov:r[3]?r[1]/r[3]:NaN,bwPer:r[3]?bw/r[3]:NaN};}
 function rowsOf(s){return (DATA[s]&&DATA[s].m?DATA[s].m:[]).map(row);}
 function isPartial(s,i){return i===(DATA[s].m.length-1);}
+function completeRows(s){return rowsOf(s).filter((r,i)=>!isPartial(s,i));}
+function partialRow(s){const r=rowsOf(s);return r.length?r[r.length-1]:null;}
 function agg(rows){const s=f=>rows.reduce((a,r)=>a+f(r),0);const net=s(r=>r.net),adv=s(r=>r.adv),bw=s(r=>r.bw),opex=s(r=>r.opex),orders=s(r=>r.orders),trans=s(r=>r.trans);const wva=bw-opex;
-return{net,adv,bw,opex,orders,trans,wva,netto:wva-adv,marge:net?bw/net:NaN,poas:adv?wva/adv:NaN,roas:adv?net/adv:NaN,aov:orders?net/orders:NaN,avkPct:net?(adv+opex+trans)/net:NaN,cpa:orders?adv/orders:NaN};}
+return{net,adv,bw,opex,orders,trans,wva,netto:wva-adv,marge:net?bw/net:NaN,poas:adv?wva/adv:NaN,aov:orders?net/orders:NaN,avkPct:net?(adv+opex+trans)/net:NaN,cpa:orders?adv/orders:NaN};}
 const MMAP={jan:1,feb:2,mrt:3,apr:4,mei:5,jun:6,jul:7,aug:8,sep:9,okt:10,nov:11,dec:12};
 const MNAMES=["","januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
 const monthOf=l=>MMAP[String(l).slice(0,3).toLowerCase()]||0;
 const yearOf=l=>{const m=String(l).match(/'(\d\d)/);return m?2000+(+m[1]):0;};
 const ymKey=(y,mo)=>y+"-"+String(mo).padStart(2,"0");
-// Verzadigingscurve orders = Vmax·S/(S+k), gefit met echte kleinste kwadraten
-// (raster over k; Vmax volgt gesloten). Vervangt de 1/x-linearisatie, die kleine maanden te zwaar woog.
-function fitSat(pts){pts=pts.filter(p=>p.spend>0&&p.orders>0);const n=pts.length;if(n<2)return{Vmax:NaN,k:NaN,r2:NaN,n};
-const S=pts.map(p=>p.spend),O=pts.map(p=>p.orders);let best=null;
-for(let i=0;i<=240;i++){const k=Math.exp(Math.log(500)+(Math.log(5e6)-Math.log(500))*i/240);let sg=0,sgg=0;for(let j=0;j<n;j++){const g=S[j]/(S[j]+k);sg+=O[j]*g;sgg+=g*g;}const V=sg/sgg;let sse=0;for(let j=0;j<n;j++){const g=S[j]/(S[j]+k);sse+=(O[j]-V*g)**2;}if(!best||sse<best.sse)best={sse,V,k};}
-const mo=O.reduce((a,b)=>a+b,0)/n;let st=0;for(const o of O)st+=(o-mo)**2;
-return{Vmax:best.V,k:best.k,r2:st?1-best.sse/st:1,n};}
-// Economie per shop. Opex is een vast maandbedrag (geen kostenpost per order): voor de
-// marginale beslissing telt alleen brutowinst per order, dus break-even CPA = brutowinst/order.
-function lastComplete(s,n){const rows=rowsOf(s).filter((r,i)=>!isPartial(s,i));return rows.slice(-n);}
-function econOf(s){const last=lastComplete(s,12);const a=agg(last);const l3=agg(lastComplete(s,3));const ov=state.over[s]||{};
-const marge=ov.marge!=null?ov.marge:(l3.net?l3.marge:a.marge);
-const aov=ov.aov!=null?ov.aov:((AOV[s]&&isFinite(AOV[s]))?AOV[s]:a.aov);
-const m=aov*marge;
-const opexM=ov.opexM!=null?ov.opexM:(l3.opex/Math.max(1,lastComplete(s,3).length));
-const transPer=a.orders?a.trans/a.orders:0;
-return{aov,marge,m,opexM,transPer,breakeven:m};}
-function econTotaal(){const ov=state.over["TOT"]||{};const a=agg(lastComplete("TOT",12));const l3=agg(lastComplete("TOT",3));
-const marge=ov.marge!=null?ov.marge:(l3.net?l3.marge:a.marge);const aov=ov.aov!=null?ov.aov:a.aov;const m=aov*marge;
-const opexM=ov.opexM!=null?ov.opexM:(l3.opex/Math.max(1,lastComplete("TOT",3).length));const transPer=a.orders?a.trans/a.orders:0;
-return{aov,marge,m,opexM,transPer,breakeven:m};}
-// Dalende functie f(S) op [lo,hi] oplossen naar f(S)=target (bisectie).
-function solveDesc(f,target,lo,hi){if(f(lo)<target||f(hi)>target)return NaN;for(let i=0;i<60;i++){const mid=(lo+hi)/2;if(f(mid)>target)lo=mid;else hi=mid;}return(lo+hi)/2;}
-function windowOpt(pts,econ,floor,lock){const m=econ.m,X=econ.opexM||0,tr=econ.transPer||0,aov=econ.aov;
-pts=pts.filter(p=>p.spend>0&&p.orders>0);if(pts.length<2)return null;
-const f=fitSat(pts);const{Vmax,k,r2,n}=f;if(!(Vmax>0&&k>0&&m>0))return{n,r2,Vmax,bad:true};
-const minS=Math.min(...pts.map(p=>p.spend)),maxS=Math.max(...pts.map(p=>p.spend));
-const lo=lock?minS:Math.max(1000,minS*0.4),hi=lock?maxS:maxS*1.6;
-const ord=S=>Vmax*S/(S+k),poas=S=>(ord(S)*m-X)/S,mcpa=S=>(S+k)*(S+k)/(Vmax*k);
-let best=null;for(let i=0;i<=400;i++){const S=lo+(hi-lo)*i/400;if(poas(S)<floor)continue;const o=ord(S);const p=o*m-S-X;if(!best||p>best.profit)best={S,o,profit:p,poas:poas(S)};}
-const pHigh=poas(lo),pLow=Math.max(floor,poas(hi));const front=[];
-if(pHigh>pLow){for(let i=0;i<13;i++){const p=pHigh-(pHigh-pLow)*i/12;let S=solveDesc(poas,p,lo,hi);if(!isFinite(S))S=i===0?lo:hi;const o=ord(S);const profit=o*m-S-X;const omzet=o*aov;const avk=S+X+tr*o;front.push({poas:p,spend:S,orders:o,profit,omzet,cpa:S/o,mcpa:mcpa(S),ppo:m-S/o,avkPct:omzet?avk/omzet:NaN});}}
-return{n,r2,Vmax,k,minS,maxS,lo,hi,lock,ord,front,...(best||{}),eff:{poas:poas(lo),S:lo,o:ord(lo)},vol:{poas:Math.max(floor,poas(hi)),S:hi,o:ord(hi)}};}
-// Seizoenen verschillen per shop: NL/FR pieken in de zomer, DE in het najaar/winter.
-const SEASON={NL:[6,7,8,9,10,11],FR:[6,7,8,9,10,11],DE:[10,11,12,1],TOT:[6,7,8,9,10,11]};
-const PRESETS=[{key:"l3",short:"Laatste 3 mnd"},{key:"l6",short:"Laatste 6 mnd"},{key:"l12",short:"Laatste 12 mnd"},{key:"high",short:"Hoogseizoen"},{key:"low",short:"Laagseizoen"},{key:"all",short:"Alles"}];
-function presetIdx(s,key){const m=DATA[s].m;const comp=m.map((r,i)=>({r,i})).filter(x=>!isPartial(s,x.i));const hi=SEASON[s]||SEASON.NL;
-if(key==="all")return comp.map(x=>x.i);
-if(key==="l3")return comp.slice(-3).map(x=>x.i);
-if(key==="l6")return comp.slice(-6).map(x=>x.i);
-if(key==="l12")return comp.slice(-12).map(x=>x.i);
-if(key==="high")return comp.filter(x=>hi.includes(monthOf(x.r[0]))).map(x=>x.i);
-if(key==="low")return comp.filter(x=>!hi.includes(monthOf(x.r[0]))).map(x=>x.i);
-return[];}
-// Robuustheid: hetzelfde optimum over meerdere vensters → bandbreedte i.p.v. één getal.
-function robustOpt(shop,rows,econ,floor){const out=[];["l6","l12","all","high","low"].forEach(k=>{const idx=presetIdx(shop,k);if(idx.length<4)return;const pts=idx.map(i=>({spend:rows[i].adv,orders:rows[i].orders}));const o=windowOpt(pts,econ,floor,true);if(o&&!o.bad&&o.profit!=null&&isFinite(o.poas))out.push({key:k,poas:o.poas,S:o.S,r2:o.r2,n:o.n});});return out;}
-function zoneColor(poas,floor,opt){if(!isFinite(poas))return C.mute;if(poas<floor)return C.red;if(opt&&poas<opt-0.15)return C.orange;if(opt&&poas<=opt+0.3)return C.green;return C.blue;}
+const fmtInt=n=>isFinite(n)?Math.round(n).toLocaleString("nl-NL"):"—";
+function monthLabel(Y,M){return MNAMES[M]+" "+Y;}
+function curMonth(){const d=new Date();return{Y:d.getFullYear(),M:d.getMonth()+1,day:d.getDate(),dim:new Date(d.getFullYear(),d.getMonth()+1,0).getDate()};}
 function buildTotaal(){const shops=["NL","DE","FR"].filter(s=>DATA[s]&&DATA[s].m&&DATA[s].m.length);const base=shops[0];if(!base)return{name:"Totaal",m:[]};
 const labels=DATA[base].m.map(r=>r[0]).filter(l=>shops.every(s=>DATA[s].m.some(r=>r[0]===l)));
 const m=labels.map(l=>{const acc=[l,0,0,0,0,0,0,0,0];for(const s of shops){const r=DATA[s].m.find(x=>x[0]===l);for(let j=1;j<9;j++)acc[j]+=r[j];}return acc;});
 return{name:"Totaal (NL+DE+FR)",m};}
 
-/* ---- jaar-op-jaar model (de kern van de maandplanner) ----
-   Dezelfde maand in twee jaren verschilt vooral in spend, niet in seizoen. Over alle maandparen
-   schatten we: ln(orders₂/orders₁) = γ + β·ln(spend₂/spend₁).
-   β = elasticiteit van orders t.o.v. spend (0,36 = 10% meer spend → 3,6% meer orders),
-   γ = autonome jaar-op-jaar verandering bij gelijke spend (trend/markt). */
-const BETA_FALLBACK=0.35;
-function yoyModel(s){const rows=rowsOf(s).filter((r,i)=>!isPartial(s,i));const by={};rows.forEach(r=>{by[ymKey(yearOf(r.label),monthOf(r.label))]=r;});
-const pairs=[];rows.forEach(r=>{const y=yearOf(r.label),mo=monthOf(r.label);const prev=by[ymKey(y-1,mo)];if(!prev||!(prev.adv>0&&prev.orders>0&&r.adv>0&&r.orders>0))return;
-pairs.push({label:r.label,prev,cur:r,dS:Math.log(r.adv/prev.adv),dO:Math.log(r.orders/prev.orders),dSpend:r.adv-prev.adv,dOrders:r.orders-prev.orders,mcpa:(r.orders-prev.orders)!==0?(r.adv-prev.adv)/(r.orders-prev.orders):NaN});});
-const n=pairs.length;const out={pairs,n,beta:BETA_FALLBACK,gamma:0,seB:NaN,seG:NaN,sd:NaN,mape:NaN,fallback:true};
-if(n>=3){const mx=pairs.reduce((a,p)=>a+p.dS,0)/n,my=pairs.reduce((a,p)=>a+p.dO,0)/n;let sxx=0,sxy=0;pairs.forEach(p=>{sxx+=(p.dS-mx)**2;sxy+=(p.dS-mx)*(p.dO-my);});
-if(sxx>0){const beta=sxy/sxx,gamma=my-beta*mx;let sse=0;pairs.forEach(p=>{sse+=(p.dO-gamma-beta*p.dS)**2;});const s2=n>2?sse/(n-2):NaN;const seB=Math.sqrt(s2/sxx),seG=Math.sqrt(s2*(1/n+mx*mx/sxx));
-// leave-one-out: hoe goed voorspelt het model een maand die het niet gezien heeft?
-let ape=0,cnt=0;if(n>=4){pairs.forEach((p,j)=>{let mx2=0,my2=0,k=0;pairs.forEach((q,i)=>{if(i!==j){mx2+=q.dS;my2+=q.dO;k++;}});mx2/=k;my2/=k;let a=0,b=0;pairs.forEach((q,i)=>{if(i!==j){a+=(q.dS-mx2)**2;b+=(q.dS-mx2)*(q.dO-my2);}});if(a>0){const bb=b/a,gg=my2-bb*mx2;const pred=p.prev.orders*Math.exp(gg+bb*p.dS);ape+=Math.abs(pred-p.cur.orders)/p.cur.orders;cnt++;}});}
-Object.assign(out,{beta,gamma,seB,seG,sd:Math.sqrt(s2),mape:cnt?ape/cnt:NaN,fallback:!(n>=6&&seB<0.15&&beta>0.05&&beta<0.9)});
-if(out.fallback){out.betaEst=beta;out.gammaEst=gamma;out.beta=BETA_FALLBACK;out.gamma=0;}}}
-// Terugval als de regressie te ruis is: elasticiteit uit de jaartotalen (ΣO₂/ΣO₁ vs ΣS₂/ΣS₁), trend 0.
-if(out.fallback&&n>=3){const S1=pairs.reduce((a,p)=>a+p.prev.adv,0),S2=pairs.reduce((a,p)=>a+p.cur.adv,0),O1=pairs.reduce((a,p)=>a+p.prev.orders,0),O2=pairs.reduce((a,p)=>a+p.cur.orders,0);const ls=Math.log(S2/S1);if(Math.abs(ls)>0.1&&O1>0&&O2>0){const ba=Math.log(O2/O1)/ls;if(isFinite(ba)){out.beta=Math.min(0.7,Math.max(0.15,ba));out.betaAgg=ba;out.fallbackSrc="jaartotaal";}}}
-const ov=(state.plan&&state.plan[s])||{};if(ov.beta!=null){out.beta=ov.beta;out.betaOv=true;}if(ov.gamma!=null){out.gamma=ov.gamma;out.gammaOv=true;}
-const tot=pairs.reduce((a,p)=>({dS:a.dS+p.dSpend,dO:a.dO+p.dOrders}),{dS:0,dO:0});out.totMcpa=tot.dO?tot.dS/tot.dO:NaN;out.totDS=tot.dS;out.totDO=tot.dO;
-return out;}
-// Maandplanner voor shop s, doelmaand (Y,M): referentie = laatste complete versie van die maand.
-function planMonth(s,Y,M,econIn){const rows=rowsOf(s);const comp=rows.filter((r,i)=>!isPartial(s,i));const by={};comp.forEach(r=>{by[ymKey(yearOf(r.label),monthOf(r.label))]=r;});
-let ref=null,d=0;for(let yy=Y-1;yy>=Y-4;yy--){if(by[ymKey(yy,M)]){ref=by[ymKey(yy,M)];d=Y-yy;break;}}
-const mdl=yoyModel(s);if(!ref)return{ok:false,reason:"geen referentiemaand (zelfde maand in een eerder jaar) in de data",mdl};
-const pv=(state.plan&&state.plan[s])||{};
-const aov=pv.aov!=null?pv.aov:(isFinite(econIn.aov)?econIn.aov:ref.aov);const marge=pv.marge!=null?pv.marge:econIn.marge;const opexM=pv.opexM!=null?pv.opexM:econIn.opexM;const tr=econIn.transPer||0;
-const m=aov*marge;const beta=mdl.beta,gamma=mdl.gamma;
-const Obase=ref.orders*Math.exp(gamma*d);const Sref=ref.adv;
-const ord=S=>Obase*Math.pow(S/Sref,beta);const bw=S=>ord(S)*m;const netto=S=>bw(S)-opexM-S;const poas=S=>(bw(S)-opexM)/S;const mcpa=S=>S/(beta*ord(S));
-const Sopt=Math.pow(beta*m*Obase*Math.pow(Sref,-beta),1/(1-beta));
-// POAS(S) stijgt eerst (opex drukt bij kleine spend) en daalt daarna; doelen oplossen op de dalende tak.
-let Speak=1000,best=-1e18;for(let i=0;i<=200;i++){const S=Math.exp(Math.log(1000)+(Math.log(3e6)-Math.log(1000))*i/200);const v=poas(S);if(v>best){best=v;Speak=S;}}
+/* ---- Twee lenzen op dezelfde vraag "hoeveel orders levert spend S op in maand X?" ----
+   1. Jaar-op-jaar (seizoenszuiver): orders = orders_vorig_jaar · e^γ · (S / spend_vorig_jaar)^β.
+      β (elasticiteit) uit alle maandparen, γ (trend) uit de laatste 3 paren.
+   2. Verzadigingscurve over de laatste 12 maanden: orders = V·S/(S+k) (echte kleinste kwadraten).
+   De twee worden gewogen op hun eigen voorspelfout in de voorgaande maanden (backtest), per shop.
+   Alles wordt gefit op data vóór de doelmaand, zodat de modelcheck eerlijk is. */
+function fitCurve(pts){pts=pts.filter(p=>p.spend>0&&p.orders>0);const n=pts.length;if(n<4)return null;
+const S=pts.map(p=>p.spend),O=pts.map(p=>p.orders);let best=null;
+for(let i=0;i<=240;i++){const k=Math.exp(Math.log(500)+(Math.log(5e6)-Math.log(500))*i/240);let sg=0,sgg=0;for(let j=0;j<n;j++){const g=S[j]/(S[j]+k);sg+=O[j]*g;sgg+=g*g;}const V=sg/sgg;let sse=0;for(let j=0;j<n;j++){const g=S[j]/(S[j]+k);sse+=(O[j]-V*g)**2;}if(!best||sse<best.sse)best={sse,V,k};}
+const mo=O.reduce((a,b)=>a+b,0)/n;let st=0;for(const o of O)st+=(o-mo)**2;
+return{V:best.V,k:best.k,r2:st?1-best.sse/st:1,n,minS:Math.min(...S),maxS:Math.max(...S)};}
+function yoyPairs(comp,upto){const by={};comp.forEach((r,i)=>{by[ymKey(yearOf(r.label),monthOf(r.label))]=i;});const pairs=[];
+for(let i=0;i<upto;i++){const r=comp[i];const j=by[ymKey(yearOf(r.label)-1,monthOf(r.label))];if(j==null||j>=upto)continue;const p=comp[j];if(!(p.adv>0&&p.orders>0&&r.adv>0&&r.orders>0))continue;
+pairs.push({i,prev:p,cur:r,dS:Math.log(r.adv/p.adv),dO:Math.log(r.orders/p.orders),dSpend:r.adv-p.adv,dOrders:r.orders-p.orders,mcpa:(r.orders!==p.orders)?(r.adv-p.adv)/(r.orders-p.orders):NaN});}
+return pairs;}
+function fitYoy(pairs){const n=pairs.length;const out={n,beta:0.35,gamma:0,seB:NaN,ok:false};if(n<3)return out;
+const mx=pairs.reduce((a,p)=>a+p.dS,0)/n,my=pairs.reduce((a,p)=>a+p.dO,0)/n;let sxx=0,sxy=0;pairs.forEach(p=>{sxx+=(p.dS-mx)**2;sxy+=(p.dS-mx)*(p.dO-my);});if(sxx<=0)return out;
+let beta=sxy/sxx;const gamma0=my-beta*mx;let sse=0;pairs.forEach(p=>{sse+=(p.dO-gamma0-beta*p.dS)**2;});const seB=n>2?Math.sqrt(sse/(n-2)/sxx):NaN;
+out.betaEst=beta;out.seB=seB;if(!(beta>0.05&&beta<0.9)){beta=0.35;out.betaFallback=true;}
+const rec=pairs.slice(-3);const gamma=rec.reduce((a,p)=>a+(p.dO-beta*p.dS),0)/rec.length;   // trend uit de laatste 3 jaarparen
+Object.assign(out,{beta,gamma,ok:true});return out;}
+// Model voor shop s en doelmaand (Y,M). upto = aantal complete maanden dat gebruikt mag worden.
+function buildModel(s,Y,M,upto,withWeights){const comp=completeRows(s);if(upto==null)upto=comp.length;const hist=comp.slice(0,upto);
+const by={};hist.forEach(r=>{by[ymKey(yearOf(r.label),monthOf(r.label))]=r;});
+let ref=null,d=0;for(let yy=Y-1;yy>=Y-3;yy--){if(by[ymKey(yy,M)]){ref=by[ymKey(yy,M)];d=Y-yy;break;}}
+const pairs=yoyPairs(comp,upto);const yf=fitYoy(pairs);
+const cf=fitCurve(hist.slice(-12).map(r=>({spend:r.adv,orders:r.orders})));
+const yoy=(ref&&yf.ok)?{ref,d,beta:yf.beta,gamma:yf.gamma,n:yf.n,seB:yf.seB,betaFallback:!!yf.betaFallback,Obase:ref.orders*Math.exp(yf.gamma*d),Sref:ref.adv}:null;
+const curve=cf?{V:cf.V,k:cf.k,r2:cf.r2,n:cf.n,minS:cf.minS,maxS:cf.maxS}:null;
+if(!yoy&&!curve)return null;
+// gewichten uit de voorspelfout van beide lenzen in de 6 voorgaande maanden
+let w=yoy?(curve?0.5:1):0,errY=[],errC=[];
+if(withWeights&&yoy&&curve){for(let u=Math.max(12,upto-6);u<upto;u++){const r=comp[u];const mu=buildModel(s,yearOf(r.label),monthOf(r.label),u,false);if(!mu)continue;
+if(mu.yoy)errY.push(Math.abs(mu.fy(r.adv)-r.orders)/r.orders);if(mu.curve)errC.push(Math.abs(mu.fc(r.adv)-r.orders)/r.orders);}
+if(errY.length>=3&&errC.length>=3){const ey=errY.reduce((a,b)=>a+b,0)/errY.length,ec=errC.reduce((a,b)=>a+b,0)/errC.length;w=(1/(ey*ey))/((1/(ey*ey))+(1/(ec*ec)));}}
+const fy=S=>yoy?yoy.Obase*Math.pow(S/yoy.Sref,yoy.beta):0,fc=S=>curve?curve.V*S/(S+curve.k):0;
+const ord=S=>w*fy(S)+(1-w)*fc(S);
+const dord=S=>w*(yoy?yoy.beta*fy(S)/S:0)+(1-w)*(curve?curve.V*curve.k/((S+curve.k)*(S+curve.k)):0);
+const errOf=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:NaN;
+return{yoy,curve,w,fy,fc,ord,dord,errY:errOf(errY),errC:errOf(errC),ref:ref||null,hist};}
+// Economie voor een doelmaand: AOV = laatste complete maand ervoor, marge en opex = laatste 3 maanden ervoor.
+function econFor(s,upto){const comp=completeRows(s);if(upto==null)upto=comp.length;const l3=comp.slice(Math.max(0,upto-3),upto);const a=agg(l3);const last=comp[upto-1];
+return{aov:last?last.aov:a.aov,marge:a.marge,opexM:l3.length?a.opex/l3.length:0,transPer:a.orders?a.trans/a.orders:0};}
+function solveDesc(f,target,lo,hi){if(f(lo)<target||f(hi)>target)return NaN;for(let i=0;i<60;i++){const mid=(lo+hi)/2;if(f(mid)>target)lo=mid;else hi=mid;}return(lo+hi)/2;}
+const TARGETS=[1.75,2,2.25,2.5,2.75,3,3.5,4];
+// Maandplan: model + economie → scenario's, optimum, werkelijk/huidig.
+function planMonth(s,Y,M){const comp=completeRows(s);const by={};comp.forEach((r,i)=>{by[ymKey(yearOf(r.label),monthOf(r.label))]=i;});
+const ai=by[ymKey(Y,M)];const upto=ai!=null?ai:comp.length;            // afgesloten maand: alleen data van ervoor (eerlijk)
+const mdl=buildModel(s,Y,M,upto,true);if(!mdl)return{ok:false,reason:"te weinig data (minimaal 4 maanden met spend, of dezelfde maand een jaar eerder)"};
+const e=econFor(s,upto);const pv=(state.plan&&state.plan[s])||{};
+const aov=pv.aov!=null?pv.aov:e.aov,marge=pv.marge!=null?pv.marge:e.marge,opexM=pv.opexM!=null?pv.opexM:e.opexM,tr=e.transPer;
+if(mdl.yoy){if(pv.beta!=null){mdl.yoy.beta=pv.beta;mdl.yoy.betaOv=true;}if(pv.gamma!=null){mdl.yoy.gamma=pv.gamma;mdl.yoy.gammaOv=true;mdl.yoy.Obase=mdl.yoy.ref.orders*Math.exp(pv.gamma*mdl.yoy.d);}}
+const m=aov*marge;const ord=mdl.ord,dord=mdl.dord;
+const bw=S=>ord(S)*m,netto=S=>bw(S)-opexM-S,poas=S=>(bw(S)-opexM)/S,mcpa=S=>{const dd=dord(S);return dd>0?1/dd:Infinity;};
+const refS=mdl.ref?mdl.ref.adv:(mdl.curve?(mdl.curve.minS+mdl.curve.maxS)/2:20000);
+const lo=Math.max(500,refS*0.15),hi=Math.max(refS*4,(mdl.curve?mdl.curve.maxS*2:0));
+let Sopt=lo,best=-Infinity,Speak=lo,pbest=-Infinity;for(let i=0;i<=600;i++){const S=lo*Math.pow(hi/lo,i/600);const v=netto(S);if(v>best){best=v;Sopt=S;}const p=poas(S);if(p>pbest){pbest=p;Speak=S;}}
 const point=S=>{const o=ord(S),b=bw(S),om=o*aov;return{S,orders:o,omzet:om,bw:b,netto:b-opexM-S,poas:poas(S),cpa:S/o,mcpa:mcpa(S),marge:om?(b-opexM-S)/om:NaN,avkPct:om?(S+opexM+tr*o)/om:NaN};};
-const targets=[1.75,2,2.25,2.5,2.75,3,3.5,4];
 const opt=point(Sopt);
-const scen=targets.map(p=>{if(Math.abs(p-opt.poas)<0.03)return null;const S=solveDesc(poas,p,Speak,3e6);return isFinite(S)?Object.assign(point(S),{target:p}):null;}).filter(Boolean);
-// Onzekerheid: optimum bij β ± 1 s.e.
-let band=null;if(isFinite(mdl.seB)&&!mdl.fallback){const alt=b2=>{const So=Math.pow(b2*m*Obase*Math.pow(Sref,-b2),1/(1-b2));const o=Obase*Math.pow(So/Sref,b2);return{S:So,poas:(o*m-opexM)/So,netto:o*m-opexM-So};};band={lo:alt(Math.max(0.05,beta-mdl.seB)),hi:alt(Math.min(0.9,beta+mdl.seB))};}
-// Werkelijk (als de doelmaand al (deels) data heeft)
-const actual=by[ymKey(Y,M)]||null;const partial=rows.length&&isPartial(s,rows.length-1)&&yearOf(rows[rows.length-1].label)===Y&&monthOf(rows[rows.length-1].label)===M?rows[rows.length-1]:null;
-return{ok:true,ref,refYear:Y-d,d,mdl,aov,marge,opexM,m,beta,gamma,Obase,Sref,ord,poas,netto,bw,point,Sopt,opt,Speak,scen,band,actual,partial};}
-function totaalPlan(Y,M,econ){const shops=["NL","DE","FR"].filter(s=>DATA[s]&&DATA[s].m&&DATA[s].m.length);const plans=shops.map(s=>({s,p:planMonth(s,Y,M,econOf(s))})).filter(x=>x.p.ok);if(!plans.length)return{ok:false,reason:"geen referentiemaand"};
-const sum=(fn)=>plans.reduce((a,x)=>a+fn(x.p),0);
-const targets=[1.75,2,2.25,2.5,2.75,3,3.5,4];
-const scen=targets.map(p=>{const pts=plans.map(x=>{const S=solveDesc(x.p.poas,p,x.p.Speak,3e6);return isFinite(S)?x.p.point(S):null;});if(pts.some(z=>!z))return null;const S=pts.reduce((a,z)=>a+z.S,0),orders=pts.reduce((a,z)=>a+z.orders,0),omzet=pts.reduce((a,z)=>a+z.omzet,0),bw=pts.reduce((a,z)=>a+z.bw,0),netto=pts.reduce((a,z)=>a+z.netto,0),opx=plans.reduce((a,x)=>a+x.p.opexM,0);return{target:p,S,orders,omzet,bw,netto,poas:(bw-opx)/S,cpa:S/orders,mcpa:NaN,marge:omzet?netto/omzet:NaN,avkPct:NaN};}).filter(Boolean);
+// Ter vergelijking: optimum volgens elke lens apart (zelfde economie).
+const altOpt=f=>{if(!f)return null;let bS=lo,bv=-Infinity;for(let i=0;i<=400;i++){const S=lo*Math.pow(hi/lo,i/400);const v=f(S)*m-opexM-S;if(v>bv){bv=v;bS=S;}}const o=f(bS);return{S:bS,poas:(o*m-opexM)/bS,netto:bv,orders:o};};
+const optY=mdl.yoy?altOpt(mdl.fy):null,optC=mdl.curve?altOpt(mdl.fc):null;
+const scen=TARGETS.map(p=>{if(Math.abs(p-opt.poas)<0.03)return null;const S=solveDesc(poas,p,Speak,hi*3);return isFinite(S)?Object.assign(point(S),{target:p}):null;}).filter(Boolean);
+const actual=ai!=null?comp[ai]:null;const pr=partialRow(s);const partial=(pr&&isPartial(s,rowsOf(s).length-1)&&yearOf(pr.label)===Y&&monthOf(pr.label)===M)?pr:null;
+return{ok:true,mdl,ref:mdl.ref,aov,marge,opexM,m,ord,poas,netto,point,opt,optY,optC,Speak,scen,actual,partial,upto,econ:e};}
+// Modelcheck: voor elke afgesloten maand met voldoende voorgeschiedenis: voorspeld (met alleen eerdere data) vs werkelijk.
+function backtest(s){const comp=completeRows(s);const rows=[];
+for(let t=Math.max(6,comp.length-12);t<comp.length;t++){const r=comp[t];const Y=yearOf(r.label),M=monthOf(r.label);const mdl=buildModel(s,Y,M,t,true);if(!mdl)continue;const e=econFor(s,t);
+const o=mdl.ord(r.adv);const netto=o*e.aov*e.marge-e.opexM-r.adv;rows.push({label:r.label,spend:r.adv,orders:r.orders,predO:o,errO:(o-r.orders)/r.orders,netto:r.netto,predN:netto,errN:(netto-r.netto)/Math.abs(r.netto||1),w:mdl.w});}
+const mape=(arr,k)=>arr.length?arr.reduce((a,x)=>a+Math.abs(x[k]),0)/arr.length:NaN;
+return{rows,mapeO:mape(rows,'errO'),mapeN:mape(rows,'errN'),mapeO6:mape(rows.slice(-6),'errO'),mapeN6:mape(rows.slice(-6),'errN'),biasO6:rows.slice(-6).length?rows.slice(-6).reduce((a,x)=>a+x.errO,0)/rows.slice(-6).length:NaN};}
+function totaalPlan(Y,M){const shops=["NL","DE","FR"].filter(s=>DATA[s]&&DATA[s].m&&DATA[s].m.length);const plans=shops.map(s=>({s,p:planMonth(s,Y,M)})).filter(x=>x.p.ok);if(!plans.length)return{ok:false,reason:"te weinig data"};
+const sum=fn=>plans.reduce((a,x)=>a+fn(x.p),0);
+const scen=TARGETS.map(p=>{const pts=plans.map(x=>{const S=solveDesc(x.p.poas,p,x.p.Speak,3e6);return isFinite(S)?x.p.point(S):null;});if(pts.some(z=>!z))return null;const S=pts.reduce((a,z)=>a+z.S,0),orders=pts.reduce((a,z)=>a+z.orders,0),omzet=pts.reduce((a,z)=>a+z.omzet,0),bw=pts.reduce((a,z)=>a+z.bw,0),netto=pts.reduce((a,z)=>a+z.netto,0),opx=sum(q=>q.opexM);return{target:p,S,orders,omzet,bw,netto,poas:(bw-opx)/S,cpa:S/orders,mcpa:NaN,marge:omzet?netto/omzet:NaN,avkPct:NaN};}).filter(Boolean);
 const opt={S:sum(p=>p.opt.S),orders:sum(p=>p.opt.orders),omzet:sum(p=>p.opt.omzet),bw:sum(p=>p.opt.bw),netto:sum(p=>p.opt.netto)};opt.poas=(opt.bw-sum(p=>p.opexM))/opt.S;opt.cpa=opt.S/opt.orders;opt.marge=opt.omzet?opt.netto/opt.omzet:NaN;
-const ref={adv:sum(p=>p.ref.adv),orders:sum(p=>p.ref.orders),net:sum(p=>p.ref.net),netto:sum(p=>p.ref.netto),poas:NaN};ref.poas=sum(p=>p.ref.wva)/ref.adv;
-return{ok:true,plans,scen,opt,ref,refYear:plans[0].p.refYear,perShop:plans.map(x=>({s:x.s,poas:x.p.opt.poas,S:x.p.opt.S,fallback:x.p.mdl.fallback}))};}
-/* ---- render ---- */
-function pcCard(tag,col,p,econ,note,hero){const cpa=p.S/p.o;const profit=p.o*econ.m-p.S-(econ.opexM||0);
-const d=el("div","pc");d.style.borderColor=col;if(hero)d.style.background=C.lightg;
-d.innerHTML=`<div class="t" style="color:${col}">${tag}</div><div class="v">${fmtX(p.poas)}</div>
-<div class="kv"><span>Nettowinst</span><b>${fmtEur(profit)}</b><span>Orders</span><b>${Math.round(p.o).toLocaleString("nl-NL")}</b><span>Spend</span><b>${fmtEur(p.S)}</b><span>CPA</span><b>${fmtEur2(cpa)}</b></div>
-<div class="nt">${note}</div>`;return d;}
-const fmtInt=n=>isFinite(n)?Math.round(n).toLocaleString("nl-NL"):"—";
-const colCpa=(v,be)=>!isFinite(v)?C.mute:(v<=be*0.85?C.greenDk:(v<=be?C.green:(v<=be*1.25?C.orange:C.red)));
-function monthLabel(Y,M){return MNAMES[M]+" "+Y;}
-function curMonth(){const d=new Date();return{Y:d.getFullYear(),M:d.getMonth()+1,day:d.getDate(),dim:new Date(d.getFullYear(),d.getMonth()+1,0).getDate()};}
+const refs=plans.filter(x=>x.p.ref);const ref=refs.length?{label:refs[0].p.ref.label,adv:refs.reduce((a,x)=>a+x.p.ref.adv,0),orders:refs.reduce((a,x)=>a+x.p.ref.orders,0),net:refs.reduce((a,x)=>a+x.p.ref.net,0),netto:refs.reduce((a,x)=>a+x.p.ref.netto,0),wva:refs.reduce((a,x)=>a+x.p.ref.wva,0)}:null;if(ref)ref.poas=ref.wva/ref.adv;
+return{ok:true,plans,scen,opt,ref,perShop:plans.map(x=>({s:x.s,poas:x.p.opt.poas,S:x.p.opt.S,netto:x.p.opt.netto}))};}
 
-function renderPlanner(shop,econ,rows){
+/* ---- render ---- */
+const colCpa=(v,be)=>!isFinite(v)?C.mute:(v<=be*0.85?C.greenDk:(v<=be?C.green:(v<=be*1.25?C.orange:C.red)));
+function card(title,val,sub,col,hero){const d=el("div","pc");if(col)d.style.borderColor=col;if(hero)d.style.background=C.lightg;d.innerHTML=`<div class="t" style="color:${col||C.mute}">${title}</div><div class="v">${val}</div><div class="nt" style="margin-top:4px">${sub}</div>`;return d;}
+function kvCard(title,val,kv,note,col,hero){const d=el("div","pc");if(col)d.style.borderColor=col;if(hero)d.style.background=C.lightg;d.innerHTML=`<div class="t" style="color:${col||C.mute}">${title}</div><div class="v">${val}</div><div class="kv">${kv.map(([k,v])=>`<span>${k}</span><b>${v}</b>`).join("")}</div>${note?`<div class="nt">${note}</div>`:""}`;return d;}
+
+function renderPlanner(shop){
 const wrap=el("div");
 if(!state.month){const c=curMonth();state.month={Y:c.Y,M:c.M};}
 const {Y,M}=state.month;const cm=curMonth();
-const head=el("div","sec");head.innerHTML=`<span class="n">C</span> Maandplanner — wat is haalbaar in <span id="mpLabel">${monthLabel(Y,M)}</span>`;
+const head=el("div","sec");head.innerHTML=`<span class="n">A</span> Maandplanner — ${monthLabel(Y,M)}`;
 const nav=el("span");nav.style.cssText="display:inline-flex;gap:6px;margin-left:10px";
 const mk=(txt,dir)=>{const b=el("button","ps",txt);b.style.padding="3px 10px";b.onclick=()=>{let y=Y,m=M+dir;if(m<1){m=12;y--;}if(m>12){m=1;y++;}state.month={Y:y,M:m};render();};return b;};
-nav.appendChild(mk("◀",-1));nav.appendChild(mk("▶",1));const nb=el("button","ps","deze maand");nb.style.padding="3px 10px";nb.onclick=()=>{state.month={Y:cm.Y,M:cm.M};render();};nav.appendChild(nb);head.appendChild(nav);wrap.appendChild(head);
-const isTot=shop==="TOT";
-const P=isTot?totaalPlan(Y,M,econ):planMonth(shop,Y,M,econ);
-if(!P.ok){wrap.appendChild(el("div","warn",`Voor ${monthLabel(Y,M)} kan ik geen schatting maken: ${P.reason}.`));return wrap;}
+nav.appendChild(mk("◀",-1));nav.appendChild(mk("▶",1));if(Y!==cm.Y||M!==cm.M){const nb=el("button","ps","deze maand");nb.style.padding="3px 10px";nb.onclick=()=>{state.month={Y:cm.Y,M:cm.M};render();};nav.appendChild(nb);}
+head.appendChild(nav);wrap.appendChild(head);
+const isTot=shop==="TOT";const P=isTot?totaalPlan(Y,M):planMonth(shop,Y,M);
+if(!P.ok){wrap.appendChild(el("div","warn",`Voor ${monthLabel(Y,M)} kan ik geen schatting maken: ${P.reason}.`));return{wrap,P};}
+const be=isTot?NaN:P.m;
 if(isTot){
- const pr=el("div","note");pr.style.marginBottom="10px";pr.innerHTML=`Totaal = de drie shops elk op hun eigen curve, bij elkaar opgeteld. Optimum per shop: ${P.perShop.map(x=>`<b>${x.s}</b> ${fmtX(x.poas)} (${fmtEur(x.S)})${x.fallback?" <span style='color:"+C.orange+"'>aanname</span>":""}`).join(" · ")}. Referentie: ${monthLabel(P.refYear,M)}.`;wrap.appendChild(pr);
- const cards=el("div","cards");
- cards.appendChild(el("div","pc",`<div class="t" style="color:${C.greenDk}">Optimum (som van de shops)</div><div class="v">${fmtX(P.opt.poas)}</div><div class="kv"><span>Nettowinst</span><b>${fmtEur(P.opt.netto)}</b><span>Orders</span><b>${fmtInt(P.opt.orders)}</b><span>Spend</span><b>${fmtEur(P.opt.S)}</b><span>Omzet</span><b>${fmtEur(P.opt.omzet)}</b></div>`));
- cards.appendChild(el("div","pc",`<div class="t" style="color:${C.mute}">${monthLabel(P.refYear,M)} werkelijk</div><div class="v">${fmtX(P.ref.poas)}</div><div class="kv"><span>Nettowinst</span><b>${fmtEur(P.ref.netto)}</b><span>Orders</span><b>${fmtInt(P.ref.orders)}</b><span>Spend</span><b>${fmtEur(P.ref.adv)}</b><span>Omzet</span><b>${fmtEur(P.ref.net)}</b></div>`));
- wrap.appendChild(cards);
- const tw=el("div","tbl-wrap");tw.style.marginTop="12px";let h=`<table><thead><tr><th>Doel-POAS</th><th>Spend</th><th>Orders</th><th>Omzet</th><th>Brutowinst</th><th>Nettowinst</th><th>Netto-marge</th><th>CPA</th></tr></thead><tbody>`;
- const all=P.scen.concat([Object.assign({},P.opt,{isOpt:true})]).sort((a,b)=>b.poas-a.poas);
- all.forEach(r=>{h+=`<tr style="background:${r.isOpt?C.lightg:'transparent'}"><td style="font-weight:700">${fmtX(r.poas)}${r.isOpt?" ★":""}</td><td>${fmtEur(r.S)}</td><td>${fmtInt(r.orders)}</td><td>${fmtEur(r.omzet)}</td><td>${fmtEur(r.bw)}</td><td style="font-weight:700;color:${r.isOpt?C.greenDk:'inherit'}">${fmtEur(r.netto)}</td><td>${fmtPct(r.marge)}</td><td>${fmtEur2(r.cpa)}</td></tr>`;});
- tw.innerHTML=h+"</tbody></table>";wrap.appendChild(tw);
- return wrap;}
-const mdl=P.mdl;const pv=(state.plan&&state.plan[shop])||{};
-// aannames (overschrijfbaar)
-const eb=el("div","econ");
-const mkE=(lab,val,key,fmt,parse)=>{const d=el("div");d.innerHTML=`<div class="lab">${lab}${pv[key]!=null?' ·*':''}</div>`;const inp=el("input","ev");inp.value=fmt(val);inp.setAttribute("inputmode","decimal");
-inp.onchange=()=>{const v=parse(parseNum(inp.value));state.plan=state.plan||{};state.plan[shop]=Object.assign({},state.plan[shop]);if(isFinite(v))state.plan[shop][key]=v;render();};d.appendChild(inp);return d;};
-const mkR=(lab,txt,col)=>el("div",null,`<div class="lab">${lab}</div><div class="v"${col?` style="color:${col}"`:''}>${txt}</div>`);
-eb.appendChild(mkR("Referentie",`${P.ref.label}`));
-eb.appendChild(mkE("AOV (€, ex btw · nu)",P.aov,"aov",v=>fmtN(v,2),v=>v));
-eb.appendChild(mkE("Brutomarge (%)",P.marge,"marge",v=>fmtN(v*100,1),v=>v/100));
-eb.appendChild(mkE("Opex / maand (€)",P.opexM,"opexM",v=>fmtN(v,0),v=>v));
-eb.appendChild(mkE("Elasticiteit β",P.beta,"beta",v=>fmtN(v,2),v=>v));
-eb.appendChild(mkE("Trend γ (%/jaar)",P.gamma,"gamma",v=>fmtN((Math.exp(v)-1)*100,1),v=>Math.log(1+v/100)));
-eb.appendChild(mkR("Break-even CPA",fmtEur2(P.m),C.orange));
-wrap.appendChild(eb);
-if(Object.keys(pv).length){const rw=el("div","presets");const rb=el("button","ps on","↺ Terug naar modelwaarden");rb.style.background=C.blue;rb.style.borderColor=C.blue;rb.onclick=()=>{delete state.plan[shop];render();};rw.appendChild(rb);wrap.appendChild(rw);}
-// modelkwaliteit
-const q=el("div","note");q.style.margin="0 0 12px";
-if(mdl.fallback){q.innerHTML=`<span style="color:${C.orange};font-weight:700">⚠︎ Elasticiteit per maand niet betrouwbaar te schatten voor deze shop</span> (${mdl.n} jaarparen${isFinite(mdl.betaEst)?`, regressie geeft β ${fmtN(mdl.betaEst,2)} ± ${fmtN(mdl.seB,2)} — te veel ruis`:""}). Ik reken daarom met ${mdl.fallbackSrc==="jaartotaal"?`β = <b>${fmtN(mdl.beta,2)}</b> uit de jaartotalen (alle maanden samen: ${fmtInt(mdl.totDO)} extra orders bij ${fmtEur(mdl.totDS)} extra spend)`:`de aanname β = <b>${fmtN(mdl.beta,2)}</b>`} en trend 0%. Pas β hierboven aan als je een betere inschatting hebt. ${isFinite(mdl.mape)?`Voorspelfout van de maandregressie in backtest: ${fmtN(mdl.mape*100,1)}%.`:""}${mdl.betaOv||mdl.gammaOv?" <b>·* handmatig overschreven.</b>":""}`;}
-else{q.innerHTML=`Model uit <b>${mdl.n} jaar-op-jaar-maandparen</b>: elasticiteit β = <b>${fmtN(mdl.beta,2)}</b> ± ${fmtN(mdl.seB,2)} (10% meer spend ≈ ${fmtN(mdl.beta*10,1)}% meer orders), autonome trend γ = <b>${fmtN((Math.exp(mdl.gamma)-1)*100,1)}%</b>/jaar bij gelijke spend. Backtest (elke maand voorspeld zonder die maand te kennen): gemiddelde fout <b>${fmtN(mdl.mape*100,1)}%</b> op orders.${mdl.betaOv||mdl.gammaOv?" <b>·* handmatig overschreven.</b>":""}`;}
-wrap.appendChild(q);
-// kaarten: optimum, vorig jaar, huidig/werkelijk
-const cards=el("div","cards");
-const o=P.opt;const bandTxt=P.band?`bandbreedte ${fmtX(Math.min(P.band.lo.poas,P.band.hi.poas))}–${fmtX(Math.max(P.band.lo.poas,P.band.hi.poas))} bij β ± 1 s.e.`:"";
-cards.appendChild(el("div","pc",`<div class="t" style="color:${C.greenDk}">Winst-optimum ${monthLabel(Y,M)} ★</div><div class="v">${fmtX(o.poas)}</div><div class="kv"><span>Nettowinst</span><b>${fmtEur(o.netto)}</b><span>Orders</span><b>${fmtInt(o.orders)}</b><span>Spend</span><b>${fmtEur(o.S)}</b><span>CPA</span><b>${fmtEur2(o.cpa)}</b></div><div class="nt">Marginale CPA = break-even (${fmtEur2(P.m)}). ${bandTxt}</div>`)).style.background=C.lightg;
-const r=P.ref;cards.appendChild(el("div","pc",`<div class="t" style="color:${C.mute}">${r.label} werkelijk (referentie)</div><div class="v">${fmtX(r.poas)}</div><div class="kv"><span>Nettowinst</span><b>${fmtEur(r.netto)}</b><span>Orders</span><b>${fmtInt(r.orders)}</b><span>Spend</span><b>${fmtEur(r.adv)}</b><span>CPA</span><b>${fmtEur2(r.cpa)}</b></div><div class="nt">Basis voor ${monthLabel(Y,M)}: ${fmtInt(P.Obase)} orders bij dezelfde spend (trend ${fmtN((Math.exp(P.gamma)-1)*100*P.d,1)}%). AOV toen ${fmtEur2(r.aov)}, nu ${fmtEur2(P.aov)}.</div>`));
-if(P.actual){const a=P.actual;const pred=P.ord(a.adv);const err=(pred-a.orders)/a.orders;cards.appendChild(el("div","pc",`<div class="t" style="color:${C.blue}">${a.label} werkelijk</div><div class="v">${fmtX(a.poas)}</div><div class="kv"><span>Nettowinst</span><b>${fmtEur(a.netto)}</b><span>Orders</span><b>${fmtInt(a.orders)}</b><span>Spend</span><b>${fmtEur(a.adv)}</b><span>CPA</span><b>${fmtEur2(a.cpa)}</b></div><div class="nt">Model bij deze spend: ${fmtInt(pred)} orders (${err>=0?"+":""}${fmtN(err*100,1)}% t.o.v. werkelijk). Op het model-optimum was de netto ${fmtEur(Math.abs(o.netto-a.netto))} ${o.netto>=a.netto?"hoger":"lager"} uitgekomen dan werkelijk.</div>`)).style.borderColor=C.blue;}
-else if(P.partial&&cm.Y===Y&&cm.M===M){const p=P.partial;const el_=Math.max(1,cm.day-1);const f=cm.dim/el_;const Sp=p.adv*f,Op=p.orders*f;const pred=P.ord(Sp);cards.appendChild(el("div","pc",`<div class="t" style="color:${C.blue}">Huidig tempo (t/m dag ${el_})</div><div class="v">${fmtX(P.poas(Sp))}</div><div class="kv"><span>Spend → maand</span><b>${fmtEur(Sp)}</b><span>Orders → maand</span><b>${fmtInt(Op)}</b><span>Model zegt</span><b>${fmtInt(pred)} orders</b><span>Marg. CPA</span><b>${fmtEur2(P.point(Sp).mcpa)}</b></div><div class="nt">Lineair doorgetrokken vanaf ${fmtEur(p.adv)} spend / ${fmtInt(p.orders)} orders${el_<5?" — nog maar "+el_+" dag"+(el_>1?"en":"")+", zeer indicatief":""}. Netto bij dit tempo volgens model: ${fmtEur(P.netto(Sp))}.</div>`)).style.borderColor=C.blue;}
+ wrap.appendChild(el("div","note",`Totaal = elke shop op haar eigen model, opgeteld. Optimum per shop: ${P.perShop.map(x=>`<b>${x.s}</b> ${fmtX(x.poas)} bij ${fmtEur(x.S)} (${fmtEur(x.netto)} netto)`).join(" · ")}.`)).style.marginBottom="10px";
+}else{
+ const pv=(state.plan&&state.plan[shop])||{};const y=P.mdl.yoy,c=P.mdl.curve;
+ const eb=el("div","econ");
+ const mkE=(lab,val,key,fmt,parse)=>{const d=el("div");d.innerHTML=`<div class="lab">${lab}${pv[key]!=null?' ·*':''}</div>`;const inp=el("input","ev");inp.value=fmt(val);inp.setAttribute("inputmode","decimal");
+ inp.onchange=()=>{const v=parse(parseNum(inp.value));state.plan=state.plan||{};state.plan[shop]=Object.assign({},state.plan[shop]);if(isFinite(v))state.plan[shop][key]=v;render();};d.appendChild(inp);return d;};
+ eb.appendChild(mkE("AOV (€, ex btw)",P.aov,"aov",v=>fmtN(v,2),v=>v));
+ eb.appendChild(mkE("Brutomarge (%)",P.marge,"marge",v=>fmtN(v*100,1),v=>v/100));
+ eb.appendChild(mkE("Opex / maand (€)",P.opexM,"opexM",v=>fmtN(v,0),v=>v));
+ if(y){eb.appendChild(mkE("Elasticiteit β",y.beta,"beta",v=>fmtN(v,2),v=>v));eb.appendChild(mkE("Trend γ (%/jaar)",y.gamma,"gamma",v=>fmtN((Math.exp(v)-1)*100,1),v=>Math.log(1+v/100)));}
+ eb.appendChild(el("div",null,`<div class="lab">Break-even CPA</div><div class="v" style="color:${C.orange}">${fmtEur2(P.m)}</div>`));
+ wrap.appendChild(eb);
+ if(Object.keys(pv).length){const rw=el("div","presets");const rb=el("button","ps on","↺ Terug naar modelwaarden");rb.style.background=C.blue;rb.style.borderColor=C.blue;rb.onclick=()=>{delete state.plan[shop];render();};rw.appendChild(rb);wrap.appendChild(rw);}
+ const bt=backtest(shop);const wy=Math.round(P.mdl.w*100);
+ const parts=[];if(y)parts.push(`<b>jaar-op-jaar</b> (${y.ref.label} als basis, β ${fmtN(y.beta,2)}${y.betaFallback?" aanname":""}, trend ${fmtN((Math.exp(y.gamma)-1)*100,1)}%/jaar) weegt ${wy}%`);if(c)parts.push(`<b>spend-curve</b> over de 12 maanden ervoor (r² ${fmtN(c.r2,2)}) weegt ${100-wy}%`);
+ wrap.appendChild(el("div","note",`Model: ${parts.join(", ")}. Gewichten volgen uit de voorspelfout van beide lenzen in de 6 voorgaande maanden.${P.optY&&P.optC?` Optimum per lens apart: jaar-op-jaar ${fmtX(P.optY.poas)} bij ${fmtEur(P.optY.S)}, curve ${fmtX(P.optC.poas)} bij ${fmtEur(P.optC.S)} — hoe verder die uiteen liggen, hoe voorzichtiger je het gewogen optimum moet lezen.`:``} Backtest laatste 6 maanden: orders gemiddeld <b>${fmtN(bt.mapeO6*100,1)}%</b> ernaast, nettowinst <b>${fmtN(bt.mapeN6*100,1)}%</b> — zie Modelcheck hieronder. Aannames hierboven zijn aanpasbaar (·* = overschreven).`)).style.margin="0 0 12px";
+}
+// kaarten
+const cards=el("div","cards");const o=P.opt;
+cards.appendChild(kvCard(`Winst-optimum ${monthLabel(Y,M)} ★`,fmtX(o.poas),[["Nettowinst",fmtEur(o.netto)],["Orders",fmtInt(o.orders)],["Spend",fmtEur(o.S)],["CPA",fmtEur2(o.cpa)]],isTot?"":`Hier kost de laatste extra order precies de break-even (${fmtEur2(be)}).`,C.greenDk,true));
+if(P.ref)cards.appendChild(kvCard(`${P.ref.label} werkelijk`,fmtX(P.ref.poas),[["Nettowinst",fmtEur(P.ref.netto)],["Orders",fmtInt(P.ref.orders)],["Spend",fmtEur(P.ref.adv)],["CPA",fmtEur2(P.ref.adv/P.ref.orders)]],"Dezelfde maand een jaar eerder.",C.mute));
+if(!isTot&&P.actual){const a=P.actual;const pred=P.ord(a.adv);const err=(pred-a.orders)/a.orders;cards.appendChild(kvCard(`${a.label} werkelijk`,fmtX(a.poas),[["Nettowinst",fmtEur(a.netto)],["Orders",fmtInt(a.orders)],["Spend",fmtEur(a.adv)],["CPA",fmtEur2(a.cpa)]],`Model (met alleen eerdere data) bij deze spend: ${fmtInt(pred)} orders, ${err>=0?"+":""}${fmtN(err*100,1)}%. Op het optimum was de netto ${fmtEur(Math.abs(o.netto-a.netto))} ${o.netto>=a.netto?"hoger":"lager"} uitgekomen.`,C.blue));}
+else if(!isTot&&P.partial&&cm.Y===Y&&cm.M===M){const p=P.partial;const dd=Math.max(1,cm.day-1);const f=cm.dim/dd;const Sp=p.adv*f,Op=p.orders*f;const pt=P.point(Sp);cards.appendChild(kvCard(`Huidig tempo (t/m dag ${dd})`,fmtX(P.poas(Sp)),[["Spend → maand",fmtEur(Sp)],["Orders → maand",fmtInt(Op)],["Model zegt",fmtInt(pt.orders)+" orders"],["Marg. CPA",fmtEur2(pt.mcpa)]],`Lineair doorgetrokken${dd<5?" — nog maar "+dd+" dag"+(dd>1?"en":"")+", zeer indicatief":""}. Netto bij dit tempo volgens model: ${fmtEur(pt.netto)}; ${pt.mcpa>be?"je laatste euro's kosten meer dan ze opleveren":"extra budget levert nog netto op"}.`,C.blue));}
 wrap.appendChild(cards);
 // scenario-tabel
 const tw=el("div","tbl-wrap");tw.style.marginTop="12px";
-let h=`<table><thead><tr><th>Doel-POAS</th><th>Spend</th><th>Orders</th><th>Omzet ex btw</th><th>Brutowinst</th><th>Nettowinst</th><th>Netto-marge</th><th>AVK %</th><th>CPA</th><th>Marg. CPA</th></tr></thead><tbody>`;
-const refRow=Object.assign(P.point(P.ref.adv),{isRef:true});
-const all=P.scen.map(s=>Object.assign({},s)).concat([Object.assign({},o,{isOpt:true}),refRow]).sort((a,b)=>b.poas-a.poas);
-all.forEach(x=>{const lab=x.isOpt?fmtX(x.poas)+" ★":(x.isRef?fmtX(x.poas)+" <span style='color:"+C.mute+";font-weight:400'>(spend als "+P.ref.label+")</span>":fmtX(x.target));
-h+=`<tr style="background:${x.isOpt?C.lightg:'transparent'};opacity:${x.isRef?.75:1}"><td style="font-weight:700">${lab}</td><td>${fmtEur(x.S)}</td><td>${fmtInt(x.orders)}</td><td>${fmtEur(x.omzet)}</td><td>${fmtEur(x.bw)}</td><td style="font-weight:700;color:${x.isOpt?C.greenDk:'inherit'}">${fmtEur(x.netto)}</td><td>${fmtPct(x.marge)}</td><td style="color:${C.orange}">${fmtPct(x.avkPct)}</td><td>${fmtEur2(x.cpa)}</td><td style="font-weight:700;color:${colCpa(x.mcpa,P.m)}">${fmtEur2(x.mcpa)}</td></tr>`;});
+let h=`<table><thead><tr><th>Doel-POAS</th><th>Spend</th><th>Orders</th><th>Omzet ex btw</th><th>Nettowinst</th><th>Netto-marge</th><th>AVK %</th><th>CPA</th>${isTot?"":"<th>Marg. CPA</th>"}</tr></thead><tbody>`;
+const all=P.scen.map(x=>Object.assign({},x)).concat([Object.assign({},o,{isOpt:true})]);
+if(!isTot&&P.ref)all.push(Object.assign(P.point(P.ref.adv),{isRef:true}));
+all.sort((a,b)=>b.poas-a.poas).forEach(x=>{const lab=x.isOpt?fmtX(x.poas)+" ★":(x.isRef?fmtX(x.poas)+" <span style='color:"+C.mute+";font-weight:400'>(spend als "+P.ref.label+")</span>":fmtX(x.target));
+h+=`<tr style="background:${x.isOpt?C.lightg:'transparent'};opacity:${x.isRef?.7:1}"><td style="font-weight:700">${lab}</td><td>${fmtEur(x.S)}</td><td>${fmtInt(x.orders)}</td><td>${fmtEur(x.omzet)}</td><td style="font-weight:700;color:${x.isOpt?C.greenDk:'inherit'}">${fmtEur(x.netto)}</td><td>${fmtPct(x.marge)}</td><td style="color:${C.orange}">${fmtPct(x.avkPct)}</td><td>${fmtEur2(x.cpa)}</td>${isTot?"":`<td style="font-weight:700;color:${colCpa(x.mcpa,be)}">${fmtEur2(x.mcpa)}</td>`}</tr>`;});
 tw.innerHTML=h+"</tbody></table>";wrap.appendChild(tw);
-wrap.appendChild(el("div","note",`Elke rij: wat ${monthLabel(Y,M)} oplevert als je op dat blended-POAS-niveau stuurt. Orders = ${fmtInt(P.Obase)} × (spend ÷ ${fmtEur(P.Sref)})<sup>${fmtN(P.beta,2)}</sup>. Marg. CPA = wat de láátste extra order kost op dat niveau; groen = onder break-even (${fmtEur2(P.m)}), rood = erboven. Netto-marge = nettowinst ÷ omzet. Let op hoe vlak de nettowinst is rond het optimum: de POAS-keuze is vooral een keuze tussen volume en kasgeld.`));
-// grafiek: netto & orders vs spend
-const rc=el("div","card");rc.style.marginTop="12px";const rb=el("div","chartbox");const cv=el("canvas");rb.appendChild(cv);rc.appendChild(rb);wrap.appendChild(rc);
-const lo=Math.max(2000,Math.min(P.Sref,o.S)*0.35),hi=Math.max(P.Sref,o.S)*1.8;const cN=[],cO=[];for(let i=0;i<=60;i++){const S=lo+(hi-lo)*i/60;cN.push({x:S,y:P.netto(S)});cO.push({x:S,y:P.ord(S)});}
-const marks=[{x:o.S,y:o.netto,lab:"optimum"},{x:P.ref.adv,y:P.netto(P.ref.adv),lab:P.ref.label+" (spend)"}];
-if(P.actual)marks.push({x:P.actual.adv,y:P.actual.netto,lab:P.actual.label+" werkelijk"});
+wrap.appendChild(el("div","note",`Elke rij = sturen op dat blended-POAS-niveau in ${monthLabel(Y,M)}. ${isTot?"":`Marg. CPA = wat de laatste extra order op dat niveau kost (groen = onder break-even ${fmtEur2(be)}, rood = erboven). `}Netto-marge = nettowinst ÷ omzet; AVK % = (ads + opex + transactie) ÷ omzet.`));
+// grafiek
+if(!isTot){const rc=el("div","card");rc.style.marginTop="12px";const rb=el("div","chartbox");const cv=el("canvas");rb.appendChild(cv);rc.appendChild(rb);wrap.appendChild(rc);
+const refS=P.ref?P.ref.adv:o.S;const lo=Math.max(1000,Math.min(refS,o.S)*0.35),hi=Math.max(refS,o.S)*1.8;const cN=[],cO=[];for(let i=0;i<=60;i++){const S=lo+(hi-lo)*i/60;cN.push({x:S,y:P.netto(S)});cO.push({x:S,y:P.ord(S)});}
+const marks=[{x:o.S,y:o.netto,lab:"optimum"}];if(P.ref)marks.push({x:P.ref.adv,y:P.netto(P.ref.adv),lab:P.ref.label+" (zelfde spend)"});if(P.actual)marks.push({x:P.actual.adv,y:P.actual.netto,lab:P.actual.label+" werkelijk"});
 state._plannerChart=()=>{charts.plan=new Chart(cv,{type:"scatter",data:{datasets:[
 {type:"line",label:"nettowinst",data:cN,borderColor:C.greenDk,borderWidth:2.5,pointRadius:0,tension:.3,yAxisID:"y"},
 {type:"line",label:"orders",data:cO,borderColor:C.blue,borderWidth:1.5,borderDash:[5,4],pointRadius:0,tension:.3,yAxisID:"y2"},
-{type:"scatter",label:"★ optimum · ● referentie · ▲ werkelijk",data:marks,backgroundColor:[C.greenDk,C.mute,C.blue],borderColor:"#fff",borderWidth:2,pointRadius:[12,8,9],pointHoverRadius:[13,9,10],pointStyle:["star","circle","triangle"],yAxisID:"y"}]},
+{type:"scatter",label:"★ optimum · ● vorig jaar · ▲ werkelijk",data:marks,backgroundColor:[C.greenDk,C.mute,C.blue],borderColor:"#fff",borderWidth:2,pointRadius:[12,8,9],pointStyle:["star","circle","triangle"],yAxisID:"y"}]},
 options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:11}}},tooltip:{callbacks:{label:c=>c.dataset.label==="orders"?fmtEur(c.parsed.x)+" spend → "+fmtInt(c.parsed.y)+" orders":(c.raw.lab?c.raw.lab+": ":"")+fmtEur(c.parsed.x)+" spend → "+fmtEur(c.parsed.y)+" netto"}}},
-scales:{x:{type:"linear",title:{display:true,text:"adspend per maand"},ticks:{callback:v=>"€"+Math.round(v/1000)+"k"},grid:{color:C.line}},y:{position:"left",title:{display:true,text:"nettowinst"},ticks:{callback:v=>"€"+Math.round(v/1000)+"k"},grid:{color:C.line}},y2:{position:"right",title:{display:true,text:"orders"},ticks:{callback:v=>fmtInt(v)},grid:{drawOnChartArea:false}}}}});};
+scales:{x:{type:"linear",title:{display:true,text:"adspend per maand"},ticks:{callback:v=>"€"+Math.round(v/1000)+"k"},grid:{color:C.line}},y:{position:"left",title:{display:true,text:"nettowinst"},ticks:{callback:v=>"€"+Math.round(v/1000)+"k"},grid:{color:C.line}},y2:{position:"right",title:{display:true,text:"orders"},ticks:{callback:v=>fmtInt(v)},grid:{drawOnChartArea:false}}}}});};}
+return{wrap,P};}
+
+function renderBacktest(shop){const bt=backtest(shop);const wrap=el("div");
+wrap.appendChild(el("div","sec",`<span class="n">B</span> Modelcheck — voorspeld vs werkelijk`));
+if(!bt.rows.length){wrap.appendChild(el("div","note","Nog te weinig historie voor een modelcheck."));return wrap;}
+const tw=el("div","tbl-wrap");
+let h=`<table><thead><tr><th>Maand</th><th>Spend</th><th>Orders werkelijk</th><th>Orders model</th><th>Fout</th><th>Netto werkelijk</th><th>Netto model</th><th>Fout</th><th>Gewicht j-o-j</th></tr></thead><tbody>`;
+const ec=e=>Math.abs(e)<=0.05?C.greenDk:(Math.abs(e)<=0.12?C.green:(Math.abs(e)<=0.25?C.orange:C.red));
+bt.rows.forEach(r=>{h+=`<tr><td style="font-weight:600">${r.label}</td><td>${fmtEur(r.spend)}</td><td>${fmtInt(r.orders)}</td><td>${fmtInt(r.predO)}</td><td style="font-weight:700;color:${ec(r.errO)}">${r.errO>=0?"+":""}${fmtN(r.errO*100,1)}%</td><td>${fmtEur(r.netto)}</td><td>${fmtEur(r.predN)}</td><td style="font-weight:700;color:${ec(r.errN)}">${r.errN>=0?"+":""}${fmtN(r.errN*100,1)}%</td><td style="color:${C.mute}">${fmtN(r.w*100,0)}%</td></tr>`;});
+h+=`<tr style="background:${C.lightg};border-top:2px solid ${C.ink}"><td><b>Gem. fout ${bt.rows.length} mnd</b></td><td></td><td></td><td></td><td style="font-weight:700">${fmtN(bt.mapeO*100,1)}%</td><td></td><td></td><td style="font-weight:700">${fmtN(bt.mapeN*100,1)}%</td><td></td></tr>`;
+h+=`<tr style="background:${C.lightg}"><td><b>Gem. fout laatste 6</b></td><td></td><td></td><td></td><td style="font-weight:700">${fmtN(bt.mapeO6*100,1)}%</td><td></td><td></td><td style="font-weight:700">${fmtN(bt.mapeN6*100,1)}%</td><td></td></tr></tbody></table>`;
+tw.innerHTML=h;wrap.appendChild(tw);
+wrap.appendChild(el("div","note",`Elke maand is voorspeld met uitsluitend de data van vóór die maand (zelfde model als de planner), bij de werkelijke spend. Zo zie je hoeveel je op de planner kunt bouwen. Nettowinst is gevoeliger dan orders omdat het een klein verschil van grote getallen is${isFinite(bt.biasO6)?`; de laatste 6 maanden zat het model gemiddeld ${bt.biasO6>=0?"+":""}${fmtN(bt.biasO6*100,1)}% ${bt.biasO6>=0?"te hoog":"te laag"} op orders`:""}.`));
 return wrap;}
 
-function renderYoY(shop,econ){const mdl=yoyModel(shop);const wrap=el("div");
-wrap.appendChild(el("div","sec",`<span class="n">D</span> Jaar-op-jaar — wat kostte extra spend écht per extra order?`));
-if(!mdl.n){wrap.appendChild(el("div","note","Nog geen twee jaren met dezelfde maand in de data."));return wrap;}
-const be=econ.m;const tw=el("div","tbl-wrap");
-let h=`<table><thead><tr><th>Maand</th><th>Spend vorig jaar</th><th>Spend dit jaar</th><th>Δ spend</th><th>Orders vorig jaar</th><th>Orders dit jaar</th><th>Δ orders</th><th>Marg. CPA</th><th>Δ nettowinst</th><th>POAS → POAS</th></tr></thead><tbody>`;
-mdl.pairs.forEach(p=>{const bad=!isFinite(p.mcpa)||p.dOrders<=0&&p.dSpend>0;h+=`<tr><td style="font-weight:600">${p.prev.label} → ${p.cur.label}</td><td>${fmtEur(p.prev.adv)}</td><td>${fmtEur(p.cur.adv)}</td><td>${p.dSpend>=0?"+":""}${fmtEur(p.dSpend)}</td><td>${fmtInt(p.prev.orders)}</td><td>${fmtInt(p.cur.orders)}</td><td>${p.dOrders>=0?"+":""}${fmtInt(p.dOrders)}</td><td style="font-weight:700;color:${bad?C.red:colCpa(p.mcpa,be)}">${bad?(p.dSpend>0?"∞ (meer spend, niet meer orders)":"—"):fmtEur2(p.mcpa)}</td><td style="color:${p.cur.netto-p.prev.netto>=0?C.greenDk:C.red}">${p.cur.netto-p.prev.netto>=0?"+":""}${fmtEur(p.cur.netto-p.prev.netto)}</td><td style="color:${C.mute}">${fmtX(p.prev.poas)} → ${fmtX(p.cur.poas)}</td></tr>`;});
-h+=`<tr style="background:${C.lightg};border-top:2px solid ${C.ink}"><td><b>Totaal ${mdl.n} mnd</b></td><td></td><td></td><td><b>${mdl.totDS>=0?"+":""}${fmtEur(mdl.totDS)}</b></td><td></td><td></td><td><b>${mdl.totDO>=0?"+":""}${fmtInt(mdl.totDO)}</b></td><td style="font-weight:700;color:${colCpa(mdl.totMcpa,be)}">${fmtEur2(mdl.totMcpa)}</td><td></td><td></td></tr></tbody></table>`;
+function renderYoY(shop,be){const comp=completeRows(shop);const pairs=yoyPairs(comp,comp.length).slice(-12);const wrap=el("div");
+wrap.appendChild(el("div","sec",`<span class="n">C</span> Jaar-op-jaar — wat kostte extra spend per extra order?`));
+if(!pairs.length){wrap.appendChild(el("div","note","Nog geen twee jaren met dezelfde maand in de data."));return wrap;}
+const tw=el("div","tbl-wrap");
+let h=`<table><thead><tr><th>Maand</th><th>Spend</th><th>Δ spend</th><th>Orders</th><th>Δ orders</th><th>Marg. CPA</th><th>Δ nettowinst</th><th>POAS</th></tr></thead><tbody>`;
+let dS=0,dO=0;pairs.forEach(p=>{dS+=p.dSpend;dO+=p.dOrders;const bad=!isFinite(p.mcpa)||(p.dOrders<=0&&p.dSpend>0);const dn=p.cur.netto-p.prev.netto;
+h+=`<tr><td style="font-weight:600">${p.prev.label} → ${p.cur.label}</td><td>${fmtEur(p.prev.adv)} → ${fmtEur(p.cur.adv)}</td><td>${p.dSpend>=0?"+":""}${fmtEur(p.dSpend)}</td><td>${fmtInt(p.prev.orders)} → ${fmtInt(p.cur.orders)}</td><td>${p.dOrders>=0?"+":""}${fmtInt(p.dOrders)}</td><td style="font-weight:700;color:${bad?C.red:colCpa(p.mcpa,be)}">${bad?(p.dSpend>0?"∞":"—"):fmtEur2(p.mcpa)}</td><td style="color:${dn>=0?C.greenDk:C.red}">${dn>=0?"+":""}${fmtEur(dn)}</td><td style="color:${C.mute}">${fmtX(p.prev.poas)} → ${fmtX(p.cur.poas)}</td></tr>`;});
+const tot=dO?dS/dO:NaN;
+h+=`<tr style="background:${C.lightg};border-top:2px solid ${C.ink}"><td><b>Totaal ${pairs.length} mnd</b></td><td></td><td><b>${dS>=0?"+":""}${fmtEur(dS)}</b></td><td></td><td><b>${dO>=0?"+":""}${fmtInt(dO)}</b></td><td style="font-weight:700;color:${colCpa(tot,be)}">${fmtEur2(tot)}</td><td></td><td></td></tr></tbody></table>`;
 tw.innerHTML=h;wrap.appendChild(tw);
-const extra=isFinite(mdl.totMcpa)&&mdl.totDO>0?(be-mdl.totMcpa)*mdl.totDO:NaN;
-wrap.appendChild(el("div","note",`Marginale CPA = extra spend ÷ extra orders t.o.v. dezelfde maand een jaar eerder; break-even is de brutowinst per order (${fmtEur2(be)}). ${isFinite(extra)?`Over alle ${mdl.n} paren samen: ${fmtEur(Math.abs(mdl.totDS))} ${mdl.totDS>=0?"extra":"minder"} spend → ${fmtInt(Math.abs(mdl.totDO))} ${mdl.totDO>=0?"extra":"minder"} orders → <b style="color:${extra>=0?C.greenDk:C.red}">${extra>=0?"+":"−"}${fmtEur(Math.abs(extra))}</b> indicatief effect op nettowinst.`:""} Kanttekening: ook dit is observationeel — marktgroei of -krimp zit erin verweven. Groene maanden (goedkope extra orders) en rode maanden (dure) vertellen je wáár in het jaar extra budget loont.`));
-return wrap;}
+const extra=isFinite(tot)&&dO>0?(be-tot)*dO:NaN;
+wrap.appendChild(el("div","note",`Marginale CPA = extra spend ÷ extra orders t.o.v. dezelfde maand een jaar eerder, tegen break-even ${fmtEur2(be)} (brutowinst per order). ${isFinite(extra)?`Alle ${pairs.length} maanden samen: ${fmtEur(Math.abs(dS))} ${dS>=0?"extra":"minder"} spend → ${fmtInt(Math.abs(dO))} ${dO>=0?"extra":"minder"} orders → <b style="color:${extra>=0?C.greenDk:C.red}">${extra>=0?"+":"−"}${fmtEur(Math.abs(extra))}</b> indicatief op nettowinst.`:""} Observationeel: marktgroei of -krimp zit erin verweven. ∞ = meer spend, niet meer orders.`));
+return{wrap,tot,n:pairs.length};}
 
 function render(){
 destroyCharts();
 if(state.shop==="TOT")DATA.TOT=buildTotaal();
 const shop=state.shop;
-const view=document.getElementById("view");const _sy=window.scrollY;view.innerHTML="";let respBuilder=null;state._plannerChart=null;
-if(!DATA[shop]||!DATA[shop].m||!DATA[shop].m.length){
-view.appendChild(el("div","warn",`Geen data voor ${(DATA[shop]&&DATA[shop].name)||shop}. ${DATA[shop]&&DATA[shop].error?"("+DATA[shop].error+")":""}`));
-window.scrollTo(0,_sy);return;}
-const rows=rowsOf(shop);const complete=rows.filter((r,i)=>!isPartial(shop,i));
-const econ=shop==="TOT"?econTotaal():econOf(shop);
-const floor=state.floor||2.25;
-const pk=state.preset[shop]||"l12";
-const idx=presetIdx(shop,pk);
-const pts=idx.map(i=>({spend:rows[i].adv,orders:rows[i].orders})).filter(p=>p.spend>0&&p.orders>0);
-const opt=windowOpt(pts,econ,floor,state.lock!==false);
-const optPoas=(opt&&!opt.bad&&opt.profit!=null)?opt.poas:null;
-const rob=robustOpt(shop,rows,econ,floor);const robLo=rob.length?Math.min(...rob.map(x=>x.poas)):NaN,robHi=rob.length?Math.max(...rob.map(x=>x.poas)):NaN;
-const lastC=complete[complete.length-1];const run3=agg(complete.slice(-3));
-const mdl=yoyModel(shop);
-// vorig jaar dezelfde maand als de laatste complete maand
+const view=document.getElementById("view");const _sy=window.scrollY;view.innerHTML="";state._plannerChart=null;
+if(!DATA[shop]||!DATA[shop].m||!DATA[shop].m.length){view.appendChild(el("div","warn",`Geen data voor ${(DATA[shop]&&DATA[shop].name)||shop}. ${DATA[shop]&&DATA[shop].error?"("+DATA[shop].error+")":""}`));window.scrollTo(0,_sy);return;}
+const rows=rowsOf(shop);const complete=completeRows(shop);const lastC=complete[complete.length-1];const run3=agg(complete.slice(-3));
+const e=econFor(shop);const be=e.aov*e.marge;
 let ly=null;if(lastC){const y=yearOf(lastC.label),mo=monthOf(lastC.label);ly=complete.find(r=>yearOf(r.label)===y-1&&monthOf(r.label)===mo)||null;}
+// planner eerst bouwen (de kaarten gebruiken 'm)
+const cm=curMonth();if(!state.month){state.month={Y:cm.Y,M:cm.M};}
+const pl=renderPlanner(shop);const Pn=(state.month.Y===cm.Y&&state.month.M===cm.M)?pl.P:(shop==="TOT"?totaalPlan(cm.Y,cm.M):planMonth(shop,cm.Y,cm.M));
+const yo=shop!=="TOT"?(()=>{const comp=complete;const pairs=yoyPairs(comp,comp.length).slice(-12);let dS=0,dO=0;pairs.forEach(p=>{dS+=p.dSpend;dO+=p.dOrders;});return{tot:dO?dS/dO:NaN,n:pairs.length};})():null;
 const now=el("div","now");const curPoas=lastC?lastC.poas:NaN;
-now.appendChild(el("div",null,`<div class="lab">Blended POAS — ${lastC?lastC.label:"—"}</div><div class="big" style="color:${zoneColor(curPoas,floor,optPoas)}">${fmtX(curPoas)}</div><div class="sm">${ly?`${ly.label}: ${fmtX(ly.poas)} · spend ${fmtEur(ly.adv)} → ${fmtEur(lastC.adv)} · netto ${fmtEur(ly.netto)} → ${fmtEur(lastC.netto)}`:"laatste complete maand"}</div>`));
-now.appendChild(el("div",null,`<div class="lab">3-mnd run-rate</div><div class="big">${fmtX(run3.poas)}</div><div class="sm">${fmtEur(run3.adv)} spend · CPA ${fmtEur2(run3.cpa)}</div>`));
-now.appendChild(el("div",null,`<div class="lab">Winst-optimum (curve)</div><div class="big" style="color:${C.greenDk}">${optPoas?fmtX(optPoas):"—"}</div><div class="sm">${opt&&opt.profit!=null?`${fmtEur(opt.S)} spend · r² ${fmtN(opt.r2,2)} · n=${opt.n}`:"te weinig data"}${rob.length>1?`<br>bandbreedte over vensters ${fmtX(robLo)}–${fmtX(robHi)}`:""}</div>`));
-const mc=isFinite(mdl.totMcpa)?mdl.totMcpa:NaN;
-now.appendChild(el("div",null,`<div class="lab">Marginale CPA (jaar-op-jaar)</div><div class="big" style="color:${colCpa(mc,econ.m)}">${fmtEur2(mc)}</div><div class="sm">break-even ${fmtEur2(econ.m)} · laatste ${mdl.n} mnd${mdl.fallback?"":` · β ${fmtN(mdl.beta,2)}`}</div>`));
+now.appendChild(el("div",null,`<div class="lab">Blended POAS — ${lastC?lastC.label:"—"}</div><div class="big" style="color:${curPoas>=2?C.greenDk:C.orange}">${fmtX(curPoas)}</div><div class="sm">${ly?`${ly.label}: ${fmtX(ly.poas)} · spend ${fmtEur(ly.adv)} → ${fmtEur(lastC.adv)} · netto ${fmtEur(ly.netto)} → ${fmtEur(lastC.netto)}`:"laatste complete maand"}</div>`));
+now.appendChild(el("div",null,`<div class="lab">3-mnd run-rate</div><div class="big">${fmtX(run3.poas)}</div><div class="sm">${fmtEur(run3.adv)} spend · CPA ${fmtEur2(run3.cpa)} · netto ${fmtEur(run3.netto)}</div>`));
+now.appendChild(el("div",null,`<div class="lab">Optimum ${monthLabel(cm.Y,cm.M)}</div><div class="big" style="color:${C.greenDk}">${Pn&&Pn.ok?fmtX(Pn.opt.poas):"—"}</div><div class="sm">${Pn&&Pn.ok?`${fmtEur(Pn.opt.S)} spend · ${fmtInt(Pn.opt.orders)} orders · ${fmtEur(Pn.opt.netto)} netto`:"te weinig data"}</div>`));
+if(yo)now.appendChild(el("div",null,`<div class="lab">Marginale CPA (jaar-op-jaar)</div><div class="big" style="color:${colCpa(yo.tot,be)}">${fmtEur2(yo.tot)}</div><div class="sm">break-even ${fmtEur2(be)} · laatste ${yo.n} mnd</div>`));
+else now.appendChild(el("div",null,`<div class="lab">Break-even CPA</div><div class="big" style="color:${C.orange}">${fmtEur2(be)}</div><div class="sm">brutowinst per order</div>`));
 view.appendChild(now);
-let adv,col,bg;
-if(!optPoas){adv=`Onvoldoende betrouwbare data in dit venster voor een curve-optimum (n=${pts.length}). Kijk naar de maandplanner en de jaar-op-jaar-tabel hieronder.`;col=C.orange;bg="#FBEEE8";}
-else{const gap=curPoas-optPoas;
-if(curPoas<floor){adv=`Je draait <b>onder je vloer</b> (${fmtX(curPoas)} < ${fmtX(floor)}). Hier verlies je op de marge — bieding terug of marge/COGS checken.`;col=C.red;bg="#FBEEE8";}
-else if(gap>0.35){adv=`Je zit op <b>${fmtX(curPoas)}</b>; de curve legt het optimum op <b>${fmtX(optPoas)}</b>. Volgens die lens is er ruimte voor meer volume tegen ~gelijke winst.`;col=C.greenDk;bg=C.lightg;}
-else if(gap<-0.2){adv=`Je zit op <b>${fmtX(curPoas)}</b>, ónder het curve-optimum van <b>${fmtX(optPoas)}</b>. Puur volume kost hier marge.`;col=C.orange;bg="#FBEEE8";}
-else{adv=`Je zit op <b>${fmtX(curPoas)}</b>, vlak bij het curve-optimum van <b>${fmtX(optPoas)}</b>.`;col=C.greenDk;bg=C.lightg;}
-if(rob.length>1&&robHi-robLo>0.4)adv+=` <span style="color:${C.mute}">Let op: dat optimum schuift van ${fmtX(robLo)} tot ${fmtX(robHi)} afhankelijk van het fit-venster — de curve is geen hard getal.</span>`;
-if(isFinite(mc)&&!mdl.fallback)adv+=` Jaar-op-jaar kostte extra spend <b style="color:${colCpa(mc,econ.m)}">${fmtEur2(mc)}</b> per extra order tegen een break-even van ${fmtEur2(econ.m)}${mc>econ.m?" — de extra inzet t.o.v. vorig jaar heeft zich op de marge niet terugverdiend":" — de extra inzet t.o.v. vorig jaar heeft zich terugverdiend"}.`;}
+// advies
+let adv="",col=C.greenDk,bg=C.lightg;
+if(Pn&&Pn.ok){adv=`Voor <b>${monthLabel(cm.Y,cm.M)}</b> ligt het winst-optimum rond <b>${fmtX(Pn.opt.poas)}</b> (${fmtEur(Pn.opt.S)} spend, ${fmtEur(Pn.opt.netto)} netto)${Pn.ref?`; vorig jaar zat je op ${fmtX(Pn.ref.poas)} met ${fmtEur(Pn.ref.adv)}`:""}.`;
+ if(shop!=="TOT"&&Pn.partial){const dd=Math.max(1,cm.day-1);const Sp=Pn.partial.adv*cm.dim/dd;const pt=Pn.point(Sp);if(dd>=3){adv+=` Huidig tempo ≈ ${fmtEur(Sp)} spend: marginale CPA ${fmtEur2(pt.mcpa)} tegen break-even ${fmtEur2(Pn.m)} — ${pt.mcpa>Pn.m*1.1?"<b>je zit boven het optimum; terugschroeven richting "+fmtEur(Pn.opt.S)+" levert naar verwachting netto op</b>":(pt.mcpa<Pn.m*0.9?"<b>er is ruimte om op te schalen richting "+fmtEur(Pn.opt.S)+"</b>":"je zit dicht bij het optimum")}.`;if(pt.mcpa>Pn.m*1.1){col=C.orange;bg="#FBEEE8";}}}
+ if(yo&&isFinite(yo.tot))adv+=` Over het afgelopen jaar kostte extra spend <b style="color:${colCpa(yo.tot,be)}">${fmtEur2(yo.tot)}</b> per extra order (break-even ${fmtEur2(be)}).`;}
+else{adv="Te weinig data voor een maandplan.";col=C.orange;bg="#FBEEE8";}
 const ad=el("div","advice",adv);ad.style.background=bg;ad.style.border="1px solid "+col;view.appendChild(ad);
-// C: maandplanner (het kernmechanisme)
-view.appendChild(renderPlanner(shop,econ,rows));
-// D: jaar-op-jaar
-if(shop!=="TOT")view.appendChild(renderYoY(shop,econ));
+view.appendChild(pl.wrap);
+if(shop!=="TOT"){view.appendChild(renderBacktest(shop));view.appendChild(renderYoY(shop,be).wrap);}
 // maanddetails
 const det=el("details");det.innerHTML=`<summary>Maanddetails — ex btw, na opex (${shop==="TOT"?"NL+DE+FR":DATA[shop].name})</summary>`;
 const tw=el("div","tbl-wrap");tw.style.marginTop="10px";
-let h="<table><thead><tr><th>Maand</th><th>Omzet ex btw</th><th>COGS</th><th>Brutowinst</th><th>Opex</th><th>Winst vóór ads</th><th>Adspend</th><th>Nettowinst</th><th>Blended POAS</th><th>CPA</th><th>Brutowinst/order</th><th>AVK %</th><th>Marge</th></tr></thead><tbody>";
+let h="<table><thead><tr><th>Maand</th><th>Omzet ex btw</th><th>COGS</th><th>Brutowinst</th><th>Opex</th><th>Adspend</th><th>Nettowinst</th><th>Blended POAS</th><th>CPA</th><th>Brutowinst/order</th><th>AVK %</th><th>Marge</th></tr></thead><tbody>";
 rows.forEach((r,i)=>{const part=isPartial(shop,i);const noOpex=part&&!(r.opex>0);const netto=noOpex?r.bw-r.adv:r.netto;const poas=noOpex?(r.adv?r.bw/r.adv:NaN):r.poas;
-h+=`<tr style="opacity:${part?.55:1}"><td>${r.label}${part?(noOpex?" (deel, excl. opex)":" (deel)"):""}</td><td>${fmtEur(r.net)}</td><td style="color:${C.mute}">${fmtEur(r.cogs)}</td><td>${fmtEur(r.bw)}</td><td style="color:${C.mute}">${noOpex?"—":fmtEur(r.opex)}</td><td><b>${fmtEur(noOpex?r.bw:r.wva)}</b></td><td>${fmtEur(r.adv)}</td><td>${fmtEur(netto)}</td><td style="font-weight:700;color:${zoneColor(poas,floor,optPoas)}">${fmtX(poas)}</td><td>${fmtEur2(r.cpa)}</td><td>${fmtEur2(r.bwPer)}</td><td style="color:${C.orange}">${fmtPct(r.avkPct)}</td><td style="color:${C.blue}">${fmtPct(r.marge)}</td></tr>`;});
-const t12=agg(complete.slice(-12));h+=`<tr style="background:${C.lightg};border-top:2px solid ${C.ink}"><td><b>Blended 12 mnd</b></td><td><b>${fmtEur(t12.net)}</b></td><td></td><td><b>${fmtEur(t12.bw)}</b></td><td><b>${fmtEur(t12.opex)}</b></td><td><b>${fmtEur(t12.wva)}</b></td><td><b>${fmtEur(t12.adv)}</b></td><td><b>${fmtEur(t12.netto)}</b></td><td style="font-weight:700;color:${C.greenDk}">${fmtX(t12.poas)}</td><td><b>${fmtEur2(t12.cpa)}</b></td><td><b>${fmtEur2(t12.orders?t12.bw/t12.orders:NaN)}</b></td><td style="color:${C.orange};font-weight:700">${fmtPct(t12.avkPct)}</td><td style="color:${C.blue};font-weight:700">${fmtPct(t12.marge)}</td></tr>`;
-h+="</tbody></table>";tw.innerHTML=h;det.appendChild(tw);
-// optimizer (cross-sectioneel)
-const od=el("details");od.open=true;od.innerHTML=`<summary>Werkpunt-optimizer (curve door alle maanden) — fit-venster & afruil efficiëntie/winst/volume</summary>`;
-const ob=el("div");ob.style.marginTop="12px";
-if(shop==="TOT")ob.appendChild(el("div","note",`Let op: Totaal fit één curve door drie shops met verschillende economie (AOV, marge, break-even). Gebruik per shop voor sturing.`));
-const ovr=state.over[shop]||{};
-const eb=el("div","econ");
-const mkE=(lab,val,key,isPct,dec)=>{const d=el("div");d.innerHTML=`<div class="lab">${lab}${ovr[key]!=null?' ·*':''}</div>`;
-const inp=el("input","ev");inp.value=isPct?fmtN(val*100,1):fmtN(val,dec==null?2:dec);inp.setAttribute("inputmode","decimal");
-inp.onchange=()=>{let v=parseNum(inp.value);if(isPct)v=v/100;state.over[shop]=Object.assign({},state.over[shop]);if(isFinite(v))state.over[shop][key]=v;render();};
-d.appendChild(inp);return d;};
-const mkR=(lab,txt,col)=>el("div",null,`<div class="lab">${lab}</div><div class="v"${col?` style="color:${col}"`:''}>${txt}</div>`);
-eb.appendChild(mkE("AOV (30d, ex btw, €)",econ.aov,"aov",false));
-eb.appendChild(mkE("Marge (3 mnd, %)",econ.marge,"marge",true));
-eb.appendChild(mkR("Brutowinst/order",fmtEur2(econ.m)));
-eb.appendChild(mkE("Opex / maand (€)",econ.opexM,"opexM",false,0));
-eb.appendChild(mkR("Break-even CPA",fmtEur2(econ.breakeven),C.orange));
-const fl=el("div");fl.innerHTML=`<div class="lab">Vloer (min. POAS)</div>`;const fi=el("input","ev");fi.value=fmtN(floor,2);fi.setAttribute("inputmode","decimal");fi.onchange=()=>{const v=parseNum(fi.value);if(isFinite(v)&&v>0)state.floor=v;render();};fl.appendChild(fi);eb.appendChild(fl);
-ob.appendChild(eb);
-if(Object.keys(ovr).length){const rw=el("div","presets");const rb=el("button","ps on","↺ Herstel naar live data");rb.style.background=C.blue;rb.style.borderColor=C.blue;rb.style.color="#fff";rb.onclick=()=>{delete state.over[shop];render();};rw.appendChild(rb);ob.appendChild(rw);ob.appendChild(el("div","note","·* = handmatig overschreven waarde. De optimizer rekent met deze aangepaste cijfers (what-if). Herstel om terug te gaan naar de live Metorik-waarden."));}
-const pr=el("div","presets");PRESETS.forEach(p=>{const b=el("button","ps"+(pk===p.key?" on":""),p.short);b.onclick=()=>{state.preset[shop]=p.key;render();};pr.appendChild(b);});
-ob.appendChild(pr);
-const lr=el("div","presets");
-const lb=el("button","ps"+(state.lock===false?" on":""),state.lock===false?"↗ Extrapoleren (buiten getest bereik)":"● Binnen getest bereik");
-if(state.lock===false){lb.style.background=C.orange;lb.style.borderColor=C.orange;lb.style.color="#fff";}
-lb.onclick=()=>{state.lock=state.lock===false?true:false;render();};
-lr.appendChild(lb);ob.appendChild(lr);
-if(state.lock===false)ob.appendChild(el("div","note",`⚠︎ Je rekent nu buiten je geteste spend-bereik (${fmtEur(opt&&opt.lo)}–${fmtEur(opt&&opt.hi)}). Dit is een extrapolatie van het model — schatting, geen harde data.`));
-if(opt&&!opt.bad&&opt.profit!=null){
-const cards=el("div","cards");
-cards.appendChild(pcCard("Max efficiëntie",C.blue,opt.eff,econ,"Weinig spend, vetste marge/order — laag volume."));
-cards.appendChild(pcCard("Max winst ★",C.green,{poas:opt.poas,S:opt.S,o:opt.o},econ,`Hoogste nettowinst binnen het venster.${rob.length>1?` Over andere vensters: ${rob.map(x=>PRESETS.find(p=>p.key===x.key).short.toLowerCase()+" "+fmtX(x.poas)).join(", ")}.`:""}`,true));
-cards.appendChild(pcCard("Max volume",C.orange,opt.vol,econ,`Meeste orders binnen vloer (${fmtX(floor)}) & bereik.`));
-ob.appendChild(cards);
-if(opt.front&&opt.front.length){
-ob.appendChild(el("div","sec",`<span class="n">A</span> Volledige afruil — elke stap lager in blended POAS`));
-const peak=opt.front.reduce((a,b)=>b.profit>a.profit?b:a,opt.front[0]);
-const twf=el("div","tbl-wrap");
-let hf="<table><thead><tr><th>Blended POAS</th><th>Spend</th><th>Orders</th><th>Omzet</th><th>Nettowinst</th><th>AVK %</th><th>Net profit %</th><th>Brutowinst/order − CPA</th><th>CPA</th><th>Marg. CPA</th></tr></thead><tbody>";
-opt.front.forEach(r=>{const isP=r===peak;hf+=`<tr style="background:${isP?C.lightg:'transparent'}"><td style="font-weight:700">${fmtX(r.poas)}${isP?' ★':''}</td><td>${fmtEur(r.spend)}</td><td>${fmtInt(r.orders)}</td><td>${fmtEur(r.omzet)}</td><td style="font-weight:700;color:${isP?C.greenDk:'inherit'}">${fmtEur(r.profit)}</td><td style="color:${C.orange};font-weight:700">${fmtPct(r.avkPct)}</td><td style="color:${C.blue}">${fmtPct(r.omzet?r.profit/r.omzet:NaN)}</td><td>${fmtEur2(r.ppo)}</td><td>${fmtEur2(r.cpa)}</td><td style="font-weight:700;color:${colCpa(r.mcpa,econ.m)}">${fmtEur2(r.mcpa)}</td></tr>`;});
-hf+="</tbody></table>";twf.innerHTML=hf;ob.appendChild(twf);
-ob.appendChild(el("div","note",`Elke rij = een bied-niveau op de gefitte curve. Marg. CPA = wat de laatste extra order op dat niveau kost (groen = onder break-even ${fmtEur2(econ.m)}, rood = erboven). AVK % = (ad + opex + transactie) ÷ omzet. Opex (${fmtEur(econ.opexM)}/mnd) is een vast bedrag en telt niet mee in de marginale afweging.`));
-}
-ob.appendChild(el("div","sec",`<span class="n">B</span> Responscurve — punten = maanden, lijn = model, ▲ = laatste complete maand, ★ = optimum`));
-const rc=el("div","card");const rb=el("div","chartbox");const rv=el("canvas");rb.appendChild(rv);rc.appendChild(rb);ob.appendChild(rc);
-const curve=[];for(let i=0;i<=50;i++){const S=opt.lo+(opt.hi-opt.lo)*i/50;curve.push({x:S,y:opt.ord(S)});}
-const scatter=idx.map(i=>({x:rows[i].adv,y:rows[i].orders,lab:rows[i].label}));
-const recent=new Set(complete.slice(-3).map(r=>r.label));
-const cur=lastC?{x:lastC.adv,y:lastC.orders,lab:lastC.label}:null;
-respBuilder=()=>{charts.resp=new Chart(rv,{type:"scatter",data:{datasets:[
-{type:"line",label:"model",data:curve,borderColor:C.ink,borderWidth:2,pointRadius:0,tension:.3},
-{type:"scatter",label:"maanden",data:scatter,backgroundColor:scatter.map(p=>recent.has(p.lab)?C.greenDk:"rgba(1,181,45,.45)"),pointRadius:scatter.map(p=>recent.has(p.lab)?6:4)},
-{type:"scatter",label:"optimum",data:[{x:opt.S,y:opt.o,lab:"optimum"}],backgroundColor:C.greenDk,pointStyle:"star",pointRadius:10,borderColor:C.greenDk,borderWidth:2},
-...(cur?[{type:"scatter",label:"nu",data:[cur],backgroundColor:C.orange,pointStyle:"triangle",pointRadius:9}]:[])
-]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>(c.raw.lab?c.raw.lab+": ":"")+fmtEur(c.parsed.x)+" → "+fmtInt(c.parsed.y)+" orders"}}},
-scales:{x:{type:"linear",title:{display:true,text:"adspend per maand"},ticks:{callback:v=>"€"+Math.round(v/1000)+"k"},grid:{color:C.line}},y:{title:{display:true,text:"orders per maand"},ticks:{callback:v=>fmtInt(v)},grid:{color:C.line}}}}});};
-ob.appendChild(el("div","note",`Donkergroen = laatste 3 maanden. Deze curve legt alle maanden van het venster op één lijn en kent dus seizoen aan spend toe; de maandplanner (C) corrigeert daarvoor door dezelfde maand over jaren te vergelijken.`));
-} else {
-ob.appendChild(el("div","warn",`Voor ${DATA[shop].name||"dit venster"} is er te weinig of te grillige data in dit fit-venster voor een betrouwbaar werkpunt (n=${pts.length}). ${shop==="FR"?"Frankrijk is een opstartshop met hoge opex t.o.v. omzet.":""} Bekijk de maandplanner en de maanddetails.`));
-}
-od.appendChild(ob);view.appendChild(od);view.appendChild(det);
-const restore=()=>window.scrollTo(0,_sy);
-const pc=state._plannerChart;
-requestAnimationFrame(()=>{try{if(pc)pc();}catch(e){}try{if(respBuilder)respBuilder();}catch(e){}restore();});
-restore();
+h+=`<tr style="opacity:${part?.55:1}"><td>${r.label}${part?(noOpex?" (deel, excl. opex)":" (deel)"):""}</td><td>${fmtEur(r.net)}</td><td style="color:${C.mute}">${fmtEur(r.cogs)}</td><td>${fmtEur(r.bw)}</td><td style="color:${C.mute}">${noOpex?"—":fmtEur(r.opex)}</td><td>${fmtEur(r.adv)}</td><td><b>${fmtEur(netto)}</b></td><td style="font-weight:700">${fmtX(poas)}</td><td>${fmtEur2(r.cpa)}</td><td>${fmtEur2(r.bwPer)}</td><td style="color:${C.orange}">${fmtPct(r.avkPct)}</td><td style="color:${C.blue}">${fmtPct(r.marge)}</td></tr>`;});
+const t12=agg(complete.slice(-12));h+=`<tr style="background:${C.lightg};border-top:2px solid ${C.ink}"><td><b>Laatste 12 mnd</b></td><td><b>${fmtEur(t12.net)}</b></td><td></td><td><b>${fmtEur(t12.bw)}</b></td><td><b>${fmtEur(t12.opex)}</b></td><td><b>${fmtEur(t12.adv)}</b></td><td><b>${fmtEur(t12.netto)}</b></td><td style="font-weight:700;color:${C.greenDk}">${fmtX(t12.poas)}</td><td><b>${fmtEur2(t12.cpa)}</b></td><td><b>${fmtEur2(t12.orders?t12.bw/t12.orders:NaN)}</b></td><td style="color:${C.orange};font-weight:700">${fmtPct(t12.avkPct)}</td><td style="color:${C.blue};font-weight:700">${fmtPct(t12.marge)}</td></tr>`;
+h+="</tbody></table>";tw.innerHTML=h;det.appendChild(tw);view.appendChild(det);
+const pc=state._plannerChart;requestAnimationFrame(()=>{try{if(pc)pc();}catch(e){}window.scrollTo(0,_sy);});window.scrollTo(0,_sy);
 }
 
 /* ---- tabs ---- */
