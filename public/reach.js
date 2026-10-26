@@ -59,12 +59,12 @@ const HTML=`
 <div class="rbar">
   <select id="mrAcc"><option value="">Accounts laden…</option></select>
   <span class="rsep"></span>
-  <span class="rlbl">Doel uniek bereik per 7 dagen</span><input type="number" id="mrTarget" min="0" step="5000" style="width:130px" placeholder="bv. 230000">
+  <span class="rlbl">Doel / 7 dagen</span><input type="number" id="mrTarget" min="0" step="5000" style="width:130px" placeholder="bv. 230000">
   <span class="rlbl" id="mrTargetSaved"></span>
   <span class="rsep"></span>
   <button class="rbtn" id="mrRefresh" title="Venster t/m vandaag opnieuw bij Meta ophalen">↻ Ververs</button>
 </div>
-<div id="mrBody"><div class="rloading">Bereik laden… (eerste keer per account duurt even: 56 vensters)</div></div>`;
+<div id="mrBody"><div class="rloading">Laden…</div></div>`;
 
 let inited=false, ACC=[], acc=localStorage.getItem("mr_acc")||"", targets={}, R=null, DET=null, selEnd="", chart=null, tT=null;
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
@@ -84,12 +84,12 @@ function pcls(p){if(p==null)return"p0";if(p>=100)return"p3";if(p>=70)return"p2";
 async function api(url,opt){const r=await fetch(url,opt);if(r.status===401){location.href="/login.html";throw new Error("Niet ingelogd");}const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||("HTTP "+r.status));return d;}
 async function loadAccounts(){const d=await api("/api/meta?view=accounts");ACC=d.accounts||[];const s=document.getElementById("mrAcc");s.innerHTML=ACC.map(a=>`<option value="${esc(a.id)}">${esc(a.name)}${a.status!==1?" (inactief)":""}</option>`).join("");if(!ACC.find(a=>a.id===acc))acc=ACC[0]?ACC[0].id:"";s.value=acc;}
 async function loadTargets(){try{const d=await api("/api/meta?view=reachtargets7");targets=d.targets||{};}catch(e){targets={};}}
-function syncTargetInput(){const el=document.getElementById("mrTarget");el.value=target()||"";document.getElementById("mrTargetSaved").textContent=target()?"per 7 dagen · "+((ACC.find(a=>a.id===acc)||{}).name||acc)+" · ≈ "+num(target()*30.44/7)+" per maand":"nog geen doel voor dit account";}
+function syncTargetInput(){const el=document.getElementById("mrTarget");el.value=target()||"";document.getElementById("mrTargetSaved").textContent=target()?"≈ "+num(target()*30.44/7)+" / maand":"geen doel";}
 async function saveTarget(v){try{const d=await api("/api/meta",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"settarget7",account:acc,target:v})});targets=d.targets||targets;syncTargetInput();render();}catch(e){alert("Doel opslaan mislukt: "+e.message);}}
 async function loadData(force){
   const body=document.getElementById("mrBody");
-  if(!acc){body.innerHTML='<div class="rempty">Geen advertentieaccounts gevonden. Controleer META_TOKEN in Vercel.</div>';return;}
-  if(!R)body.innerHTML='<div class="rloading">Bereik laden… (eerste keer per account duurt even: 56 vensters)</div>';
+  if(!acc){body.innerHTML='<div class="rempty">Geen accounts (META_TOKEN?)</div>';return;}
+  if(!R)body.innerHTML='<div class="rloading">Laden…</div>';
   try{
     const d=await api(`/api/meta?view=reach7&account=${encodeURIComponent(acc)}&days=56${force?"&refresh=1":""}`);
     const by={};(d.days||[]).forEach(x=>{by[x.d]=x;});
@@ -118,49 +118,47 @@ function render(){
   const costTarget=T>0&&cur.cpr>0?T/1000*cur.cpr:null;
   const body=document.getElementById("mrBody");
   body.innerHTML=`<div class="rcards">
-    <div class="rcard hero ${onTrack===false?"off":""}"><div class="l">Uniek bereik laatste 7 dagen · ${winLbl(R.today)}</div><div class="v">${num(cur.reach)}${onTrack==null?'<span class="status no">geen doel</span>':onTrack?'<span class="status ok">✓ on track</span>':'<span class="status off">achter op doel</span>'}</div>
-      <div class="d">${T>0?`<b class="${p>=100?"up":""}">${pct(p)}</b> van doel ${num(T)}${gap>0?` · tekort <b>${num(gap)}</b>`:gap!=null?` · <b class="up">${num(-gap)} boven doel</b>`:""}`:'<span class="mute">Stel rechtsboven een doel per 7 dagen in.</span>'}</div>
+    <div class="rcard hero ${onTrack===false?"off":""}"><div class="l">Uniek bereik · 7 dagen · ${winLbl(R.today)}</div><div class="v">${num(cur.reach)}${onTrack==null?'<span class="status no">geen doel</span>':onTrack?'<span class="status ok">✓ on track</span>':'<span class="status off">achter op doel</span>'}</div>
+      <div class="d">${T>0?`<b class="${p>=100?"up":""}">${pct(p)}</b> van ${num(T)}${gap>0?` · <b>−${num(gap)}</b>`:gap!=null?` · <b class="up">+${num(-gap)}</b>`:""}`:'<span class="mute">geen doel ingesteld</span>'}</div>
       ${T>0?`<div class="rbarw"><div class="rbarf ${p<100?"warn":""}" style="width:${Math.min(100,p||0)}%"></div></div>`:""}
-      <div class="d">vs. vorige 7 dagen: ${dPrev==null?"—":`<span class="${dPrev>=0?"up":"dn"}">${dPrev>0?"+":""}${Math.round(dPrev)}%</span> (${num(prev.reach)})`} · vs. 4 weken geleden: ${d4==null?"—":`<span class="${d4>=0?"up":"dn"}">${d4>0?"+":""}${Math.round(d4)}%</span>`}</div>
+      <div class="d">vs vorige 7 d ${dPrev==null?"—":`<span class="${dPrev>=0?"up":"dn"}">${dPrev>0?"+":""}${Math.round(dPrev)}%</span>`} · vs 4 wk ${d4==null?"—":`<span class="${d4>=0?"up":"dn"}">${d4>0?"+":""}${Math.round(d4)}%</span>`}</div>
     </div>
-    <div class="rcard"><div class="l">Tempo</div><div class="v">${num(cur.reach/7)}</div><div class="d">unieke mensen per dag (gemiddeld over 7 dagen)${T>0?` · nodig ≈ ${num(T/7)}/dag`:""}</div></div>
-    <div class="rcard"><div class="l">Kosten per 1.000 bereikt</div><div class="v">${eur2(cur.cpr)}</div><div class="d">${eur(cur.spend)} besteed in 7 dagen · CPM ${eur2(cur.cpm)}${costTarget?` · doel kost bij deze prijs ≈ ${eur(costTarget)} per 7 dagen`:""}</div></div>
-    <div class="rcard"><div class="l">Frequentie · impressies</div><div class="v">${f1(cur.freq)}×</div><div class="d">${num(cur.impr)} impressies in 7 dagen${cur.freq>2.5?" · hoog: zelfde mensen vaak bereikt":""}</div></div>
+    <div class="rcard"><div class="l">Per dag</div><div class="v">${num(cur.reach/7)}</div><div class="d">${T>0?`nodig ${num(T/7)}`:"&nbsp;"}</div></div>
+    <div class="rcard"><div class="l">€ / 1.000 bereikt</div><div class="v">${eur2(cur.cpr)}</div><div class="d">${eur(cur.spend)} besteed${costTarget?` · doel ≈ ${eur(costTarget)}`:""}</div></div>
+    <div class="rcard"><div class="l">Frequentie</div><div class="v">${f1(cur.freq)}×</div><div class="d">${num(cur.impr)} impr.</div></div>
   </div>
-  <div class="rpanel"><div class="rph"><h3>Rollend 7-daags uniek bereik</h3><span class="sub">elke dag = de 7 dagen t/m die dag · laatste ${R.days.length} dagen · ${esc((ACC.find(a=>a.id===acc)||{}).name||acc)}${T>0?` · doel ${num(T)}`:""}</span></div><div class="rchart"><canvas id="mrChart"></canvas></div>
-    <div class="rnote">Je bent on-track zolang de groene lijn boven de doel-lijn ligt. Uniek bereik = Meta's schatting van het aantal verschillende personen dat minstens één advertentie zag in het venster; niet optelbaar over vensters of campagnes.</div></div>
+  <div class="rpanel"><div class="rph"><h3>Rollend 7-daags bereik</h3><span class="sub">${esc((ACC.find(a=>a.id===acc)||{}).name||acc)}</span></div><div class="rchart"><canvas id="mrChart"></canvas></div></div>
   <div class="rgrid">
-    <div class="rpanel"><div class="rph"><h3>Per 7 dagen</h3><span class="sub">aansluitende blokken, eindigend vandaag · klik voor campagnes en landen</span></div><div class="rtbl"><table>
-      <thead><tr><th class="l">Periode</th><th>Uniek bereik</th><th>Δ vorige</th><th>% doel</th><th>Impressies</th><th>Freq.</th><th>Besteed</th><th>€/1.000</th></tr></thead><tbody>
+    <div class="rpanel"><div class="rph"><h3>Per 7 dagen</h3></div><div class="rtbl"><table>
+      <thead><tr><th class="l">Periode</th><th>Bereik</th><th>Δ</th><th>Doel</th><th>Impr.</th><th>Freq.</th><th>Besteed</th><th>€/1.000</th></tr></thead><tbody>
       ${blocks().map((b,i,arr)=>{const pv=arr[i+1];const d=pv&&pv.reach>0?(b.reach-pv.reach)/pv.reach*100:null;const pp=T>0?b.reach/T*100:null;return`<tr class="wrow ${b.d===selEnd?"sel":""}" data-end="${b.d}"><td class="l"><b>${winLbl(b.d)}</b>${b.d===R.today?' <span class="mute">(nu)</span>':""}</td><td><b>${num(b.reach)}</b></td><td class="${d==null?"mute":d>=0?"up":"dn"}">${d==null?"—":(d>0?"+":"")+Math.round(d)+"%"}</td><td><span class="pill ${pcls(pp)}">${pct(pp)}</span></td><td>${num(b.impr)}</td><td>${f1(b.freq)}×</td><td>${eur(b.spend)}</td><td>${eur2(b.cpr)}</td></tr>`;}).join("")}
       </tbody></table></div></div>
     <div class="rpanel" id="mrDetail"></div>
   </div>
-  <div class="rfoot">Bron: Meta Marketing API, accountniveau. Vensters die in het verleden eindigen zijn definitief; het venster t/m vandaag wordt max. elke 30 min ververst. Laatst geladen ${new Date(R.at).toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"})}.</div>`;
+  <div class="rfoot">Meta · ${new Date(R.at).toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"})}</div>`;
   drawChart(T);
   renderDetail();
 }
 function renderDetail(){
   const el=document.getElementById("mrDetail");if(!el)return;
   const title=`${winLbl(selEnd)}`;
-  if(!DET){el.innerHTML=`<div class="rph"><h3>${esc(title)}</h3></div><div class="rloading">Details laden…</div>`;return;}
+  if(!DET){el.innerHTML=`<div class="rph"><h3>${esc(title)}</h3></div><div class="rloading">…</div>`;return;}
   if(DET.error){el.innerHTML=`<div class="rph"><h3>${esc(title)}</h3></div><div class="rerr">${esc(DET.error)}</div>`;return;}
   const A=DET.account||{reach:0};
   const camps=(DET.campaigns||[]).filter(c=>c.reach>0);
   const cs=(DET.countries||[]).filter(c=>c.reach>0).slice(0,8);const mx=cs.length?cs[0].reach:1;
-  el.innerHTML=`<div class="rph"><h3>${esc(title)}</h3><span class="sub">${DET.complete?"afgesloten":"loopt"} · account-bereik ${num(A.reach)}</span></div>
-  <div class="rtbl"><table><thead><tr><th class="l">Campagne</th><th>Uniek bereik</th><th>Aandeel</th><th>Freq.</th><th>Besteed</th><th>€/1.000</th></tr></thead><tbody>
-  ${camps.length?camps.map(c=>`<tr><td class="l" title="${esc(c.name)}">${esc(c.name.length>34?c.name.slice(0,33)+"…":c.name)}</td><td><b>${num(c.reach)}</b></td><td class="mute">${A.reach>0?pct(c.reach/A.reach*100):"—"}</td><td>${f1(c.freq)}×</td><td>${eur(c.spend)}</td><td>${eur2(c.cpr)}</td></tr>`).join(""):'<tr><td class="l mute" colspan="6">Geen campagnes met bereik in dit venster.</td></tr>'}
+  el.innerHTML=`<div class="rph"><h3>${esc(title)}</h3><span class="sub">${num(A.reach)}</span></div>
+  <div class="rtbl"><table><thead><tr><th class="l">Campagne</th><th>Bereik</th><th>Aandeel</th><th>Freq.</th><th>Besteed</th><th>€/1.000</th></tr></thead><tbody>
+  ${camps.length?camps.map(c=>`<tr><td class="l" title="${esc(c.name)}">${esc(c.name.length>34?c.name.slice(0,33)+"…":c.name)}</td><td><b>${num(c.reach)}</b></td><td class="mute">${A.reach>0?pct(c.reach/A.reach*100):"—"}</td><td>${f1(c.freq)}×</td><td>${eur(c.spend)}</td><td>${eur2(c.cpr)}</td></tr>`).join(""):'<tr><td class="l mute" colspan="6">—</td></tr>'}
   </tbody></table></div>
-  <div class="rnote">Aandeel = campagnebereik ÷ accountbereik; som kan boven 100% komen door overlap tussen campagnes.</div>
-  ${cs.length?`<div class="rph" style="margin-top:12px"><h3>Landen</h3><span class="sub">uniek bereik per land</span></div>${cs.map(c=>`<div class="cbar"><span class="cn">${esc(c.c)}</span><div class="ct"><div class="cf" style="width:${Math.round(c.reach/mx*100)}%"></div></div><span class="cv">${num(c.reach)}</span></div>`).join("")}`:""}`;
+  ${cs.length?`<div class="rph" style="margin-top:12px"><h3>Landen</h3></div>${cs.map(c=>`<div class="cbar"><span class="cn">${esc(c.c)}</span><div class="ct"><div class="cf" style="width:${Math.round(c.reach/mx*100)}%"></div></div><span class="cv">${num(c.reach)}</span></div>`).join("")}`:""}`;
 }
 function drawChart(T){
   const c=document.getElementById("mrChart");if(!c||!window.Chart)return;
   if(chart){chart.destroy();chart=null;}
   const days=R.days;
-  const ds=[{type:"line",label:"Uniek bereik (7 dagen t/m die dag)",data:days.map(x=>x.reach),borderColor:"#01B52D",backgroundColor:"rgba(1,181,45,.12)",fill:true,pointRadius:days.map(x=>x.d===R.today?4:0),pointBackgroundColor:"#01B52D",tension:.25,borderWidth:2,order:1}];
-  if(T>0)ds.push({type:"line",label:"Doel per 7 dagen",data:days.map(()=>T),borderColor:"#b3590a",borderDash:[5,4],pointRadius:0,borderWidth:1.5,order:0});
+  const ds=[{type:"line",label:"Bereik 7 d",data:days.map(x=>x.reach),borderColor:"#01B52D",backgroundColor:"rgba(1,181,45,.12)",fill:true,pointRadius:days.map(x=>x.d===R.today?4:0),pointBackgroundColor:"#01B52D",tension:.25,borderWidth:2,order:1}];
+  if(T>0)ds.push({type:"line",label:"Doel",data:days.map(()=>T),borderColor:"#b3590a",borderDash:[5,4],pointRadius:0,borderWidth:1.5,order:0});
   chart=new Chart(c,{type:"line",data:{labels:days.map(x=>fD(x.d)),datasets:ds},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
     plugins:{legend:{position:"bottom",labels:{boxWidth:10,font:{size:11}}},tooltip:{callbacks:{title:items=>items.length?winLbl(days[items[0].dataIndex].d):"",label:ctx=>ctx.dataset.label.split(" (")[0]+": "+num(ctx.parsed.y)}}},
     scales:{y:{beginAtZero:true,ticks:{callback:v=>v>=1e6?(v/1e6).toLocaleString("nl-NL")+" M":v>=1e3?Math.round(v/1e3)+" k":v,font:{size:10}},grid:{color:"#EEF0EE"}},x:{ticks:{font:{size:10},maxRotation:0,autoSkip:true,maxTicksLimit:14}}}}});
