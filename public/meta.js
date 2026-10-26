@@ -87,7 +87,7 @@ const HTML=`
   <button class="mbtn" id="maRefresh" title="Laatste 8 dagen opnieuw bij Meta ophalen">↻ Ververs</button>
 </div>
 <div class="mchips" id="maChips"></div>
-<div id="maBody"><div class="mloading">Meta Ads laden…</div></div>`;
+<div id="maBody"><div class="mloading">Laden…</div></div>`;
 
 /* ---------- state ---------- */
 let inited=false, ACC=[], acc=localStorage.getItem("ma_acc")||"ALL", per=+(localStorage.getItem("ma_per")||30), from="", to="";
@@ -113,8 +113,8 @@ async function loadAccounts(){const d=await api("/api/meta?view=accounts");ACC=d
 async function loadGroups(){try{const d=await api("/api/meta?view=groups");groups=d.groups||[];}catch(e){groups=[];}}
 async function loadData(force){
   const body=document.getElementById("maBody");
-  if(!ACC.length){body.innerHTML='<div class="mempty">Geen advertentieaccounts gevonden. Controleer META_TOKEN / META_AD_ACCOUNTS in Vercel.</div>';return;}
-  loading=true;if(!D)body.innerHTML='<div class="mloading">Meta Ads laden…</div>';
+  if(!ACC.length){body.innerHTML='<div class="mempty">Geen accounts (META_TOKEN?)</div>';return;}
+  loading=true;if(!D)body.innerHTML='<div class="mloading">Laden…</div>';
   const {from:f,to:t}=periodRange();const n=listDays(f,t).length;const f2=addDays(f,-n); // vorige periode mee voor de vergelijking
   let accs=acc==="ALL"?ACC.filter(a=>a.status===1).map(a=>a.id):[acc];
   if(!accs.length)accs=ACC.map(a=>a.id);
@@ -162,18 +162,18 @@ function render(){
     +(sel.size?selBar():"")
     +tablePanel(ids)
     +dayPanel(days,ids)
-    +`<div class="mfoot">Bron: Meta Marketing API (${acc==="ALL"?"alle actieve accounts":esc((ACC.find(a=>a.id===acc)||{}).name||acc)}), attributie volgens accountinstelling. Dagen ouder dan 8 dagen zijn definitief; recente dagen worden max. elke 30 min ververst. Laatst geladen ${new Date(D.at).toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"})}.</div>`;
+    +`<div class="mfoot">Meta · ${new Date(D.at).toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"})}</div>`;
   drawChart(days);
 }
-function delta(a,b,inv){if(b==null||a==null||!isFinite(a)||!isFinite(b)||b===0)return'<span class="mute">vorige periode —</span>';const p=(a-b)/Math.abs(b)*100;const good=inv?p<0:p>0;return`<span class="${Math.abs(p)<1?"mute":good?"up":"dn"}">${p>0?"+":""}${p.toLocaleString("nl-NL",{maximumFractionDigits:0})}%</span> <span class="mute">vs. vorige ${listDays(D.from,D.to).length} d</span>`;}
+function delta(a,b,inv){if(b==null||a==null||!isFinite(a)||!isFinite(b)||b===0)return'<span class="mute">—</span>';const p=(a-b)/Math.abs(b)*100;const good=inv?p<0:p>0;return`<span class="${Math.abs(p)<1?"mute":good?"up":"dn"}">${p>0?"+":""}${p.toLocaleString("nl-NL",{maximumFractionDigits:0})}%</span> <span class="mute">vs vorige</span>`;}
 function cards(c,p){
   return`<div class="mcards">
   <div class="mcard"><div class="l">Besteed</div><div class="v">${eur(c.spend)}</div><div class="d">${delta(c.spend,p.spend,true)}</div></div>
   <div class="mcard"><div class="l">Omzet (Meta)</div><div class="v">${eur(c.value)}</div><div class="d">${delta(c.value,p.value)}</div></div>
-  <div class="mcard"><div class="l">ROAS</div><div class="v"><span class="roas ${roasCls(c.roas,c.spend)}" style="font-size:18px">${x2(c.roas)}</span></div><div class="d">${delta(c.roas,p.roas)} · doel ${x2(target)}</div></div>
+  <div class="mcard"><div class="l">ROAS</div><div class="v"><span class="roas ${roasCls(c.roas,c.spend)}" style="font-size:18px">${x2(c.roas)}</span></div><div class="d">${delta(c.roas,p.roas)}</div></div>
   <div class="mcard"><div class="l">Aankopen</div><div class="v">${num(c.purch)}</div><div class="d">${delta(c.purch,p.purch)}</div></div>
   <div class="mcard"><div class="l">Kosten / aankoop</div><div class="v">${eur2(c.cpa)}</div><div class="d">${delta(c.cpa,p.cpa,true)}</div></div>
-  <div class="mcard"><div class="l">CTR · Orderwaarde</div><div class="v" style="font-size:17px">${pct1(c.ctr)} · ${eur2(c.aov)}</div><div class="d">${num(c.clicks)} klikken · ${num(c.impr)} impr.</div></div>
+  <div class="mcard"><div class="l">CTR · Orderwaarde</div><div class="v" style="font-size:17px">${pct1(c.ctr)} · ${eur2(c.aov)}</div><div class="d">${num(c.clicks)} klikken</div></div>
   </div>`;
 }
 function renderChips(){
@@ -181,8 +181,7 @@ function renderChips(){
   let h=`<button class="mchip ${scope.type==="all"?"on":""}" data-s="all">Alles</button>`;
   groups.forEach((g,i)=>{h+=`<button class="mchip ${scope.type==="group"&&scope.id===g.id?"on":""}" data-s="group" data-id="${esc(g.id)}"><span class="dotc" style="background:${gColor(g,i)}"></span>${esc(g.name)} <span class="mute" style="font-weight:600">${g.adsets.length}</span></button>`;});
   if(scope.type==="campaign"||scope.type==="adset")h+=`<button class="mchip on" data-s="all">${scope.type==="campaign"?"Campagne":"Ad set"}: ${esc(scopeLabel())} <span class="x">✕</span></button>`;
-  if(!groups.length)h+=`<span class="mlbl" style="margin-left:6px">Tip: vink ad sets aan in de tabel en maak een groep om ze samen te volgen.</span>`;
-  el.innerHTML=h;
+    el.innerHTML=h;
 }
 function selBar(){
   return`<div class="selbar"><b>${sel.size}</b> ad set(s) geselecteerd
@@ -191,11 +190,11 @@ function selBar(){
   <button class="mbtn" id="maSelClear" style="margin-left:auto">Selectie wissen</button></div>`;
 }
 function groupsPanel(){
-  return`<div class="mpanel"><div class="mph"><h3>Groepen</h3><span class="sub">gedeeld met het team · klik op een groep (chip hierboven) om alleen die ad sets te zien</span><button class="mbtn" id="maGroupsClose" style="margin-left:auto">Sluiten</button></div>
+  return`<div class="mpanel"><div class="mph"><h3>Groepen</h3><button class="mbtn" id="maGroupsClose" style="margin-left:auto">Sluiten</button></div>
   ${groups.length?groups.map((g,i)=>`<div class="mgrp" data-id="${esc(g.id)}"><span class="dotc" style="width:10px;height:10px;border-radius:50%;background:${gColor(g,i)};display:inline-block"></span><input type="text" class="gname" value="${esc(g.name)}" style="min-width:120px;width:170px">
-    <div class="gm">${g.adsets.length?g.adsets.map(x=>{const n=D.names[x.id]||{};return`<span class="gmem" title="${esc(n.cn||"")}">${esc(n.an||x.id)}<b data-rm="${esc(x.id)}" title="Uit groep halen">✕</b></span>`;}).join(""):'<span class="mute" style="font-size:12px">nog geen ad sets — vink ze aan in de tabel</span>'}</div>
+    <div class="gm">${g.adsets.length?g.adsets.map(x=>{const n=D.names[x.id]||{};return`<span class="gmem" title="${esc(n.cn||"")}">${esc(n.an||x.id)}<b data-rm="${esc(x.id)}" title="Uit groep halen">✕</b></span>`;}).join(""):'<span class="mute" style="font-size:12px">leeg</span>'}</div>
     <input type="color" class="gcolor" value="${esc(gColor(g,i))}" title="Kleur" style="width:30px;height:28px;border:none;background:none;cursor:pointer">
-    <button class="mbtn danger gdel">🗑</button></div>`).join(""):'<div class="mute" style="padding:6px 0;font-size:12.5px">Nog geen groepen. Selecteer ad sets in de tabel en klik “Nieuwe groep”.</div>'}
+    <button class="mbtn danger gdel">🗑</button></div>`).join(""):'<div class="mute" style="padding:6px 0;font-size:12.5px">Geen groepen</div>'}
   </div>`;
 }
 function spark(vals){ // kleine ROAS-lijn, kleur t.o.v. doel
@@ -215,7 +214,7 @@ function tablePanel(ids){
   if(ids)ids.forEach(id=>{if(!byA[id]&&D.names[id]&&matchQ(id))byA[id]={rows:[],daily:{}};});
   const prevRows={};listDays(D.prevFrom,D.prevTo).forEach(d=>(D.days[d]||[]).forEach(r=>{if(byA[r[0]])(prevRows[r[0]]=prevRows[r[0]]||[]).push(r);}));
   const items=Object.keys(byA).map(id=>{const a=agg(byA[id].rows),p=agg(prevRows[id]||[]);const n=D.names[id]||{};return{id,an:n.an||id,cn:n.cn||"",c:n.c||"",a,p,m:D.adsets[id],sp:dlist.map(d=>{const x=byA[id].daily[d];if(!x)return null;const g=agg(x);return g.spend>0?(g.roas||0):null;})};});
-  if(!items.length)return`<div class="mpanel"><div class="mempty">Geen ad sets met data in deze periode${q?" voor “"+esc(q)+"”":""}.</div></div>`;
+  if(!items.length)return`<div class="mpanel"><div class="mempty">Geen data</div></div>`;
   const key=k=>o=>k==="name"?o.an:(o.a[k]==null?-Infinity:o.a[k]);
   const kf=key(sortKey);items.sort((x,y)=>{const a=kf(x),b=kf(y);if(typeof a==="string")return sortDir*a.localeCompare(b);return sortDir*((a===-Infinity?-1e18:a)-(b===-Infinity?-1e18:b));});
   const camps={};items.forEach(it=>{(camps[it.c]=camps[it.c]||{c:it.c,cn:it.cn,items:[],rows:[]}).items.push(it);camps[it.c].rows.push(...byA[it.id].rows);});
@@ -223,7 +222,7 @@ function tablePanel(ids){
   clist.sort((x,y)=>{if(sortKey==="name")return sortDir*x.cn.localeCompare(y.cn);const a=x.a[sortKey]==null?-1e18:x.a[sortKey],b=y.a[sortKey]==null?-1e18:y.a[sortKey];return sortDir*(a-b);});
   const th=(k,l,cls)=>`<th class="${cls||""} ${sortKey===k?"sorted":""}" data-k="${k}">${l}${sortKey===k?(sortDir<0?" ▼":" ▲"):""}</th>`;
   const allSel=items.length&&items.every(it=>sel.has(it.id));
-  let h=`<div class="mpanel"><div class="mph"><h3>Campagnes & ad sets</h3><span class="sub">${items.length} ad sets in ${clist.length} campagnes · klik op een naam om alleen die te volgen · ▲▼ = ROAS per dag t.o.v. doel</span></div><div class="mtbl"><table>
+  let h=`<div class="mpanel"><div class="mph"><h3>Campagnes & ad sets</h3><span class="sub">${items.length} ad sets · ${clist.length} campagnes</span></div><div class="mtbl"><table>
   <thead><tr><th class="l" style="width:30px"><input type="checkbox" class="mchk" id="maSelAll" ${allSel?"checked":""} title="Alles selecteren"></th>${th("name","Naam","l")}<th>Status · budget</th>${th("spend","Besteed")}${th("value","Omzet")}${th("roas","ROAS")}${th("purch","Aankopen")}${th("cpa","Kosten/aank.")}${th("ctr","CTR")}<th>Verloop</th><th class="l">Groep</th></tr></thead><tbody>`;
   clist.forEach(c=>{
     const open=openCamp[c.c]!==false;
@@ -257,8 +256,7 @@ function dayPanel(days,ids){
     h+=`<table class="matrix"><thead><tr><th class="l">Dag</th><th>Totaal</th>${shown.map(id=>`<th title="${esc((D.names[id]||{}).an||id)} · ${esc((D.names[id]||{}).cn||"")}">${esc((D.names[id]||{}).an||id)}</th>`).join("")}</tr></thead><tbody>`;
     [...days].reverse().forEach(({d,a})=>{const rows=(D.days[d]||[]);h+=`<tr><td class="l">${fmtD(d)}</td><td>${cell(a)}</td>${shown.map(id=>"<td>"+cell(agg(rows.filter(r=>r[0]===id)))+"</td>").join("")}</tr>`;});
     h+=`<tr style="font-weight:800"><td class="l">Periode</td><td>${cell(tot)}</td>${shown.map(id=>"<td>"+cell(agg(rowsIn(D.from,D.to,new Set([id]),false)))+"</td>").join("")}</tr></tbody></table>`;
-    if(cols.length>shown.length)h+=`<div class="mnote">${cols.length-shown.length} ad set(s) met minder besteding niet getoond — kies een groep of campagne, of zoek, om ze te zien.</div>`;
-    h+=`<div class="mnote">Celwaarde: ${matrixMetric==="roas"?"ROAS":matrixMetric==="value"?"omzet":"aankopen"} (kies boven de grafiek). Kleur t.o.v. doel-ROAS ${x2(target)}: groen ≥ doel, oranje ≥ ⅔ doel, rood lager.</div>`;
+    if(cols.length>shown.length)h+=`<div class="mnote">+${cols.length-shown.length} ad sets niet getoond</div>`;
   }
   h+=`</div></div>`;return h;
 }
