@@ -69,7 +69,7 @@ const CSS=`
 #sec-meta .gmem{border:1px solid var(--line);border-radius:6px;padding:2px 7px;font-size:11px;background:var(--paper)}
 #sec-meta .gmem b{cursor:pointer;color:var(--red);margin-left:4px}
 #sec-meta .matrix td{padding:4px 6px;font-size:11.5px}
-#sec-meta .matrix th{font-size:10px;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+#sec-meta .matrix th{font-size:10px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:normal;line-height:1.2;vertical-align:bottom}
 #sec-meta .mc{display:inline-block;min-width:44px;border-radius:6px;padding:2px 6px;font-weight:700;text-align:center}
 #sec-meta .mnote{font-size:11.5px;color:var(--mute);margin-top:8px}
 #sec-meta .mfoot{font-size:11px;color:var(--mute);margin-top:6px}
@@ -254,7 +254,7 @@ function dayPanel(days,ids){
     const spendBy={};rowsIn(D.from,D.to,ids,true).forEach(r=>{spendBy[r[0]]=(spendBy[r[0]]||0)+r[2];});
     const cols=Object.keys(spendBy).sort((a,b)=>spendBy[b]-spendBy[a]);const shown=cols.slice(0,14);
     const cell=(a)=>{const v=matrixMetric==="roas"?a.roas:matrixMetric==="value"?a.value:a.purch;const txt=matrixMetric==="roas"?x2(v):matrixMetric==="value"?eur(v):num(v);const cls=matrixMetric==="roas"?roasCls(v,a.spend):(a.spend>0?"r3":"r0");return`<span class="mc ${a.spend>0?cls:"r0"}" title="besteed ${eur2(a.spend)} · omzet ${eur2(a.value)} · ${num(a.purch)} aankopen">${a.spend>0?txt:"·"}</span>`;};
-    h+=`<table class="matrix"><thead><tr><th class="l">Dag</th><th>Totaal</th>${shown.map(id=>`<th title="${esc((D.names[id]||{}).cn||"")}">${esc((D.names[id]||{}).an||id)}</th>`).join("")}</tr></thead><tbody>`;
+    h+=`<table class="matrix"><thead><tr><th class="l">Dag</th><th>Totaal</th>${shown.map(id=>`<th title="${esc((D.names[id]||{}).an||id)} · ${esc((D.names[id]||{}).cn||"")}">${esc((D.names[id]||{}).an||id)}</th>`).join("")}</tr></thead><tbody>`;
     [...days].reverse().forEach(({d,a})=>{const rows=(D.days[d]||[]);h+=`<tr><td class="l">${fmtD(d)}</td><td>${cell(a)}</td>${shown.map(id=>"<td>"+cell(agg(rows.filter(r=>r[0]===id)))+"</td>").join("")}</tr>`;});
     h+=`<tr style="font-weight:800"><td class="l">Periode</td><td>${cell(tot)}</td>${shown.map(id=>"<td>"+cell(agg(rowsIn(D.from,D.to,new Set([id]),false)))+"</td>").join("")}</tr></tbody></table>`;
     if(cols.length>shown.length)h+=`<div class="mnote">${cols.length-shown.length} ad set(s) met minder besteding niet getoond — kies een groep of campagne, of zoek, om ze te zien.</div>`;
