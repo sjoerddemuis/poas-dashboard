@@ -11,8 +11,11 @@
 //   ?view=groups                          → { groups:[{id,name,color,adsets:[{act,id}]}] }
 //   ?view=reachmonths&account=act_X&months=13 → { months:[{m,from,to,reach,impr,freq,spend,cpm,clicks,cpr}] }  (uniek bereik per maand)
 //   ?view=reach&account=act_X&month=YYYY-MM   → { account:{…}, campaigns:[…], countries:[…], complete }
-//   ?view=reachtargets                    → { targets:{act_X: 1000000} }
-// POST (ingelogd) body {action:"create"|"update"|"delete", …} op groepen; {action:"settarget",account,target} voor bereikdoel.
+//   ?view=reachtargets                    → { targets:{act_X: 1000000} }   (maanddoel)
+//   ?view=reach7&account=act_X&days=56    → { days:[{d,reach,impr,freq,spend,cpm,clicks,cpr}] }  rollend: bereik van de 7 dagen t/m d
+//   ?view=reachrange&account=act_X&since=&until= → { account:{…}, campaigns:[…], countries:[…], complete }
+//   ?view=reachtargets7                   → { targets:{act_X: 230000} }    (doel per 7 dagen)
+// POST (ingelogd) body {action:"create"|"update"|"delete", …} op groepen; {action:"settarget"|"settarget7",account,target} voor bereikdoelen.
 //
 // Cache-strategie: per account per dag een KV-key meta:d:<act>:<YYYY-MM-DD>. Dagen ouder dan 8 dagen
 // zijn definitief (Meta's attributievenster is max 7 dagen) en worden nooit opnieuw gehaald; de laatste
@@ -215,6 +218,61 @@ async function reachMonthDetail(act, ym, force) {
 }
 const TARGETS_KEY = "meta:reachTargets";
 async function getTargets() { let t = null; try { t = await getKey(TARGETS_KEY); } catch (e) {} return t && typeof t === "object" ? t : {}; }
+const TARGETS7_KEY = "meta:reachTargets7"; // doel uniek bereik per 7 dagen
+async function getTargets7() { let t = null; try { t = await getKey(TARGETS7_KEY); } catch (e) {} return t && typeof t === "object" ? t : {}; }
+
+// Rollend 7-daags uniek bereik: per einddag d het bereik van [d-6, d]. Vensters die in het verleden
+// eindigen zijn definitief (permanent in KV); het venster t/m vandaag wordt max. elke 30 min ververst.
+async function reach7Window(act, endDay) {
+  const rows = await gall(act + "/insights", { level: "account", time_range: { since: addDays(endDay, -6), until: endDay }, fields: REACH_FIELDS, limit: 10 }, 2);
+  return Object.assign({ d: endDay }, rows.length ? normRow(rows[0]) : { reach: 0, impr: 0, freq: 0, spend: 0, cpm: 0, clicks: 0, cpr: 0 });
+}
+async function reach7Days(act, days, force) {
+  const today = todayAms();
+  const ends = listDays(addDays(today, -(days - 1)), today);
+  const keys = ends.map((d) => "meta:r7:" + act + ":" + d);
+  const r = kv();
+  let cached = new Array(ends.length).fill(null);
+  if (r) { try { cached = await r.mget(...keys); } catch (e) { cached = new Array(ends.length).fill(null); } }
+  const out = {};
+  const need = [];
+  ends.forEach((d, i) => {
+    const c = cached[i];
+    const isToday = d === today;
+    if (c && (!isToday || (!force && c.ts && Date.now() - c.ts < REACH_TTL))) out[d] = c; else need.push(d);
+  });
+  // in batches van 6 parallel ophalen
+  for (let i = 0; i < need.length; i += 6) {
+    const batch = need.slice(i, i + 6);
+    const got = await Promise.all(batch.map((d) => reach7Window(act, d)));
+    const upd = {};
+    got.forEach((g) => { const v = Object.assign({ ts: Date.now() }, g); out[g.d] = v; upd["meta:r7:" + act + ":" + g.d] = v; });
+    if (r) { try { await r.mset(upd); } catch (e) {} }
+  }
+  return { days: ends.map((d) => out[d]).filter(Boolean), fetched: need.length, fetchedAt: Date.now() };
+}
+// Detail (campagnes + landen) voor een willekeurig venster; afgesloten venster permanent.
+async function reachRangeDetail(act, since, until, force) {
+  const key = "meta:reachd:" + act + ":" + since + "_" + until;
+  const today = todayAms();
+  const complete = until < today;
+  const c = !force && (await getKey(key));
+  if (c && c.ts && (complete || Date.now() - c.ts < REACH_TTL)) return c;
+  const tr = { since, until };
+  const [camps, countries, acc] = await Promise.all([
+    gall(act + "/insights", { level: "campaign", time_range: tr, fields: "campaign_id,campaign_name," + REACH_FIELDS, limit: 200 }, 5),
+    gall(act + "/insights", { level: "account", time_range: tr, breakdowns: "country", fields: "reach,impressions,spend", limit: 200 }, 5).catch(() => []),
+    gall(act + "/insights", { level: "account", time_range: tr, fields: REACH_FIELDS, limit: 10 }, 2),
+  ]);
+  const res = {
+    ts: Date.now(), from: since, to: until, complete,
+    account: acc.length ? normRow(acc[0]) : null,
+    campaigns: camps.map((r) => Object.assign({ id: r.campaign_id, name: r.campaign_name }, normRow(r))).sort((a, b) => b.reach - a.reach),
+    countries: countries.map((r) => ({ c: r.country, reach: num(r.reach), impr: num(r.impressions), spend: num(r.spend) })).sort((a, b) => b.reach - a.reach),
+  };
+  try { await setKey(key, res); } catch (e) {}
+  return res;
+}
 
 /* ---------- groepen ---------- */
 async function getGroups() { let g = null; try { g = await getKey(GROUPS_KEY); } catch (e) {} return g && Array.isArray(g.groups) ? g : { groups: [] }; }
@@ -236,6 +294,15 @@ module.exports = async (req, res) => {
         const v = Math.max(0, Math.round(+b.target || 0));
         if (v > 0) t[act] = v; else delete t[act];
         await setKey(TARGETS_KEY, t);
+        return res.json({ ok: true, targets: t });
+      }
+      if (b.action === "settarget7") { // doel uniek bereik per 7 dagen, per account (gedeeld)
+        const act = String(b.account || "");
+        if (!/^act_\d+$/.test(act)) return res.status(400).json({ error: "account ontbreekt" });
+        const t = await getTargets7();
+        const v = Math.max(0, Math.round(+b.target || 0));
+        if (v > 0) t[act] = v; else delete t[act];
+        await setKey(TARGETS7_KEY, t);
         return res.json({ ok: true, targets: t });
       }
       const store = await getGroups();
@@ -262,6 +329,20 @@ module.exports = async (req, res) => {
     if (view === "accounts") return res.json({ accounts: await accounts(q.refresh === "1"), version: VER });
     if (view === "groups") return res.json(await getGroups());
     if (view === "reachtargets") return res.json({ targets: await getTargets() });
+    if (view === "reachtargets7") return res.json({ targets: await getTargets7() });
+    if (view === "reach7") {
+      const act = String(q.account || "");
+      if (!/^act_\d+$/.test(act)) return res.status(400).json({ error: "account ontbreekt (act_…)" });
+      const days = Math.max(7, Math.min(120, parseInt(q.days || "56", 10) || 56));
+      return res.json(Object.assign({ account: act }, await reach7Days(act, days, q.refresh === "1")));
+    }
+    if (view === "reachrange") {
+      const act = String(q.account || "");
+      if (!/^act_\d+$/.test(act)) return res.status(400).json({ error: "account ontbreekt (act_…)" });
+      if (!isDate(q.since) || !isDate(q.until) || q.since > q.until) return res.status(400).json({ error: "since/until ontbreekt" });
+      if (listDays(q.since, q.until).length > 62) return res.status(400).json({ error: "venster max. 62 dagen" });
+      return res.json(Object.assign({ account: act }, await reachRangeDetail(act, q.since, q.until, q.refresh === "1")));
+    }
     if (view === "reachmonths") {
       const act = String(q.account || "");
       if (!/^act_\d+$/.test(act)) return res.status(400).json({ error: "account ontbreekt (act_…)" });
