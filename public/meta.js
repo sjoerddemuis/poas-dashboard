@@ -255,8 +255,8 @@ function dayPanel(days,ids){
     const cols=Object.keys(spendBy).sort((a,b)=>spendBy[b]-spendBy[a]);const shown=cols.slice(0,14);
     const cell=(a)=>{const v=matrixMetric==="roas"?a.roas:matrixMetric==="value"?a.value:a.purch;const txt=matrixMetric==="roas"?x2(v):matrixMetric==="value"?eur(v):num(v);const cls=matrixMetric==="roas"?roasCls(v,a.spend):(a.spend>0?"r3":"r0");return`<span class="mc ${a.spend>0?cls:"r0"}" title="besteed ${eur2(a.spend)} · omzet ${eur2(a.value)} · ${num(a.purch)} aankopen">${a.spend>0?txt:"·"}</span>`;};
     h+=`<table class="matrix"><thead><tr><th class="l">Dag</th><th>Totaal</th>${shown.map(id=>`<th title="${esc((D.names[id]||{}).cn||"")}">${esc((D.names[id]||{}).an||id)}</th>`).join("")}</tr></thead><tbody>`;
-    [...days].reverse().forEach(({d,a})=>{const rows=(D.days[d]||[]);h+=`<tr><td class="l">${fmtD(d)}</td><td>${cell(a)}</td>${shown.map(id=>cell(agg(rows.filter(r=>r[0]===id)))).join("")}</tr>`;});
-    h+=`<tr style="font-weight:800"><td class="l">Periode</td><td>${cell(tot)}</td>${shown.map(id=>cell(agg(rowsIn(D.from,D.to,new Set([id]),false)))).join("")}</tr></tbody></table>`;
+    [...days].reverse().forEach(({d,a})=>{const rows=(D.days[d]||[]);h+=`<tr><td class="l">${fmtD(d)}</td><td>${cell(a)}</td>${shown.map(id=>"<td>"+cell(agg(rows.filter(r=>r[0]===id)))+"</td>").join("")}</tr>`;});
+    h+=`<tr style="font-weight:800"><td class="l">Periode</td><td>${cell(tot)}</td>${shown.map(id=>"<td>"+cell(agg(rowsIn(D.from,D.to,new Set([id]),false)))+"</td>").join("")}</tr></tbody></table>`;
     if(cols.length>shown.length)h+=`<div class="mnote">${cols.length-shown.length} ad set(s) met minder besteding niet getoond — kies een groep of campagne, of zoek, om ze te zien.</div>`;
     h+=`<div class="mnote">Celwaarde: ${matrixMetric==="roas"?"ROAS":matrixMetric==="value"?"omzet":"aankopen"} (kies boven de grafiek). Kleur t.o.v. doel-ROAS ${x2(target)}: groen ≥ doel, oranje ≥ ⅔ doel, rood lager.</div>`;
   }
