@@ -631,6 +631,7 @@ summary{border-radius:11px;font-weight:600}
       <button class="navtop" type="button">Marketing <span class="navcar">&#9662;</span></button>
       <div class="navmenu">
         <button class="snav" data-sec="meta">Meta Ads</button>
+        <button class="snav" data-sec="reach">Merkbekendheid</button>
       </div>
     </div>
     <div class="navgroup" data-group="ops">
@@ -995,6 +996,7 @@ summary{border-radius:11px;font-weight:600}
   </div><!-- /sec-voorraad -->
   <div id="svordermodal" class="omodal"><div class="opanel" id="svordermodalbody"></div></div>
   <div id="sec-meta" style="display:none"></div>
+  <div id="sec-reach" style="display:none"></div>
 
   <div id="sec-ads" style="display:none">
     <div class="adtabs" id="adtabs">
@@ -1269,6 +1271,7 @@ summary{border-radius:11px;font-weight:600}
 </div>
 
 <script src="/meta.js?v=1"></script>
+<script src="/reach.js?v=1"></script>
 <script>
 "use strict";
 const C={green:"#00C030",greenDk:"#009626",ink:"#0F1411",mute:"#6B726C",orange:"#F06828",red:"#E5484D",blue:"#2D6CDF",line:"#E4E7E3",lightg:"#E8F8EC"};
@@ -4262,7 +4265,7 @@ window.__kernLoad=function(){
 /* ===== Sectienavigatie (onthoudt actieve tab via URL-hash) ===== */
 (function(){
   const nav=document.getElementById("secnav");
-  const SECS=["poas","kern","prod","market","heat","ronada","prijs","voorraad","reviews","tel","kosten","forecast","doel","prest","meta"];
+  const SECS=["poas","kern","prod","market","heat","ronada","prijs","voorraad","reviews","tel","kosten","forecast","doel","prest","meta","reach"];
   function activate(sec,updateHash){
     if(!SECS.includes(sec))sec="poas";
     const b=nav.querySelector('.snav[data-sec="'+sec+'"]');
@@ -4283,6 +4286,7 @@ window.__kernLoad=function(){
     if(sec==="doel"&&window.__doelLoad)window.__doelLoad();
     if(sec==="prest"&&window.__prestLoad)window.__prestLoad();
     if(sec==="meta"&&window.__metaLoad)window.__metaLoad();
+    if(sec==="reach"&&window.__reachLoad)window.__reachLoad();
     if(updateHash&&location.hash!=="#"+sec)history.replaceState(null,"","#"+sec);
     window.dispatchEvent(new Event("resize")); // charts hersizen na tab-wissel
   }
