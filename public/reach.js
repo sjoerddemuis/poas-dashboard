@@ -88,8 +88,11 @@ async function loadMonths(force){
   if(!M)body.innerHTML='<div class="rloading">Bereik laden…</div>';
   try{
     const d=await api(`/api/meta?view=reachmonths&account=${encodeURIComponent(acc)}&months=13${force?"&refresh=1":""}`);
-    M={rows:(d.months||[]).slice().sort((a,b)=>a.m.localeCompare(b.m)),at:Date.now()};
     const cur=todayISO().slice(0,7);
+    // vaste as van 13 maanden; maanden zonder levering (geen rij van Meta) worden 0
+    const byM={};(d.months||[]).forEach(r=>{byM[r.m]=r;});const [cy,cm]=cur.split("-").map(Number);const full=[];
+    for(let i=12;i>=0;i--){const ym=new Date(Date.UTC(cy,cm-1-i,1)).toISOString().slice(0,7);full.push(byM[ym]||{m:ym,reach:0,impr:0,freq:0,spend:0,cpm:0,clicks:0,cpr:0,empty:true});}
+    M={rows:full,at:Date.now()};
     if(!selM||!M.rows.find(r=>r.m===selM))selM=M.rows.find(r=>r.m===cur)?cur:(M.rows.length?M.rows[M.rows.length-1].m:cur);
     render();
     loadDetail(force);
