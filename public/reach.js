@@ -21,6 +21,9 @@ const CSS=`
 #sec-reach .rcard.hero{grid-column:span 2;background:linear-gradient(135deg,#F2FBF4,#fff)}
 #sec-reach .rcard.hero.off{background:linear-gradient(135deg,#FFF1E5,#fff)}
 #sec-reach .rcard.hero .v{font-size:30px}
+#sec-reach .rcard[data-k]{cursor:pointer;transition:border-color .15s,box-shadow .15s}
+#sec-reach .rcard[data-k]:hover{border-color:#B9E8C6}
+#sec-reach .rcard.on{border-color:var(--green);box-shadow:0 0 0 2px rgba(1,181,45,.18)}
 #sec-reach .status{display:inline-block;border-radius:20px;padding:3px 11px;font-size:12px;font-weight:800;margin-left:8px;vertical-align:middle}
 #sec-reach .status.ok{background:var(--lightg);color:var(--greenDk)} #sec-reach .status.off{background:#FFF1E5;color:#b3590a} #sec-reach .status.no{background:#F0F0EC;color:var(--mute)}
 #sec-reach .rbarw{height:10px;background:#EEF0EE;border-radius:6px;overflow:hidden;margin-top:8px}
@@ -66,7 +69,7 @@ const HTML=`
 </div>
 <div id="mrBody"><div class="rloading">Laden…</div></div>`;
 
-let inited=false, ACC=[], acc=localStorage.getItem("mr_acc")||"", targets={}, R=null, DET=null, selEnd="", chart=null, tT=null;
+let inited=false, ACC=[], acc=localStorage.getItem("mr_acc")||"", targets={}, R=null, DET=null, selEnd="", chart=null, tT=null, kpi=localStorage.getItem("mr_kpi")||"reach";
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
 const num=n=>(n==null||!isFinite(n))?"—":Math.round(n).toLocaleString("nl-NL");
 const eur=n=>(n==null||!isFinite(n))?"—":"€ "+Math.round(n).toLocaleString("nl-NL");
@@ -79,6 +82,12 @@ const addDays=(iso,n)=>{const d=new Date(iso+"T00:00:00Z");d.setUTCDate(d.getUTC
 const fD=iso=>+iso.slice(8,10)+" "+MN[+iso.slice(5,7)-1];
 const winLbl=end=>fD(addDays(end,-6))+" – "+fD(end);
 function target(){return +targets[acc]||0;}
+const KPI={
+  reach:{t:"Uniek bereik · 7 d",v:x=>x.reach,f:n=>num(n),ax:"n",goal:T=>T,c:"#01B52D"},
+  perday:{t:"Bereik per dag",v:x=>x.reach/7,f:n=>num(n),ax:"n",goal:T=>T/7,c:"#01B52D"},
+  cpr:{t:"€ / 1.000 bereikt",v:x=>x.reach>0?x.cpr:null,f:n=>eur2(n),ax:"e",goal:()=>0,c:"#0A6CCB"},
+  freq:{t:"Frequentie",v:x=>x.reach>0?x.freq:null,f:n=>f1(n)+"×",ax:"x",goal:()=>0,c:"#8E44AD"},
+};
 function pcls(p){if(p==null)return"p0";if(p>=100)return"p3";if(p>=70)return"p2";return"p1";}
 
 async function api(url,opt){const r=await fetch(url,opt);if(r.status===401){location.href="/login.html";throw new Error("Niet ingelogd");}const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||("HTTP "+r.status));return d;}
@@ -109,6 +118,7 @@ function blocks(){ // 8 aansluitende blokken van 7 dagen, eindigend vandaag
 }
 function render(){
   if(!R)return;
+  if(!KPI[kpi])kpi="reach";
   const T=target(), cur=R.by[R.today]||{reach:0,impr:0,freq:0,spend:0,cpm:0,cpr:0};
   const prev=R.by[addDays(R.today,-7)], w4=R.by[addDays(R.today,-28)];
   const p=T>0?cur.reach/T*100:null, gap=T>0?T-cur.reach:null;
@@ -118,16 +128,16 @@ function render(){
   const costTarget=T>0&&cur.cpr>0?T/1000*cur.cpr:null;
   const body=document.getElementById("mrBody");
   body.innerHTML=`<div class="rcards">
-    <div class="rcard hero ${onTrack===false?"off":""}"><div class="l">Uniek bereik · 7 dagen · ${winLbl(R.today)}</div><div class="v">${num(cur.reach)}${onTrack==null?'<span class="status no">geen doel</span>':onTrack?'<span class="status ok">✓ on track</span>':'<span class="status off">achter op doel</span>'}</div>
+    <div class="rcard hero ${onTrack===false?"off":""} ${kpi==="reach"?"on":""}" data-k="reach"><div class="l">Uniek bereik · 7 dagen · ${winLbl(R.today)}</div><div class="v">${num(cur.reach)}${onTrack==null?'<span class="status no">geen doel</span>':onTrack?'<span class="status ok">✓ on track</span>':'<span class="status off">achter op doel</span>'}</div>
       <div class="d">${T>0?`<b class="${p>=100?"up":""}">${pct(p)}</b> van ${num(T)}${gap>0?` · <b>−${num(gap)}</b>`:gap!=null?` · <b class="up">+${num(-gap)}</b>`:""}`:'<span class="mute">geen doel ingesteld</span>'}</div>
       ${T>0?`<div class="rbarw"><div class="rbarf ${p<100?"warn":""}" style="width:${Math.min(100,p||0)}%"></div></div>`:""}
       <div class="d">vs vorige 7 d ${dPrev==null?"—":`<span class="${dPrev>=0?"up":"dn"}">${dPrev>0?"+":""}${Math.round(dPrev)}%</span>`} · vs 4 wk ${d4==null?"—":`<span class="${d4>=0?"up":"dn"}">${d4>0?"+":""}${Math.round(d4)}%</span>`}</div>
     </div>
-    <div class="rcard"><div class="l">Per dag</div><div class="v">${num(cur.reach/7)}</div><div class="d">${T>0?`nodig ${num(T/7)}`:"&nbsp;"}</div></div>
-    <div class="rcard"><div class="l">€ / 1.000 bereikt</div><div class="v">${eur2(cur.cpr)}</div><div class="d">${eur(cur.spend)} besteed${costTarget?` · doel ≈ ${eur(costTarget)}`:""}</div></div>
-    <div class="rcard"><div class="l">Frequentie</div><div class="v">${f1(cur.freq)}×</div><div class="d">${num(cur.impr)} impr.</div></div>
+    <div class="rcard ${kpi==="perday"?"on":""}" data-k="perday"><div class="l">Per dag</div><div class="v">${num(cur.reach/7)}</div><div class="d">${T>0?`nodig ${num(T/7)}`:"&nbsp;"}</div></div>
+    <div class="rcard ${kpi==="cpr"?"on":""}" data-k="cpr"><div class="l">€ / 1.000 bereikt</div><div class="v">${eur2(cur.cpr)}</div><div class="d">${eur(cur.spend)} besteed${costTarget?` · doel ≈ ${eur(costTarget)}`:""}</div></div>
+    <div class="rcard ${kpi==="freq"?"on":""}" data-k="freq"><div class="l">Frequentie</div><div class="v">${f1(cur.freq)}×</div><div class="d">${num(cur.impr)} impr.</div></div>
   </div>
-  <div class="rpanel"><div class="rph"><h3>Rollend 7-daags bereik</h3><span class="sub">${esc((ACC.find(a=>a.id===acc)||{}).name||acc)}</span></div><div class="rchart"><canvas id="mrChart"></canvas></div></div>
+  <div class="rpanel"><div class="rph"><h3>${KPI[kpi].t}</h3><span class="sub">${esc((ACC.find(a=>a.id===acc)||{}).name||acc)}</span></div><div class="rchart"><canvas id="mrChart"></canvas></div></div>
   <div class="rgrid">
     <div class="rpanel"><div class="rph"><h3>Per 7 dagen</h3></div><div class="rtbl"><table>
       <thead><tr><th class="l">Periode</th><th>Bereik</th><th>Δ</th><th>Doel</th><th>Impr.</th><th>Freq.</th><th>Besteed</th><th>€/1.000</th></tr></thead><tbody>
@@ -156,19 +166,21 @@ function renderDetail(){
 function drawChart(T){
   const c=document.getElementById("mrChart");if(!c||!window.Chart)return;
   if(chart){chart.destroy();chart=null;}
-  const days=R.days;
-  const ds=[{type:"line",label:"Bereik 7 d",data:days.map(x=>x.reach),borderColor:"#01B52D",backgroundColor:"rgba(1,181,45,.12)",fill:true,pointRadius:days.map(x=>x.d===R.today?4:0),pointBackgroundColor:"#01B52D",tension:.25,borderWidth:2,order:1}];
-  if(T>0)ds.push({type:"line",label:"Doel",data:days.map(()=>T),borderColor:"#b3590a",borderDash:[5,4],pointRadius:0,borderWidth:1.5,order:0});
+  const days=R.days,K=KPI[kpi]||KPI.reach,G=T>0?K.goal(T):0;
+  const fill=K.c==="#01B52D"?"rgba(1,181,45,.12)":K.c==="#0A6CCB"?"rgba(10,108,203,.10)":"rgba(142,68,173,.10)";
+  const ds=[{type:"line",label:K.t,data:days.map(x=>{const v=K.v(x);return v==null?null:Math.round(v*100)/100;}),borderColor:K.c,backgroundColor:fill,fill:true,spanGaps:true,pointRadius:days.map(x=>x.d===R.today?4:0),pointBackgroundColor:K.c,tension:.25,borderWidth:2,order:1}];
+  if(G>0)ds.push({type:"line",label:"Doel",data:days.map(()=>G),borderColor:"#b3590a",borderDash:[5,4],pointRadius:0,borderWidth:1.5,order:0});
+  const tick=v=>K.ax==="e"?"€ "+v:K.ax==="x"?v+"×":v>=1e6?(v/1e6).toLocaleString("nl-NL")+" M":v>=1e3?Math.round(v/1e3)+" k":v;
   chart=new Chart(c,{type:"line",data:{labels:days.map(x=>fD(x.d)),datasets:ds},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
-    plugins:{legend:{position:"bottom",labels:{boxWidth:10,font:{size:11}}},tooltip:{callbacks:{title:items=>items.length?winLbl(days[items[0].dataIndex].d):"",label:ctx=>ctx.dataset.label.split(" (")[0]+": "+num(ctx.parsed.y)}}},
-    scales:{y:{beginAtZero:true,ticks:{callback:v=>v>=1e6?(v/1e6).toLocaleString("nl-NL")+" M":v>=1e3?Math.round(v/1e3)+" k":v,font:{size:10}},grid:{color:"#EEF0EE"}},x:{ticks:{font:{size:10},maxRotation:0,autoSkip:true,maxTicksLimit:14}}}}});
+    plugins:{legend:{position:"bottom",labels:{boxWidth:10,font:{size:11}}},tooltip:{callbacks:{title:items=>items.length?winLbl(days[items[0].dataIndex].d):"",label:ctx=>ctx.parsed.y==null?null:ctx.dataset.label+": "+K.f(ctx.parsed.y)}}},
+    scales:{y:{beginAtZero:true,ticks:{callback:tick,font:{size:10}},grid:{color:"#EEF0EE"}},x:{ticks:{font:{size:10},maxRotation:0,autoSkip:true,maxTicksLimit:14}}}}});
 }
 function bind(){
   const sec=document.getElementById("sec-reach");
   document.getElementById("mrAcc").addEventListener("change",e=>{acc=e.target.value;localStorage.setItem("mr_acc",acc);R=null;DET=null;selEnd="";syncTargetInput();loadData(false);});
   document.getElementById("mrTarget").addEventListener("input",e=>{clearTimeout(tT);const v=Math.max(0,Math.round(+e.target.value||0));tT=setTimeout(()=>saveTarget(v),700);});
   document.getElementById("mrRefresh").addEventListener("click",async()=>{const b=document.getElementById("mrRefresh");b.disabled=true;b.textContent="Bezig…";try{await loadData(true);}finally{b.disabled=false;b.textContent="↻ Ververs";}});
-  sec.addEventListener("click",e=>{const tr=e.target.closest("tr.wrow");if(tr&&tr.dataset.end!==selEnd){selEnd=tr.dataset.end;render();loadDetail(false);}});
+  sec.addEventListener("click",e=>{const kc=e.target.closest(".rcard[data-k]");if(kc){kpi=kc.dataset.k;try{localStorage.setItem("mr_kpi",kpi);}catch(_){}render();return;}const tr=e.target.closest("tr.wrow");if(tr&&tr.dataset.end!==selEnd){selEnd=tr.dataset.end;render();loadDetail(false);}});
 }
 window.__reachLoad=async function(){
   const sec=document.getElementById("sec-reach");if(!sec)return;
