@@ -31,6 +31,10 @@ const CSS=`
 #sec-meta .mcard .l{font-size:11px;color:var(--mute);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
 #sec-meta .mcard .v{font-size:22px;font-weight:800;margin-top:4px;letter-spacing:-.3px}
 #sec-meta .mcard .d{font-size:11.5px;margin-top:3px;color:var(--mute)}
+#sec-meta .mcard[data-k]{cursor:pointer;transition:border-color .15s,box-shadow .15s}
+#sec-meta .mcard[data-k]:hover{border-color:#B9E8C6}
+#sec-meta .mcard.on{border-color:var(--green);box-shadow:0 0 0 2px rgba(1,181,45,.18)}
+#sec-meta .rn{background:#F3F5F3;color:var(--ink)}
 #sec-meta .up{color:var(--greenDk)} #sec-meta .dn{color:var(--red)}
 #sec-meta .mpanel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px;box-shadow:var(--shadow)}
 #sec-meta .mph{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
@@ -92,7 +96,7 @@ const HTML=`
 /* ---------- state ---------- */
 let inited=false, ACC=[], acc=localStorage.getItem("ma_acc")||"ALL", per=+(localStorage.getItem("ma_per")||30), from="", to="";
 let target=+(localStorage.getItem("ma_target")||3)||3, q="", scope={type:"all",id:null}, groups=[], sel=new Set(), openCamp={}, showGroups=false;
-let D=null, loading=false, chart=null, sortKey="spend", sortDir=-1, dayView="total", matrixMetric="roas";
+let D=null, loading=false, chart=null, sortKey="spend", sortDir=-1, dayView="total", matrixMetric=localStorage.getItem("ma_kpi")||"roas";
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
 const eur=n=>(n==null||!isFinite(n))?"—":"€ "+Math.round(n).toLocaleString("nl-NL");
 const eur2=n=>(n==null||!isFinite(n))?"—":"€ "+Number(n).toLocaleString("nl-NL",{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -152,12 +156,13 @@ function gColor(g,i){return g.color||COLORS[i%COLORS.length];}
 function render(){
   if(!D)return;
   renderChips();
+  if(!MK[matrixMetric])matrixMetric="roas";
   const ids=scopeIds();
   const cur=agg(rowsIn(D.from,D.to,ids,true)), prev=agg(rowsIn(D.prevFrom,D.prevTo,ids,true));
   const days=perDay(D.from,D.to,ids,true);
   const body=document.getElementById("maBody");
   body.innerHTML=cards(cur,prev)
-    +`<div class="mpanel"><div class="mph"><h3>Per dag · ${esc(scopeLabel())}</h3><span class="sub">${fmtD(D.from)} – ${fmtD(D.to)}</span><div class="mseg" style="margin-left:auto" id="maCm"><button data-m="roas" class="${matrixMetric==="roas"?"on":""}">ROAS</button><button data-m="value" class="${matrixMetric==="value"?"on":""}">Omzet</button><button data-m="purch" class="${matrixMetric==="purch"?"on":""}">Aankopen</button></div></div><div class="mchart"><canvas id="maChart"></canvas></div></div>`
+    +`<div class="mpanel"><div class="mph"><h3>${MK[matrixMetric].t} · ${esc(scopeLabel())}</h3><span class="sub">${fmtD(D.from)} – ${fmtD(D.to)}</span></div><div class="mchart"><canvas id="maChart"></canvas></div></div>`
     +(showGroups?groupsPanel():"")
     +(sel.size?selBar():"")
     +tablePanel(ids)
@@ -165,15 +170,17 @@ function render(){
     +`<div class="mfoot">Meta · ${new Date(D.at).toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"})}</div>`;
   drawChart(days);
 }
+const MK={spend:{t:"Besteed",v:a=>a.spend,f:n=>eur2(n),ax:"e"},value:{t:"Omzet (Meta)",v:a=>a.value,f:n=>eur2(n),ax:"e"},roas:{t:"ROAS",v:a=>a.spend>0?(a.roas||0):null,f:n=>x2(n),ax:"x"},purch:{t:"Aankopen",v:a=>a.purch,f:n=>num(n),ax:"n"},cpa:{t:"Kosten / aankoop",v:a=>a.cpa,f:n=>eur2(n),ax:"e"},ctr:{t:"CTR",v:a=>a.ctr,f:n=>pct1(n),ax:"p"}};
 function delta(a,b,inv){if(b==null||a==null||!isFinite(a)||!isFinite(b)||b===0)return'<span class="mute">—</span>';const p=(a-b)/Math.abs(b)*100;const good=inv?p<0:p>0;return`<span class="${Math.abs(p)<1?"mute":good?"up":"dn"}">${p>0?"+":""}${p.toLocaleString("nl-NL",{maximumFractionDigits:0})}%</span> <span class="mute">vs vorige</span>`;}
 function cards(c,p){
+  const on=k=>`class="mcard ${matrixMetric===k?"on":""}" data-k="${k}"`;
   return`<div class="mcards">
-  <div class="mcard"><div class="l">Besteed</div><div class="v">${eur(c.spend)}</div><div class="d">${delta(c.spend,p.spend,true)}</div></div>
-  <div class="mcard"><div class="l">Omzet (Meta)</div><div class="v">${eur(c.value)}</div><div class="d">${delta(c.value,p.value)}</div></div>
-  <div class="mcard"><div class="l">ROAS</div><div class="v"><span class="roas ${roasCls(c.roas,c.spend)}" style="font-size:18px">${x2(c.roas)}</span></div><div class="d">${delta(c.roas,p.roas)}</div></div>
-  <div class="mcard"><div class="l">Aankopen</div><div class="v">${num(c.purch)}</div><div class="d">${delta(c.purch,p.purch)}</div></div>
-  <div class="mcard"><div class="l">Kosten / aankoop</div><div class="v">${eur2(c.cpa)}</div><div class="d">${delta(c.cpa,p.cpa,true)}</div></div>
-  <div class="mcard"><div class="l">CTR · Orderwaarde</div><div class="v" style="font-size:17px">${pct1(c.ctr)} · ${eur2(c.aov)}</div><div class="d">${num(c.clicks)} klikken</div></div>
+  <div ${on("spend")}><div class="l">Besteed</div><div class="v">${eur(c.spend)}</div><div class="d">${delta(c.spend,p.spend,true)}</div></div>
+  <div ${on("value")}><div class="l">Omzet (Meta)</div><div class="v">${eur(c.value)}</div><div class="d">${delta(c.value,p.value)}</div></div>
+  <div ${on("roas")}><div class="l">ROAS</div><div class="v"><span class="roas ${roasCls(c.roas,c.spend)}" style="font-size:18px">${x2(c.roas)}</span></div><div class="d">${delta(c.roas,p.roas)}</div></div>
+  <div ${on("purch")}><div class="l">Aankopen</div><div class="v">${num(c.purch)}</div><div class="d">${delta(c.purch,p.purch)}</div></div>
+  <div ${on("cpa")}><div class="l">Kosten / aankoop</div><div class="v">${eur2(c.cpa)}</div><div class="d">${delta(c.cpa,p.cpa,true)}</div></div>
+  <div ${on("ctr")}><div class="l">CTR · Orderwaarde</div><div class="v" style="font-size:17px">${pct1(c.ctr)} · ${eur2(c.aov)}</div><div class="d">${num(c.clicks)} klikken</div></div>
   </div>`;
 }
 function renderChips(){
@@ -252,7 +259,7 @@ function dayPanel(days,ids){
     // kolommen: ad sets in scope, op besteding; max 14 kolommen
     const spendBy={};rowsIn(D.from,D.to,ids,true).forEach(r=>{spendBy[r[0]]=(spendBy[r[0]]||0)+r[2];});
     const cols=Object.keys(spendBy).sort((a,b)=>spendBy[b]-spendBy[a]);const shown=cols.slice(0,14);
-    const cell=(a)=>{const v=matrixMetric==="roas"?a.roas:matrixMetric==="value"?a.value:a.purch;const txt=matrixMetric==="roas"?x2(v):matrixMetric==="value"?eur(v):num(v);const cls=matrixMetric==="roas"?roasCls(v,a.spend):(a.spend>0?"r3":"r0");return`<span class="mc ${a.spend>0?cls:"r0"}" title="besteed ${eur2(a.spend)} · omzet ${eur2(a.value)} · ${num(a.purch)} aankopen">${a.spend>0?txt:"·"}</span>`;};
+    const cell=(a)=>{const K=MK[matrixMetric],v=K.v(a);const txt=(matrixMetric==="spend"||matrixMetric==="value")?eur(v):K.f(v);const cls=matrixMetric==="roas"?roasCls(v,a.spend):"rn";return`<span class="mc ${a.spend>0?cls:"r0"}" title="besteed ${eur2(a.spend)} · omzet ${eur2(a.value)} · ${num(a.purch)} aankopen">${a.spend>0?txt:"·"}</span>`;};
     h+=`<table class="matrix"><thead><tr><th class="l">Dag</th><th>Totaal</th>${shown.map(id=>`<th title="${esc((D.names[id]||{}).an||id)} · ${esc((D.names[id]||{}).cn||"")}">${esc((D.names[id]||{}).an||id)}</th>`).join("")}</tr></thead><tbody>`;
     [...days].reverse().forEach(({d,a})=>{const rows=(D.days[d]||[]);h+=`<tr><td class="l">${fmtD(d)}</td><td>${cell(a)}</td>${shown.map(id=>"<td>"+cell(agg(rows.filter(r=>r[0]===id)))+"</td>").join("")}</tr>`;});
     h+=`<tr style="font-weight:800"><td class="l">Periode</td><td>${cell(tot)}</td>${shown.map(id=>"<td>"+cell(agg(rowsIn(D.from,D.to,new Set([id]),false)))+"</td>").join("")}</tr></tbody></table>`;
@@ -265,14 +272,14 @@ function drawChart(days){
   if(chart){chart.destroy();chart=null;}
   const lab=days.map(x=>{const d=new Date(x.d+"T00:00:00Z");return d.toLocaleDateString("nl-NL",{day:"numeric",month:"short",timeZone:"UTC"});});
   const spend=days.map(x=>Math.round(x.a.spend*100)/100);
-  const line=days.map(x=>matrixMetric==="roas"?(x.a.spend>0?Math.round((x.a.roas||0)*100)/100:null):matrixMetric==="value"?Math.round(x.a.value*100)/100:x.a.purch);
-  const lineLabel=matrixMetric==="roas"?"ROAS":matrixMetric==="value"?"Omzet (Meta)":"Aankopen";
-  const ds=[{type:"bar",label:"Besteed",data:spend,backgroundColor:"rgba(20,27,31,.18)",borderColor:"rgba(20,27,31,.35)",borderWidth:1,yAxisID:"y",order:2},
-            {type:"line",label:lineLabel,data:line,borderColor:"#01B52D",backgroundColor:"#01B52D",pointRadius:3,tension:.25,spanGaps:true,yAxisID:"y2",order:1}];
+  const K=MK[matrixMetric]||MK.roas,only=matrixMetric==="spend";
+  const line=days.map(x=>{const v=K.v(x.a);return v==null?null:Math.round(v*100)/100;});
+  const ds=[{type:"bar",label:"Besteed",data:spend,backgroundColor:only?"rgba(1,181,45,.55)":"rgba(20,27,31,.18)",borderColor:only?"#01B52D":"rgba(20,27,31,.35)",borderWidth:1,yAxisID:"y",order:2}];
+  if(!only)ds.push({type:"line",label:K.t,data:line,borderColor:"#01B52D",backgroundColor:"#01B52D",pointRadius:3,tension:.25,spanGaps:true,yAxisID:"y2",order:1});
   if(matrixMetric==="roas")ds.push({type:"line",label:"Doel",data:days.map(()=>target),borderColor:"#b3590a",borderDash:[4,4],pointRadius:0,borderWidth:1,yAxisID:"y2",order:0});
   chart=new Chart(c,{type:"bar",data:{labels:lab,datasets:ds},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
-    plugins:{legend:{position:"bottom",labels:{boxWidth:10,font:{size:11}}},tooltip:{callbacks:{label:ctx=>{const v=ctx.parsed.y;if(v==null)return null;return ctx.dataset.label+": "+(ctx.dataset.yAxisID==="y"||matrixMetric==="value"?eur2(v):matrixMetric==="roas"?x2(v):num(v));}}}},
-    scales:{y:{position:"left",ticks:{callback:v=>"€ "+v,font:{size:10}},grid:{color:"#EEF0EE"}},y2:{position:"right",beginAtZero:true,ticks:{callback:v=>matrixMetric==="roas"?v+"×":matrixMetric==="value"?"€ "+v:v,font:{size:10}},grid:{drawOnChartArea:false}},x:{ticks:{font:{size:10},maxRotation:0,autoSkip:true}}}}});
+    plugins:{legend:{position:"bottom",labels:{boxWidth:10,font:{size:11}}},tooltip:{callbacks:{label:ctx=>{const v=ctx.parsed.y;if(v==null)return null;return ctx.dataset.label+": "+(ctx.dataset.yAxisID==="y"?eur2(v):K.f(v));}}}},
+    scales:{y:{position:"left",ticks:{callback:v=>"€ "+v,font:{size:10}},grid:{color:"#EEF0EE"}},y2:{display:!only,position:"right",beginAtZero:true,ticks:{callback:v=>K.ax==="x"?v+"×":K.ax==="e"?"€ "+v:K.ax==="p"?v+"%":v,font:{size:10}},grid:{drawOnChartArea:false}},x:{ticks:{font:{size:10},maxRotation:0,autoSkip:true}}}}});
 }
 function exportCsv(){
   const ids=scopeIds();const days=perDay(D.from,D.to,ids,true);const dec=n=>n==null||!isFinite(n)?"":String(Math.round(n*100)/100).replace(".",",");
@@ -301,7 +308,7 @@ function bind(){
   document.getElementById("maChips").addEventListener("click",e=>{const c=e.target.closest(".mchip");if(!c)return;scope=c.dataset.s==="group"?{type:"group",id:c.dataset.id}:{type:"all",id:null};render();});
   sec.addEventListener("click",async e=>{
     const t=e.target;
-    if(t.closest("#maCm")){const b=t.closest("button");if(b){matrixMetric=b.dataset.m;render();}return;}
+    const mc=t.closest(".mcard[data-k]");if(mc){matrixMetric=mc.dataset.k;try{localStorage.setItem("ma_kpi",matrixMetric);}catch(_){}render();return;}
     if(t.closest("#maDv")){const b=t.closest("button");if(b){dayView=b.dataset.v;render();}return;}
     if(t.id==="maCsv"){exportCsv();return;}
     if(t.id==="maNewGroup"){newGroup();return;}
