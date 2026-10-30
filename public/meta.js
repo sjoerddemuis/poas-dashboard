@@ -107,7 +107,7 @@ const todayISO=()=>new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Amsterdam",
 const addDays=(iso,n)=>{const d=new Date(iso+"T00:00:00Z");d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
 const listDays=(a,b)=>{const o=[];for(let d=a;d<=b;d=addDays(d,1))o.push(d);return o;};
 const fmtD=iso=>{const d=new Date(iso+"T00:00:00Z");return d.toLocaleDateString("nl-NL",{weekday:"short",day:"numeric",month:"short",timeZone:"UTC"});};
-const COLORS=["#01B52D","#0A6CCB","#FD5900","#8E44AD","#E5484D","#0097A7","#b3590a","#2E7D32","#6A726E","#C2185B"];
+const COLORS=["#01B52D","#0A6CCB","#8D6E63","#ff6d2c","#E5484D","#0097A7","#b3590a","#2E7D32","#6A726E","#C2185B"];
 function roasCls(r,spend){if(!spend)return"r0";if(r==null||!isFinite(r))return"r1";if(r>=target*1.3)return"r4";if(r>=target)return"r3";if(r>=target*0.67)return"r2";return"r1";}
 function periodRange(){const t=todayISO();if(from&&to)return{from,to};return{from:addDays(t,-(per-1)),to:t};}
 
