@@ -1,0 +1,108 @@
+/* ===== Glass-thema (Apple-achtig) — wordt als laatste geladen en overschrijft het basis-thema =====
+ * Uitzetten: verwijder de <link href="/glass.css"> onderaan public/index.html.
+ */
+:root{
+  --paper:rgba(255,255,255,.34);
+  --card:rgba(255,255,255,.52);
+  --line:rgba(60,60,67,.12);
+  --ink:#1d1d1f;
+  --mute:rgba(60,60,67,.62);
+  --lightg:rgba(1,181,45,.12);
+  --radius:18px;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Segoe UI Variable","Segoe UI",Inter,Roboto,"Helvetica Neue",sans-serif;
+  --mono:var(--sans);
+  --g-bg:linear-gradient(180deg,rgba(255,255,255,.64),rgba(255,255,255,.40));
+  --g-blur:blur(28px) saturate(180%);
+  --g-border:1px solid rgba(255,255,255,.72);
+  --g-shadow:0 8px 32px rgba(31,38,35,.08),0 1px 2px rgba(31,38,35,.05),inset 0 1px 0 rgba(255,255,255,.92);
+  --shadow:var(--g-shadow);
+}
+
+/* ---------- achtergrond ---------- */
+html{background:#eef2f0;min-height:100%}
+body{background:transparent!important;letter-spacing:-.01em;min-height:100vh}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(620px 620px at 6% 4%,rgba(168,236,191,.95) 0%,rgba(168,236,191,0) 70%),
+    radial-gradient(600px 560px at 96% 10%,rgba(188,215,255,.95) 0%,rgba(188,215,255,0) 70%),
+    radial-gradient(560px 520px at 26% 100%,rgba(255,214,176,.85) 0%,rgba(255,214,176,0) 70%),
+    radial-gradient(520px 480px at 88% 96%,rgba(220,205,255,.9) 0%,rgba(220,205,255,0) 70%),
+    radial-gradient(420px 380px at 52% 46%,rgba(196,242,211,.6) 0%,rgba(196,242,211,0) 70%),
+    radial-gradient(1200px 800px at 50% -10%,#fff 0%,rgba(255,255,255,0) 60%),
+    #eef2f0}
+
+/* ---------- glazen kaarten en panelen ---------- */
+.card,.pc,.now,.tbl-wrap,.econ>div,summary,
+#sec-kern .kncard,#sec-kern .knchartwrap,#sec-prod .knchartwrap,#sec-market .knchartwrap,#sec-market .mtbl,#sec-market .mkadmin,
+#sec-heat .httop,#sec-heat .htplay,
+#sec-tel .tcard,#sec-tel .tchartwrap,#sec-tel .ttbl,#sec-tel .tupl,
+#sec-ronada .rcard,#sec-ronada .rpanel,#sec-ronada .rtopcol,
+#sec-prijs .pcard,
+#sec-voorraad .svtbl,#sec-voorraad .svsuppliers,#sec-voorraad .svocard,
+#sec-meta .mcard,#sec-meta .mpanel,
+#sec-reach .rcard,#sec-reach .rpanel,
+#sec-reviews .rvcard,#sec-reviews .rvpanel,
+#sec-kosten .kcard,#sec-kosten .kpanel,
+#sec-forecast .fcard,#sec-forecast .fpanel,#sec-forecast .scpanel,
+#sec-doel .dcard,#sec-doel .dpanel,
+#sec-prest .ppanel{
+  background:var(--g-bg)!important;
+  -webkit-backdrop-filter:var(--g-blur);backdrop-filter:var(--g-blur);
+  border:var(--g-border)!important;
+  box-shadow:var(--g-shadow)!important;
+  border-radius:18px!important;
+}
+/* filterbalken: iets lichter glas */
+#sec-kern .knbar,#sec-prod .knbar,#sec-market .knbar,#sec-heat .htbar,#sec-tel .tbar,#sec-voorraad .svbar,
+#sec-meta .mbar,#sec-reach .rbar,#sec-reviews .rvbar,#sec-kosten .kbar,#sec-forecast .fbar,#sec-doel .dbar,#sec-prest .pbar{
+  background:rgba(255,255,255,.42)!important;
+  -webkit-backdrop-filter:var(--g-blur);backdrop-filter:var(--g-blur);
+  border:var(--g-border)!important;
+  box-shadow:0 4px 18px rgba(31,38,35,.06),inset 0 1px 0 rgba(255,255,255,.9)!important;
+  border-radius:14px!important;
+}
+/* subtiele hover op kaarten */
+.card,.pc,#sec-meta .mcard,#sec-reach .rcard,#sec-kern .kncard,#sec-tel .tcard,#sec-ronada .rcard,#sec-kosten .kcard,#sec-forecast .fcard,#sec-doel .dcard,#sec-reviews .rvcard{
+  transition:box-shadow .3s cubic-bezier(.25,.1,.25,1),border-color .3s}
+.card:hover,.pc:hover,#sec-meta .mcard:hover,#sec-reach .rcard:hover,#sec-kern .kncard:hover,#sec-tel .tcard:hover,#sec-ronada .rcard:hover,#sec-kosten .kcard:hover,#sec-forecast .fcard:hover,#sec-doel .dcard:hover,#sec-reviews .rvcard:hover{
+  box-shadow:0 14px 44px rgba(31,38,35,.12),0 1px 2px rgba(31,38,35,.05),inset 0 1px 0 rgba(255,255,255,.95)!important}
+
+/* geselecteerde / status-kaarten */
+#sec-meta .mcard.on,#sec-reach .rcard.on{border-color:rgba(1,181,45,.65)!important;box-shadow:0 0 0 2px rgba(1,181,45,.28),var(--g-shadow)!important}
+#sec-reach .rcard.hero.off{background:linear-gradient(180deg,rgba(255,236,219,.78),rgba(255,255,255,.42))!important}
+#sec-reach .rcard.hero:not(.off){background:linear-gradient(180deg,rgba(226,247,233,.78),rgba(255,255,255,.42))!important}
+
+/* ---------- kop en navigatie ---------- */
+.hd{background:rgba(255,255,255,.38);-webkit-backdrop-filter:var(--g-blur);backdrop-filter:var(--g-blur);border:var(--g-border)!important;border-radius:20px;
+  padding:12px 16px!important;box-shadow:0 4px 18px rgba(31,38,35,.06),inset 0 1px 0 rgba(255,255,255,.9)}
+.hd h1{letter-spacing:-.03em}
+.navtop{background:rgba(255,255,255,.5)!important;-webkit-backdrop-filter:var(--g-blur);backdrop-filter:var(--g-blur);border:var(--g-border)!important;border-radius:12px!important;
+  box-shadow:0 2px 10px rgba(31,38,35,.05),inset 0 1px 0 rgba(255,255,255,.9);font-weight:600!important;transition:background .2s,box-shadow .2s}
+.navtop:hover{background:rgba(255,255,255,.7)!important}
+.navgroup.hasactive .navtop{background:linear-gradient(180deg,rgba(29,29,31,.88),rgba(29,29,31,.76))!important;border-color:rgba(255,255,255,.18)!important;color:#fff!important;
+  box-shadow:0 8px 24px rgba(29,29,31,.22),inset 0 1px 0 rgba(255,255,255,.18)}
+.navmenu{background:rgba(255,255,255,.78)!important;-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);
+  border:var(--g-border)!important;border-radius:14px!important;box-shadow:0 16px 48px rgba(31,38,35,.16),inset 0 1px 0 rgba(255,255,255,.9)!important}
+.navmenu .snav:hover{background:rgba(118,118,128,.12)!important}
+.navmenu .snav.on{background:var(--ink)!important;border-color:var(--ink)!important;color:#fff!important}
+
+/* ---------- knoppen, tabs, invoer ---------- */
+.btn,.tab{background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.75)!important;box-shadow:0 1px 3px rgba(31,38,35,.06)}
+.btn:hover{background:rgba(255,255,255,.78)}
+.tab.on,.ps.on{border-color:transparent!important}
+[id^="sec-"] input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=range]),[id^="sec-"] select,[id^="sec-"] textarea{
+  background:rgba(255,255,255,.6)!important;border-color:rgba(255,255,255,.8)!important;box-shadow:inset 0 1px 2px rgba(31,38,35,.06)}
+[id^="sec-"] input:focus,[id^="sec-"] select:focus{border-color:var(--green)!important;box-shadow:0 0 0 3px rgba(1,181,45,.15)!important}
+
+/* ---------- tabellen ---------- */
+thead tr,#sec-voorraad thead tr{background:rgba(255,255,255,.28)!important}
+tbody tr:hover{background:rgba(255,255,255,.4)!important}
+th{letter-spacing:.2px!important}
+
+/* ---------- modals ---------- */
+.modal,.omodal{background:rgba(29,29,31,.28)!important;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.panel,.opanel{background:rgba(255,255,255,.82)!important;-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);
+  border:var(--g-border);border-radius:20px!important;box-shadow:0 24px 64px rgba(31,38,35,.22),inset 0 1px 0 rgba(255,255,255,.9)}
+
+/* minder beweging als gebruiker dat wil */
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
