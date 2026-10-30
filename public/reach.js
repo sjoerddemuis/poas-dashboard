@@ -86,7 +86,7 @@ const KPI={
   reach:{t:"Uniek bereik · 7 d",v:x=>x.reach,f:n=>num(n),ax:"n",goal:T=>T,c:"#01B52D"},
   perday:{t:"Bereik per dag",v:x=>x.reach/7,f:n=>num(n),ax:"n",goal:T=>T/7,c:"#01B52D"},
   cpr:{t:"€ / 1.000 bereikt",v:x=>x.reach>0?x.cpr:null,f:n=>eur2(n),ax:"e",goal:()=>0,c:"#0A6CCB"},
-  freq:{t:"Frequentie",v:x=>x.reach>0?x.freq:null,f:n=>f1(n)+"×",ax:"x",goal:()=>0,c:"#8E44AD"},
+  freq:{t:"Frequentie",v:x=>x.reach>0?x.freq:null,f:n=>f1(n)+"×",ax:"x",goal:()=>0,c:"#ff6d2c"},
 };
 function pcls(p){if(p==null)return"p0";if(p>=100)return"p3";if(p>=70)return"p2";return"p1";}
 
@@ -167,7 +167,7 @@ function drawChart(T){
   const c=document.getElementById("mrChart");if(!c||!window.Chart)return;
   if(chart){chart.destroy();chart=null;}
   const days=R.days,K=KPI[kpi]||KPI.reach,G=T>0?K.goal(T):0;
-  const fill=K.c==="#01B52D"?"rgba(1,181,45,.12)":K.c==="#0A6CCB"?"rgba(10,108,203,.10)":"rgba(142,68,173,.10)";
+  const fill=K.c==="#01B52D"?"rgba(1,181,45,.12)":K.c==="#0A6CCB"?"rgba(10,108,203,.10)":"rgba(255,109,44,.10)";
   const ds=[{type:"line",label:K.t,data:days.map(x=>{const v=K.v(x);return v==null?null:Math.round(v*100)/100;}),borderColor:K.c,backgroundColor:fill,fill:true,spanGaps:true,pointRadius:days.map(x=>x.d===R.today?4:0),pointBackgroundColor:K.c,tension:.25,borderWidth:2,order:1}];
   if(G>0)ds.push({type:"line",label:"Doel",data:days.map(()=>G),borderColor:"#b3590a",borderDash:[5,4],pointRadius:0,borderWidth:1.5,order:0});
   const tick=v=>K.ax==="e"?"€ "+v:K.ax==="x"?v+"×":v>=1e6?(v/1e6).toLocaleString("nl-NL")+" M":v>=1e3?Math.round(v/1e3)+" k":v;
