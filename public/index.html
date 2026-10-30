@@ -1106,7 +1106,7 @@ summary{border-radius:11px;font-weight:600}
     #sec-forecast .chg.up{color:var(--green)} #sec-forecast .chg.dn{color:#C0392B}
     </style>
     <div class="fbar">
-      <span class="flbl">Metriek</span>
+      <span class="flbl">Metriek<span class="qtip" tabindex="0" data-tip="Prognose op basis van het 7-daags daggemiddelde, doorgetrokken naar de lopende maand, plus de jaarcijfers tot nu toe. Bron: Metorik.&#10;Winst = netto-omzet minus alle kosten uit het winstrapport (inkoop, verzending, transactie, ads, operationeel).">?</span></span>
       <div class="fseg" id="fmet">
         <button data-m="omzet" class="on">Omzet</button>
         <button data-m="orders">Orders</button>
@@ -1123,7 +1123,7 @@ summary{border-radius:11px;font-weight:600}
     </div>
     <div id="fccontent"><div class="floading">Prognose laden…</div></div>
 
-    <div class="fph" style="margin:26px 0 10px">Jaarprognose 2026 — scenario's</div>
+    <div class="fph" style="margin:26px 0 10px">Jaarprognose 2026 — scenario's<span class="qtip" tabindex="0" data-tip="Interactieve doorrekening voor heel 2026. H1 (jan–jul) staat vast op werkelijke cijfers; aug–dec wordt geprojecteerd op je aannames. Alle bedragen ex btw.&#10;Winst = omzet × (variabele marge − refunds/kortingen% − verkoopkosten%).&#10;Juli 2026 is bijna compleet (t/m 30 juli). Marginale ROAS bij de juli-push: ~2,4× ex btw; verwacht dalend bij verder opschalen.&#10;Scenario's zijn indicatief — pas de aannames aan naar eigen inzicht.">?</span></div>
     <div class="scpanel">
       <div class="scpresets">
         <span class="flbl">Scenario</span>
@@ -1271,6 +1271,19 @@ summary{border-radius:11px;font-weight:600}
 <script src="/meta.js?v=1"></script>
 <script src="/reach.js?v=1"></script>
 <script>
+/* ---- ?-uitleg (hover/focus) ---- */
+function qtip(t){if(t==null||t==="")return "";const s=String(t).replace(/<[^>]+>/g,"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");return '<span class="qtip" tabindex="0" data-tip="'+s+'">?</span>';}
+function qtipEl(t){const s=document.createElement("span");s.innerHTML=qtip(t);return s.firstChild||document.createTextNode("");}
+window.qtip=qtip;window.qtipEl=qtipEl;
+(function(){let box=null,cur=null;
+function show(el){if(!box){box=document.createElement("div");box.id="qtipbox";document.body.appendChild(box);}box.textContent=el.getAttribute("data-tip")||"";box.classList.add("on");const r=el.getBoundingClientRect(),bw=box.offsetWidth,bh=box.offsetHeight;let x=r.left+r.width/2-bw/2;x=Math.max(8,Math.min(x,innerWidth-bw-8));let y=r.top-bh-8;if(y<8)y=r.bottom+8;box.style.left=x+"px";box.style.top=y+"px";cur=el;}
+function hide(){if(box)box.classList.remove("on");cur=null;}
+document.addEventListener("mouseover",function(e){const el=e.target&&e.target.closest?e.target.closest(".qtip"):null;if(el){if(el!==cur)show(el);}else if(cur)hide();});
+document.addEventListener("focusin",function(e){const el=e.target&&e.target.closest?e.target.closest(".qtip"):null;if(el)show(el);});
+document.addEventListener("focusout",function(e){if(e.target&&e.target.classList&&e.target.classList.contains("qtip"))hide();});
+window.addEventListener("scroll",hide,true);
+})();
+
 "use strict";
 const C={green:"#00C030",greenDk:"#009626",ink:"#0F1411",mute:"#6B726C",orange:"#F06828",red:"#E5484D",blue:"#2D6CDF",line:"#E4E7E3",lightg:"#E8F8EC"};
 const fmtEur=n=>isFinite(n)?"€"+Math.round(n).toLocaleString("nl-NL"):"—";
@@ -1390,7 +1403,7 @@ return{ok:true,plans,scen,opt,ref,perShop:plans.map(x=>({s:x.s,poas:x.p.opt.poas
 /* ---- render ---- */
 const colCpa=(v,be)=>!isFinite(v)?C.mute:(v<=be*0.85?C.greenDk:(v<=be?C.green:(v<=be*1.25?C.orange:C.red)));
 function card(title,val,sub,col,hero){const d=el("div","pc");if(col)d.style.borderColor=col;if(hero)d.style.background=C.lightg;d.innerHTML=`<div class="t" style="color:${col||C.mute}">${title}</div><div class="v">${val}</div><div class="nt" style="margin-top:4px">${sub}</div>`;return d;}
-function kvCard(title,val,kv,note,col,hero){const d=el("div","pc");if(col)d.style.borderColor=col;if(hero)d.style.background=C.lightg;d.innerHTML=`<div class="t" style="color:${col||C.mute}">${title}</div><div class="v">${val}</div><div class="kv">${kv.map(([k,v])=>`<span>${k}</span><b>${v}</b>`).join("")}</div>`;return d;}
+function kvCard(title,val,kv,note,col,hero){const d=el("div","pc");if(col)d.style.borderColor=col;if(hero)d.style.background=C.lightg;d.innerHTML=`<div class="t" style="color:${col||C.mute}">${title}${qtip(note)}</div><div class="v">${val}</div><div class="kv">${kv.map(([k,v])=>`<span>${k}</span><b>${v}</b>`).join("")}</div>`;return d;}
 
 function renderPlanner(shop){
 const wrap=el("div");
@@ -1415,11 +1428,11 @@ if(isTot){
  eb.appendChild(mkE("Brutomarge (%)",P.marge,"marge",v=>fmtN(v*100,1),v=>v/100));
  eb.appendChild(mkE("Opex / maand (€)",P.opexM,"opexM",v=>fmtN(v,0),v=>v));
  if(y){eb.appendChild(mkE("Elasticiteit β",y.beta,"beta",v=>fmtN(v,2),v=>v));eb.appendChild(mkE("Trend γ (%/jaar)",y.gamma,"gamma",v=>fmtN((Math.exp(v)-1)*100,1),v=>Math.log(1+v/100)));}
- eb.appendChild(el("div",null,`<div class="lab">Break-even CPA</div><div class="v" style="color:${C.orange}">${fmtEur2(P.m)}</div>`));
+ eb.appendChild(el("div",null,`<div class="lab">Break-even CPA${qtip("Brutowinst per order. Opex is een vast maandbedrag en telt daarom niet mee in de marginale afweging.")}</div><div class="v" style="color:${C.orange}">${fmtEur2(P.m)}</div>`));
  wrap.appendChild(eb);
  if(Object.keys(pv).length){const rw=el("div","presets");const rb=el("button","ps on","↺ Terug naar modelwaarden");rb.style.background=C.blue;rb.style.borderColor=C.blue;rb.onclick=()=>{delete state.plan[shop];render();};rw.appendChild(rb);wrap.appendChild(rw);}
  const bt=backtest(shop);const wy=Math.round(P.mdl.w*100);
- const parts=[];if(y)parts.push(`<b>jaar-op-jaar</b> (${y.ref.label} als basis, β ${fmtN(y.beta,2)}${y.betaFallback?" aanname":""}, trend ${fmtN((Math.exp(y.gamma)-1)*100,1)}%/jaar) weegt ${wy}%`);if(c)parts.push(`<b>spend-curve</b> over de 12 maanden ervoor (r² ${fmtN(c.r2,2)}) weegt ${100-wy}%`);
+ const parts=[];if(y)parts.push(`<b>jaar-op-jaar</b> (${y.ref.label} als basis, β ${fmtN(y.beta,2)}${y.betaFallback?" aanname":""}, trend ${fmtN((Math.exp(y.gamma)-1)*100,1)}%/jaar) weegt ${wy}%`);if(c)parts.push(`<b>spend-curve</b> over de 12 maanden ervoor (r² ${fmtN(c.r2,2)}) weegt ${100-wy}%`); const mt="Maandplanner: orders = basis × (spend ÷ referentiespend)^β, met β en de autonome trend geschat uit dezelfde maand in opeenvolgende jaren.\nModel: "+parts.join(", ")+". Gewichten volgen uit de voorspelfout van beide lenzen in de 6 voorgaande maanden."+(P.optY&&P.optC?" Optimum per lens apart: jaar-op-jaar "+fmtX(P.optY.poas)+" bij "+fmtEur(P.optY.S)+", curve "+fmtX(P.optC.poas)+" bij "+fmtEur(P.optC.S)+" — hoe verder die uiteen liggen, hoe voorzichtiger je het gewogen optimum moet lezen.":"")+"\nBacktest laatste 6 maanden: orders gemiddeld "+fmtN(bt.mapeO6*100,1)+"% ernaast, nettowinst "+fmtN(bt.mapeN6*100,1)+"% — zie Modelcheck hieronder.\nAannames hierboven zijn aanpasbaar (·* = overschreven)."; head.insertBefore(qtipEl(mt),nav);
  
 }
 // kaarten
@@ -1431,7 +1444,7 @@ else if(!isTot&&P.partial&&cm.Y===Y&&cm.M===M){const p=P.partial;const dd=Math.m
 wrap.appendChild(cards);
 // scenario-tabel
 const tw=el("div","tbl-wrap");tw.style.marginTop="12px";
-let h=`<table><thead><tr><th>Doel-POAS</th><th>Spend</th><th>Orders</th><th>Omzet ex btw</th><th>Nettowinst</th><th>Netto-marge</th><th>AVK %</th><th>CPA</th>${isTot?"":"<th>Marg. CPA</th>"}</tr></thead><tbody>`;
+let h=`<table><thead><tr><th>Doel-POAS${qtip("Elke rij = sturen op dat blended-POAS-niveau in "+monthLabel(Y,M)+". "+(isTot?"":"Marg. CPA = wat de laatste extra order op dat niveau kost (groen = onder break-even "+fmtEur2(be)+", rood = erboven). ")+"Netto-marge = nettowinst ÷ omzet; AVK % = (ads + opex + transactie) ÷ omzet.")}</th><th>Spend</th><th>Orders</th><th>Omzet ex btw</th><th>Nettowinst</th><th>Netto-marge</th><th>AVK %</th><th>CPA</th>${isTot?"":"<th>Marg. CPA</th>"}</tr></thead><tbody>`;
 const all=P.scen.map(x=>Object.assign({},x)).concat([Object.assign({},o,{isOpt:true})]);
 if(!isTot&&P.ref)all.push(Object.assign(P.point(P.ref.adv),{isRef:true}));
 all.sort((a,b)=>b.poas-a.poas).forEach(x=>{const lab=x.isOpt?fmtX(x.poas)+" ★":(x.isRef?fmtX(x.poas)+" <span style='color:"+C.mute+";font-weight:400'>(spend als "+P.ref.label+")</span>":fmtX(x.target));
@@ -1450,7 +1463,7 @@ scales:{x:{type:"linear",title:{display:true,text:"adspend per maand"},ticks:{ca
 return{wrap,P};}
 
 function renderBacktest(shop){const bt=backtest(shop);const wrap=el("div");
-wrap.appendChild(el("div","sec",`<span class="n">B</span> Modelcheck — voorspeld vs werkelijk`));
+wrap.appendChild(el("div","sec",`<span class="n">B</span> Modelcheck — voorspeld vs werkelijk${qtip("Elke maand is voorspeld met uitsluitend de data van vóór die maand (zelfde model als de planner), bij de werkelijke spend. Zo zie je hoeveel je op de planner kunt bouwen. Nettowinst is gevoeliger dan orders omdat het een klein verschil van grote getallen is"+(isFinite(bt.biasO6)?"; de laatste 6 maanden zat het model gemiddeld "+(bt.biasO6>=0?"+":"")+fmtN(bt.biasO6*100,1)+"% "+(bt.biasO6>=0?"te hoog":"te laag")+" op orders":"")+".")}`));
 if(!bt.rows.length){wrap.appendChild(el("div","note","Nog te weinig historie voor een modelcheck."));return wrap;}
 const tw=el("div","tbl-wrap");
 let h=`<table><thead><tr><th>Maand</th><th>Spend</th><th>Orders werkelijk</th><th>Orders model</th><th>Fout</th><th>Netto werkelijk</th><th>Netto model</th><th>Fout</th><th>Gewicht j-o-j</th></tr></thead><tbody>`;
@@ -1471,7 +1484,7 @@ h+=`<tr><td style="font-weight:600">${p.prev.label} → ${p.cur.label}</td><td>$
 const tot=dO?dS/dO:NaN;
 h+=`<tr style="background:${C.lightg};border-top:2px solid ${C.ink}"><td><b>Totaal ${pairs.length} mnd</b></td><td></td><td><b>${dS>=0?"+":""}${fmtEur(dS)}</b></td><td></td><td><b>${dO>=0?"+":""}${fmtInt(dO)}</b></td><td style="font-weight:700;color:${colCpa(tot,be)}">${fmtEur2(tot)}</td><td></td><td></td></tr></tbody></table>`;
 tw.innerHTML=h;wrap.appendChild(tw);
-const extra=isFinite(tot)&&dO>0?(be-tot)*dO:NaN;
+const extra=isFinite(tot)&&dO>0?(be-tot)*dO:NaN; wrap.firstChild.insertAdjacentHTML("beforeend",qtip("Marginale CPA = extra spend ÷ extra orders t.o.v. dezelfde maand een jaar eerder, tegen break-even "+fmtEur2(be)+" (brutowinst per order)."+(isFinite(extra)?"\nAlle "+pairs.length+" maanden samen: "+fmtEur(Math.abs(dS))+" "+(dS>=0?"extra":"minder")+" spend → "+fmtInt(Math.abs(dO))+" "+(dO>=0?"extra":"minder")+" orders → "+(extra>=0?"+":"−")+fmtEur(Math.abs(extra))+" indicatief op nettowinst.":"")+"\nObservationeel: marktgroei of -krimp zit erin verweven. ∞ = meer spend, niet meer orders."));
 return{wrap,tot,n:pairs.length};}
 
 function render(){
@@ -1488,11 +1501,11 @@ const cm=curMonth();if(!state.month){state.month={Y:cm.Y,M:cm.M};}
 const pl=renderPlanner(shop);const Pn=(state.month.Y===cm.Y&&state.month.M===cm.M)?pl.P:(shop==="TOT"?totaalPlan(cm.Y,cm.M):planMonth(shop,cm.Y,cm.M));
 const yo=shop!=="TOT"?(()=>{const comp=complete;const pairs=yoyPairs(comp,comp.length).slice(-12);let dS=0,dO=0;pairs.forEach(p=>{dS+=p.dSpend;dO+=p.dOrders;});return{tot:dO?dS/dO:NaN,n:pairs.length};})():null;
 const now=el("div","now");const curPoas=lastC?lastC.poas:NaN;
-now.appendChild(el("div",null,`<div class="lab">Blended POAS — ${lastC?lastC.label:"—"}</div><div class="big" style="color:${curPoas>=2?C.greenDk:C.orange}">${fmtX(curPoas)}</div>`));
-now.appendChild(el("div",null,`<div class="lab">3-mnd run-rate</div><div class="big">${fmtX(run3.poas)}</div>`));
-now.appendChild(el("div",null,`<div class="lab">Optimum ${monthLabel(cm.Y,cm.M)}</div><div class="big" style="color:${C.greenDk}">${Pn&&Pn.ok?fmtX(Pn.opt.poas):"—"}</div>`));
-if(yo)now.appendChild(el("div",null,`<div class="lab">Marginale CPA (jaar-op-jaar)</div><div class="big" style="color:${colCpa(yo.tot,be)}">${fmtEur2(yo.tot)}</div>`));
-else now.appendChild(el("div",null,`<div class="lab">Break-even CPA</div><div class="big" style="color:${C.orange}">${fmtEur2(be)}</div>`));
+now.appendChild(el("div",null,`<div class="lab">Blended POAS — ${lastC?lastC.label:"—"}${qtip("Blended POAS = winst vóór ads ÷ adspend. Winst vóór ads = omzet ex btw − product − verzend − transactie − verpakking − opex. Marktplaatsen niet meegenomen (geen adspend)."+(ly&&lastC?"\n"+ly.label+": "+fmtX(ly.poas)+" · spend "+fmtEur(ly.adv)+" → "+fmtEur(lastC.adv)+" · netto "+fmtEur(ly.netto)+" → "+fmtEur(lastC.netto):""))}</div><div class="big" style="color:${curPoas>=2?C.greenDk:C.orange}">${fmtX(curPoas)}</div>`));
+now.appendChild(el("div",null,`<div class="lab">3-mnd run-rate${qtip(fmtEur(run3.adv)+" spend · CPA "+fmtEur2(run3.cpa)+" · netto "+fmtEur(run3.netto))}</div><div class="big">${fmtX(run3.poas)}</div>`));
+now.appendChild(el("div",null,`<div class="lab">Optimum ${monthLabel(cm.Y,cm.M)}${qtip(Pn&&Pn.ok?"Winst-optimum: "+fmtEur(Pn.opt.S)+" spend · "+fmtInt(Pn.opt.orders)+" orders · "+fmtEur(Pn.opt.netto)+" netto":"Te weinig data")}</div><div class="big" style="color:${C.greenDk}">${Pn&&Pn.ok?fmtX(Pn.opt.poas):"—"}</div>`));
+if(yo)now.appendChild(el("div",null,`<div class="lab">Marginale CPA (jaar-op-jaar)${qtip("Extra spend ÷ extra orders t.o.v. dezelfde maand een jaar eerder, laatste "+yo.n+" mnd. Break-even "+fmtEur2(be)+" (brutowinst per order).")}</div><div class="big" style="color:${colCpa(yo.tot,be)}">${fmtEur2(yo.tot)}</div>`));
+else now.appendChild(el("div",null,`<div class="lab">Break-even CPA${qtip("Brutowinst per order.")}</div><div class="big" style="color:${C.orange}">${fmtEur2(be)}</div>`));
 view.appendChild(now);
 // advies
 let adv="",col=C.greenDk,bg=C.lightg;
@@ -3426,13 +3439,13 @@ window.__kernLoad=function(){
     if(!FC){c.innerHTML='<div class="floading">Prognose laden…</div>';return;}
     const M=METS[fMet], landen=FC.landen||[], t=FC.total;
     const cards=`<div class="fcards">`
-      +`<div class="fcard"><div class="l">7-daags gem. / dag</div><div class="v">${M.f(mv(t.avg7))}</div></div>`
-      +`<div class="fcard"><div class="l">Deze maand tot nu (t/m dag ${FC.completedDays})</div><div class="v">${M.f(mv(t.mtd))}</div></div>`
-+`<div class="fcard"><div class="l">Marge prognose</div><div class="v">${pct1(projMarge(t))}</div></div>`
-      +`<div class="fcard hl"><div class="l">Prognose ${esc(FC.monthLabel)}</div><div class="v">${M.f(projOf(t))}</div></div>`
+      +`<div class="fcard"><div class="l">7-daags gem. / dag${qtip("Gemiddelde van "+FC.last7.start+" t/m "+FC.last7.end+".")}</div><div class="v">${M.f(mv(t.avg7))}</div></div>`
+      +`<div class="fcard"><div class="l">Deze maand tot nu (t/m dag ${FC.completedDays})${qtip("T/m "+FC.asof+". Vandaag telt nog niet mee.")}</div><div class="v">${M.f(mv(t.mtd))}</div></div>`
++`<div class="fcard"><div class="l">Marge prognose${qtip("Winst ÷ omzet van de prognose.")}</div><div class="v">${pct1(projMarge(t))}</div></div>`
+      +`<div class="fcard hl"><div class="l">Prognose ${esc(FC.monthLabel)}${qtip(fBasis==="runrate"?"7-daags gem. × "+FC.daysInMonth+" dagen.":"Tot nu + "+FC.daysRemaining+" dagen × 7-daags gem.")}</div><div class="v">${M.f(projOf(t))}</div></div>`
       +`</div>`;
     const mrows=landen.map(L=>{const s=FC.shops[L.code]||{};return `<tr class="${L.code==="NL"?"us":""}"><td><b>${esc(L.label)}</b></td><td>${M.f(mv(s.avg7))}</td><td>${M.f(mv(s.mtd))}</td><td>${pct1(projMarge(s))}</td><td><b>${M.f(projOf(s))}</b></td></tr>`;}).join("");
-    const mtbl=`<div class="fpanel"><div class="hd"><div class="fph">Maandprognose per land — ${esc(FC.monthLabel)}</div></div>`
+    const mtbl=`<div class="fpanel"><div class="hd"><div class="fph">Maandprognose per land — ${esc(FC.monthLabel)}${qtip(fBasis==="runrate"?"Puur run-rate: het 7-daags daggemiddelde × "+FC.daysInMonth+" dagen — alsof je dit tempo de hele maand aanhoudt (negeert wat al is gerealiseerd).":"Realisatie + run-rate: wat deze maand tot nu toe is gerealiseerd, plus "+FC.daysRemaining+" resterende dagen aan het huidige 7-daags daggemiddelde.")}</div></div>`
       +`<table><thead><tr><th>Land</th><th>7-daags / dag</th><th>Deze maand tot nu</th><th>Marge prognose</th><th>Prognose maand</th></tr></thead><tbody>${mrows}</tbody>`
       +`<tfoot><tr><td>Totaal</td><td>${M.f(mv(t.avg7))}</td><td>${M.f(mv(t.mtd))}</td><td>${pct1(projMarge(t))}</td><td>${M.f(projOf(t))}</td></tr></tfoot></table></div>`;
     const yc=`<div class="fcards">`
@@ -3443,7 +3456,7 @@ window.__kernLoad=function(){
       +`</div>`;
     const yrows=landen.map(L=>{const s=(FC.shops[L.code]||{}).ytd||{omzet:0,orders:0,winst:0};const mar=s.omzet>0?s.winst/s.omzet*100:null;return `<tr class="${L.code==="NL"?"us":""}"><td><b>${esc(L.label)}</b></td><td>${eur0(s.omzet)}</td><td>${int0(s.orders)}</td><td>${eur0(s.winst)}</td><td>${pct1(mar)}</td></tr>`;}).join("");
     const ymar=t.ytd.omzet>0?t.ytd.winst/t.ytd.omzet*100:null;
-    const ytbl=`<div class="fpanel"><div class="hd"><div class="fph">Jaarcijfers ${FC.year} — tot nu toe (t/m ${esc(FC.asof)})</div></div>`
+    const ytbl=`<div class="fpanel"><div class="hd"><div class="fph">Jaarcijfers ${FC.year} — tot nu toe (t/m ${esc(FC.asof)})${qtip("Cumulatief dit kalenderjaar per land. Winst = netto-omzet minus alle kosten uit het Metorik-winstrapport.")}</div></div>`
       +`<table><thead><tr><th>Land</th><th>Omzet</th><th>Orders</th><th>Winst</th><th>Marge</th></tr></thead><tbody>${yrows}</tbody>`
       +`<tfoot><tr><td>Totaal</td><td>${eur0(t.ytd.omzet)}</td><td>${int0(t.ytd.orders)}</td><td>${eur0(t.ytd.winst)}</td><td>${pct1(ymar)}</td></tr></tfoot></table></div>`;
     c.innerHTML=cards+mtbl+`<div class="fph" style="margin:22px 0 2px">Jaaroverzicht</div>`+yc+ytbl;
@@ -3522,15 +3535,15 @@ window.__kernLoad=function(){
     } else wb.innerHTML='';
     const cards=`<div class="fcards">`
       +`<div class="fcard hl"><div class="l">Jaaromzet 2026</div><div class="v">${eur(R.jaaromzet)}</div>${chg(R.jaaromzet,OM2025)}</div>`
-      +`<div class="fcard hl"><div class="l">Jaarwinst 2026</div><div class="v">${eur(R.jaarwinst)}</div>${chg(R.jaarwinst,W2025)}</div>`
+      +`<div class="fcard hl"><div class="l">Jaarwinst 2026${qtip("Winst = Metorik-winst: vóór personeelskosten en overige overhead. MP herstart telt er bovenop als het weer aangaat.")}</div><div class="v">${eur(R.jaarwinst)}</div>${chg(R.jaarwinst,W2025)}</div>`
       +`<div class="fcard"><div class="l">Marge 2026</div><div class="v">${R.marge.toFixed(1)}%</div><div class="s">2025: 29,0%</div></div>`
       +`<div class="fcard"><div class="l">H2 (aug–dec) omzet</div><div class="v">${eur(R.h2omzet)}</div><div class="s">winst H2 ${eur(R.h2winst)}</div></div>`
       +`</div>`;
     const shopRows=["NL","DE","FR","MP"].map(s=>{const p=R.per[s];const om25={NL:2094506,DE:1117594,FR:28106,MP:70357}[s];const w=(s==="MP"?0:p.h2w); return `<tr class="${s==="NL"?"us":""}"><td><b>${s}</b></td><td>${eur(p.omzet)}</td><td>${chg(p.omzet,om25).replace(/<span class="chg /,'<span style="font-size:11px;font-weight:700" class="').replace(/vs 2025/,'')}</td><td>${eur(h1om(s))}</td><td>${eur(p.h2)}</td></tr>`;}).join("");
-    const stbl=`<div class="fpanel"><div class="hd"><div class="fph">Per shop — 2026</div></div>`
+    const stbl=`<div class="fpanel"><div class="hd"><div class="fph">Per shop — 2026${qtip("Omzet = werkelijk jan–jul + projectie aug–dec. MP staat op €0 sinds feb 2026.")}</div></div>`
       +`<table><thead><tr><th>Shop</th><th>Jaaromzet 2026</th><th>vs 2025</th><th>H1 (werkelijk)</th><th>H2 (projectie)</th></tr></thead><tbody>${shopRows}</tbody>`
       +`<tfoot><tr><td>Totaal</td><td>${eur(R.jaaromzet)}</td><td>${chg(R.jaaromzet,OM2025)}</td><td>${eur(h1om("NL")+h1om("DE")+h1om("FR")+h1om("MP"))}</td><td>${eur(R.h2omzet)}</td></tr></tfoot></table></div>`;
-    const chartp=`<div class="fpanel"><div class="hd"><div class="fph">Maandomzet 2025 vs 2026 (alle shops)</div></div><div style="padding:12px 16px"><div class="scchartbox"><canvas id="scchart"></canvas></div></div></div>`;
+    const chartp=`<div class="fpanel"><div class="hd"><div class="fph">Maandomzet 2025 vs 2026 (alle shops)${qtip("2026 jan–jul werkelijk, aug–dec geprojecteerd (gestippeld).")}</div></div><div style="padding:12px 16px"><div class="scchartbox"><canvas id="scchart"></canvas></div></div></div>`;
     out.innerHTML=cards+stbl+chartp;
     drawChart(R);
   }
@@ -4296,6 +4309,13 @@ window.__kernLoad=function(){
   activate(SECS.includes(init)?init:"poas",false);
 })();
 </script>
+<style id="qtip-css">
+.qtip{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:6px;border-radius:50%;border:1px solid rgba(60,60,67,.25);background:rgba(255,255,255,.55);color:rgba(60,60,67,.62);font:600 10px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;letter-spacing:0;text-transform:none;vertical-align:middle;position:relative;top:-1px;cursor:help;user-select:none;-webkit-user-select:none;flex:none;transition:background .15s,color .15s,border-color .15s}
+.qtip:hover,.qtip:focus-visible{background:#1d1d1f;border-color:#1d1d1f;color:#fff;outline:none}
+#qtipbox{position:fixed;left:0;top:0;z-index:10000;max-width:340px;padding:10px 12px;border-radius:12px;background:rgba(29,29,31,.92);-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);color:#fff;font:400 12.5px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;letter-spacing:0;text-transform:none;text-align:left;white-space:pre-line;box-shadow:0 12px 32px rgba(0,0,0,.2);pointer-events:none;opacity:0;transform:translateY(3px);transition:opacity .14s ease,transform .14s ease}
+#qtipbox.on{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){#qtipbox{transition:none}}
+</style>
 <link rel="stylesheet" href="/glass.css?v=1">
 </body>
 </html>
