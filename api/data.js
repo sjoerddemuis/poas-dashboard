@@ -450,6 +450,8 @@ async function marketWrite(req, res, s) {
 // Kerncijfers per shop: dagelijkse rijen met alle rauwe bouwstenen.
 // De frontend bucketet naar dag/week/maand en rekent alle afgeleide metrics uit,
 // zodat het "totaal" simpelweg de som van de landen is.
+// Metorik geeft 422 bij een startdatum vóór de eerste data van een store.
+const SHOP_START = { EU: "2026-02-17" };
 async function metricsView(req, res) {
   const q = req.query || {};
   const today = ymd(new Date());
@@ -474,10 +476,12 @@ async function metricsView(req, res) {
       if (!token) { shops[code] = { rows: [], error: "geen token" }; return; }
       try {
         const propId = process.env[GA_PROP[code]];
+        const s0 = SHOP_START[code] && SHOP_START[code] > start ? SHOP_START[code] : start;
+        if (s0 > end) { shops[code] = { rows: [] }; return; }
         const [pd, nc, ga] = await Promise.all([
-          profitDays(token, start, end),
-          newReturningByDay(token, start, end),
-          (gaToken && propId) ? gaSessionsByDay(propId, gaToken, start, end).catch(() => null) : Promise.resolve(null),
+          profitDays(token, s0, end),
+          newReturningByDay(token, s0, end),
+          (gaToken && propId) ? gaSessionsByDay(propId, gaToken, s0, end).catch(() => null) : Promise.resolve(null),
         ]);
         const dates = new Set([...Object.keys(pd), ...Object.keys(nc.byDay), ...(ga ? Object.keys(ga) : [])]);
         const rows = [...dates].sort().map((d) => {
