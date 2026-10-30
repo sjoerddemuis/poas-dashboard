@@ -658,7 +658,7 @@ summary{border-radius:11px;font-weight:600}
         <button data-l="total" class="on">Totaal</button>
         <button data-l="NL">NL</button>
         <button data-l="DE">DE</button>
-        <button data-l="FR">FR</button>
+        <button data-l="FR">FR</button><button data-l="EU">EU</button>
       </div>
       <div class="knseg" id="kngran">
         <button data-g="day">Dag</button>
@@ -742,7 +742,7 @@ summary{border-radius:11px;font-weight:600}
       <div class="knseg" id="pdshop">
         <button data-s="NL" class="on">NL</button>
         <button data-s="DE">DE</button>
-        <button data-s="FR">FR</button>
+        <button data-s="FR">FR</button><button data-s="EU">EU</button>
       </div>
       <input type="text" id="pdsku" class="kndate" placeholder="SKU('s), komma-gescheiden" style="width:210px">
       <button id="pdgo" class="knref">Laden</button>
@@ -965,6 +965,7 @@ summary{border-radius:11px;font-weight:600}
         <option value="NL">Ongediertewinkel.nl</option>
         <option value="DE">Ungeziefershop.de</option>
         <option value="FR">Boutiqueantinuisibles.fr</option>
+        <option value="EU">Ronada.eu (B2B)</option>
       </select>
       <div class="svseg" id="svmethod">
         <button data-m="trend" class="on">Trend</button>
@@ -1244,7 +1245,7 @@ summary{border-radius:11px;font-weight:600}
         <button data-s="TOT" class="on">Alle shops</button>
         <button data-s="NL">NL</button>
         <button data-s="DE">DE</button>
-        <button data-s="FR">FR</button>
+        <button data-s="FR">FR</button><button data-s="EU">EU</button>
       </div>
       <span class="psep"></span>
       <span class="plbl" id="prupd"></span>
@@ -1306,10 +1307,10 @@ const ymKey=(y,mo)=>y+"-"+String(mo).padStart(2,"0");
 const fmtInt=n=>isFinite(n)?Math.round(n).toLocaleString("nl-NL"):"—";
 function monthLabel(Y,M){return MNAMES[M]+" "+Y;}
 function curMonth(){const d=new Date();return{Y:d.getFullYear(),M:d.getMonth()+1,day:d.getDate(),dim:new Date(d.getFullYear(),d.getMonth()+1,0).getDate()};}
-function buildTotaal(){const shops=["NL","DE","FR"].filter(s=>DATA[s]&&DATA[s].m&&DATA[s].m.length);const base=shops[0];if(!base)return{name:"Totaal",m:[]};
-const labels=DATA[base].m.map(r=>r[0]).filter(l=>shops.every(s=>DATA[s].m.some(r=>r[0]===l)));
-const m=labels.map(l=>{const acc=[l,0,0,0,0,0,0,0,0];for(const s of shops){const r=DATA[s].m.find(x=>x[0]===l);for(let j=1;j<9;j++)acc[j]+=r[j];}return acc;});
-return{name:"Totaal (NL+DE+FR)",m};}
+function buildTotaal(){const shops=["NL","DE","FR","EU"].filter(s=>DATA[s]&&DATA[s].m&&DATA[s].m.length);const core=shops.filter(s=>s!=="EU");const base=core[0]||shops[0];if(!base)return{name:"Totaal",m:[]};
+const labels=DATA[base].m.map(r=>r[0]).filter(l=>core.every(s=>DATA[s].m.some(r=>r[0]===l)));
+const m=labels.map(l=>{const acc=[l,0,0,0,0,0,0,0,0];for(const s of shops){const r=DATA[s].m.find(x=>x[0]===l);if(!r)continue;for(let j=1;j<9;j++)acc[j]+=r[j];}return acc;});
+return{name:shops.includes("EU")?"Totaal (alle shops)":"Totaal (NL+DE+FR)",m};}
 
 /* ---- Twee lenzen op dezelfde vraag "hoeveel orders levert spend S op in maand X?" ----
    1. Jaar-op-jaar (seizoenszuiver): orders = orders_vorig_jaar · e^γ · (S / spend_vorig_jaar)^β.
@@ -2571,7 +2572,7 @@ window.__reviewsLoad=function(){
 "use strict";
 let K={months:[],names:[],revenue:{},ads:{},days:{}},kInit=false,kPost="__all",kChart=null,kAds=false;
 let kGran="maand",kFrom="",kTo="",kLand=false;
-const LANDCLR={NL:"#01B52D",DE:"#0A6CCB",FR:"#E8710A"};
+const LANDCLR={NL:"#01B52D",DE:"#0A6CCB",FR:"#E8710A",EU:"#8E44AD"};
 const ADSNAME="Advertentiekosten (Metorik)";
 // Items van een maand; met de adskosten-knop aan komt Metorik's adspend erbij.
 function itemsOf(m){ return kAds?Object.assign({},m.items,{[ADSNAME]:(K.ads&&K.ads[m.key])||0}):m.items; }
@@ -2958,7 +2959,7 @@ function rowsFor(land,src){
   if(!src||!src.shops)return [];
   if(land==="total"){
     const byd={};
-    ["NL","DE","FR"].forEach(k=>{ const sh=src.shops[k]; if(sh&&sh.rows)sh.rows.forEach(r=>{
+    ["NL","DE","FR","EU"].forEach(k=>{ const sh=src.shops[k]; if(sh&&sh.rows)sh.rows.forEach(r=>{
       const o=byd[r.d]||(byd[r.d]={d:r.d,net:0,orders:0,items:0,product:0,shipping:0,transaction:0,extra:0,advertising:0,operational:0,newOrders:0,sessions:0});
       for(const f in o){ if(f!=="d")o[f]+=r[f]||0; }
     });});
@@ -2986,7 +2987,7 @@ function buckets(rows){
   return Object.keys(by).sort().map(k=>({ key:k, label:blabel(k), agg:aggregate(by[k]) }));
 }
 function granWord(){ return knGran==="day"?"dag":knGran==="week"?"week":"maand"; }
-function landName(){ return {total:"Totaal (alle shops)",NL:"Ongediertewinkel.nl",DE:"Ungeziefershop.de",FR:"Boutiqueantinuisibles.fr"}[knLand]; }
+function landName(){ return {total:"Totaal (alle shops)",NL:"Ongediertewinkel.nl",DE:"Ungeziefershop.de",FR:"Boutiqueantinuisibles.fr",EU:"Ronada.eu"}[knLand]; }
 function setUpd(){ const el=document.getElementById("knupd"); if(el&&KM)el.textContent="Periode "+KM.start+" t/m "+KM.end; }
 
 function drawChart(bks){
@@ -3030,7 +3031,7 @@ function render(){
   if(!KM){ c.innerHTML='<div class="knloading">Kerncijfers laden…</div>'; return; }
   if(KM.error){ c.innerHTML='<div class="knerr">'+kesc(KM.error)+'</div>'; return; }
   let rows=rowsFor(knLand); if(knDow!=="all")rows=rows.filter(r=>new Date(r.d+"T00:00:00").getDay()===+knDow); const agg=aggregate(rows), bks=buckets(rows);
-  const capped = knLand==="total" ? ["NL","DE","FR"].some(k=>KM.shops[k]&&KM.shops[k].newCapped) : (KM.shops[knLand]&&KM.shops[knLand].newCapped);
+  const capped = knLand==="total" ? ["NL","DE","FR","EU"].some(k=>KM.shops[k]&&KM.shops[k].newCapped) : (KM.shops[knLand]&&KM.shops[knLand].newCapped);
   const cards=KMET.map(m=>{
     const u=mUnit(m), v=mVal(m,agg);
     const tog=m.cost?'<button class="kntog" data-tog="'+m.id+'">'+(u==="pct"?"toon €":"toon %")+'</button>':'';
@@ -3566,9 +3567,9 @@ window.__kernLoad=function(){
 })();
 /* ===== Doelen per shop (AVK-kostendoel of margedoel, instelbaar) ===== */
 (function(){
-  const SHOPS=[{code:"NL",label:"Ongediertewinkel.nl"},{code:"DE",label:"Ungeziefershop.de"},{code:"FR",label:"Boutiqueantinuisibles.fr"}];
+  const SHOPS=[{code:"NL",label:"Ongediertewinkel.nl"},{code:"DE",label:"Ungeziefershop.de"},{code:"FR",label:"Boutiqueantinuisibles.fr"},{code:"EU",label:"Ronada.eu"}];
   const CFGKEY="doel_config_v1";
-  const DEF={NL:{type:"avk",thr:30},DE:{type:"avk",thr:30},FR:{type:"marge",thr:10}};
+  const DEF={NL:{type:"avk",thr:30},DE:{type:"avk",thr:30},FR:{type:"marge",thr:10},EU:{type:"marge",thr:30}};
   const MNAMES=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
   let DM=null, dMonth=null, dInited=false;
   const desc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
@@ -3717,8 +3718,8 @@ window.__kernLoad=function(){
 })();
 /* ===== Prestaties per maand & jaar (per shop + totaal, live uit Metorik) ===== */
 (function(){
-  const SHOPS=["NL","DE","FR"];
-  const SLABEL={NL:"Ongediertewinkel.nl",DE:"Ungeziefershop.de",FR:"Boutiqueantinuisibles.fr",TOT:"Alle shops"};
+  const SHOPS=["NL","DE","FR","EU"];
+  const SLABEL={NL:"Ongediertewinkel.nl",DE:"Ungeziefershop.de",FR:"Boutiqueantinuisibles.fr",EU:"Ronada.eu",TOT:"Alle shops"};
   const MN=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
   const START="2024-08-01";
   let PM=null, pShop="TOT", pInited=false;
@@ -3871,7 +3872,7 @@ window.__kernLoad=function(){
   let TL=[], tMax=1440;     // tijdlijn voor afspelen: [{t,ll,rev,cc,pc}], t in minuten vanaf begin van de periode
   let cur=0, playing=false, rafId=null, lastTs=0, speedMul=1;
   let histTimer=null, histBusy=false, histStop=false;
-  const CENTER={NL:[[52.2,5.3],7],DE:[[51.1,10.4],6],FR:[[46.6,2.4],6]};
+  const CENTER={NL:[[52.2,5.3],7],DE:[[51.1,10.4],6],FR:[[46.6,2.4],6],EU:[[51.4,6.0],6]};
 
   // ---- Canvas-laag voor de "blobjes" (snel, ook bij duizenden orders)
   const BlobLayer=L.Layer.extend({
@@ -3916,7 +3917,7 @@ window.__kernLoad=function(){
     if(view!=="play") per='<span class="httf">van <input type="date" id="htfrom" value="'+from+'"> tot <input type="date" id="htto" value="'+to+'"></span><span class="htlbl">Weging</span>'+seg("weight",[["orders","Orders"],["omzet","Omzet"]],weight);
     else if(mode==="day") per=seg("mode",[["day","Dag"],["month","Maand"]],mode)+'<span class="httf"><button class="htnav" data-nav="-1">&#9664;</button><input type="date" id="htday" value="'+day+'"><button class="htnav" data-nav="1">&#9654;</button></span>';
     else per=seg("mode",[["day","Dag"],["month","Maand"]],mode)+'<span class="httf"><button class="htnav" data-nav="-1">&#9664;</button><input type="month" id="htmonth" value="'+month+'"><button class="htnav" data-nav="1">&#9654;</button></span>';
-    b.innerHTML='<span class="htlbl">Shop</span>'+seg("shop",[["NL","NL"],["DE","DE"],["FR","FR"]],shop)
+    b.innerHTML='<span class="htlbl">Shop</span>'+seg("shop",[["NL","NL"],["DE","DE"],["FR","FR"],["EU","EU"]],shop)
       +'<span class="htlbl">Weergave</span>'+seg("view",[["heat","Heatmap"],["dots","Stippen"],["play","&#9654; Verloop"]],view)
       +'<span class="htlbl">'+(view==="play"?"Afspelen per":"Periode")+'</span>'+per
       +'<span class="knsep"></span><button class="knref" id="htref">&#8635; Ververs</button>';
