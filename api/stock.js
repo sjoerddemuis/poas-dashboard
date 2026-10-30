@@ -13,15 +13,15 @@ module.exports = async (req, res) => {
   try {
     let products;
     if (shop === "ALL") {
-      const tokens = SHOPS.map((s) => process.env[s[1]]).filter(Boolean);
-      if (!tokens.length) return res.status(400).json({ error: "geen API-tokens ingesteld" });
-      products = await stockDataAll(tokens);
+      const list = SHOPS.map((s) => [s[0], process.env[s[1]]]).filter((x) => x[1]);
+      if (!list.length) return res.status(400).json({ error: "geen API-tokens ingesteld" });
+      products = await stockDataAll(list);
     } else {
       const found = SHOPS.find((s) => s[0] === shop);
       if (!found) return res.status(400).json({ error: "onbekende shop" });
       const token = process.env[found[1]];
       if (!token) return res.status(400).json({ error: "geen API-token voor " + shop });
-      products = await stockData(token);
+      products = await stockData(token, shop === "EU");
     }
     cache[shop] = products; cacheAt[shop] = now;
     res.json({ shop, products });
