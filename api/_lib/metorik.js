@@ -2,6 +2,7 @@ const SHOPS = [
   ["NL", "METORIK_TOKEN_NL", "Nederland"],
   ["DE", "METORIK_TOKEN_DE", "Duitsland"],
   ["FR", "METORIK_TOKEN_FR", "Frankrijk"],
+  ["EU", "METORIK_TOKEN_EU", "Ronada.eu (B2B)"],
 ];
 const MABBR = ["", "Jan", "Feb", "Mrt", "Apr", "Mei", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dec"];
 const BASE = "https://app.metorik.com/api/v1/store/reports/profit-by-date";
@@ -203,29 +204,38 @@ async function allProductsNL(token) {
 // Voorraad-runway + trend: per Ronada/RTM-product 12 maandelijkse verkoop-buckets.
 // We halen 12 cumulatieve vensters op (laatste 1..12 mnd) en differentiëren die naar
 // losse maandbuckets, zodat de frontend groei/daling (trend) kan berekenen.
+// unit=true (Ronada.eu, B2B): geen merkfilter (daar staat het merk alleen op de dozen), bundels overslaan
+// en de verkoop tellen op de losse artikel-SKU's: Metorik boekt een doos als N stuks van die SKU,
+// met dezelfde (gedeelde) voorraad als de consumentenshops.
 const STOCK_FILTERS = JSON.stringify([{ field: "brand", operator: "in", value: ["Ronada", "RTM"] }]);
-async function stockWindow(token, months) {
+const SKIP_TYPES = ["bundle", "grouped", "variable", "woosb", "composite"];
+async function stockWindow(token, months, unit) {
   const end = new Date().toISOString().slice(0, 10);
   const d = new Date(); d.setMonth(d.getMonth() - months);
   const start = d.toISOString().slice(0, 10);
-  const u = new URL(PRODUCTS);
-  u.searchParams.set("start_date", start);
-  u.searchParams.set("end_date", end);
-  u.searchParams.set("per_page", "100");
-  u.searchParams.set("filters", STOCK_FILTERS);
-  const r = await fetch(u, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
-  if (!r.ok) throw new Error("Metorik API " + r.status);
-  const j = await r.json();
   const map = {};
-  (j.data || []).forEach((p) => {
-    map[String(p.sku)] = { sold: p.net_items_sold || 0, stock: p.stock_quantity || 0, title: p.title, img: p.image, status: p.status, price: p.current_price };
-  });
+  for (let page = 1; page <= (unit ? 5 : 1); page++) {
+    const u = new URL(PRODUCTS);
+    u.searchParams.set("start_date", start);
+    u.searchParams.set("end_date", end);
+    u.searchParams.set("per_page", "100");
+    if (unit) u.searchParams.set("page", String(page));
+    else u.searchParams.set("filters", STOCK_FILTERS);
+    const r = await fetch(u, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+    if (!r.ok) throw new Error("Metorik API " + r.status);
+    const j = await r.json();
+    (j.data || []).forEach((p) => {
+      if (unit && (SKIP_TYPES.includes(String(p.type || "").toLowerCase()) || p.sku == null || p.sku === "")) return;
+      map[String(p.sku)] = { sold: p.net_items_sold || 0, stock: p.stock_quantity || 0, title: p.title, img: p.image, status: p.status, price: p.current_price };
+    });
+    if (!unit || !(j.pagination && j.pagination.has_more_pages)) break;
+  }
   return map;
 }
 // Retourneert array van producten met m = [12 maandbuckets, meest recente eerst].
-async function stockData(token) {
+async function stockData(token, unit) {
   const N = 12;
-  const cums = await Promise.all(Array.from({ length: N }, (_, i) => stockWindow(token, i + 1)));
+  const cums = await Promise.all(Array.from({ length: N }, (_, i) => stockWindow(token, i + 1, unit)));
   const bySku = {};
   cums.forEach((mp, i) => {
     Object.entries(mp).forEach(([sku, d]) => {
@@ -245,10 +255,13 @@ async function stockData(token) {
   });
 }
 // Alle shops samen: buckets per maand optellen per SKU; voorraad gedeeld (max over shops).
-async function stockDataAll(tokens) {
-  const per = await Promise.all(tokens.map((t) => stockData(t)));
+// list: [[code, token], …] (of alleen tokens). Ronada.eu (EU) telt alleen mee op SKU's die de
+// consumentenshops ook voeren, zodat er geen losse doos-/B2B-regels bij komen.
+async function stockDataAll(list) {
+  const items = list.map((x) => (Array.isArray(x) ? x : [null, x]));
+  const per = await Promise.all(items.map(([code, t]) => stockData(t, code === "EU").then((ps) => ({ code, ps }))));
   const bySku = {};
-  per.forEach((list) => list.forEach((p) => {
+  per.filter((x) => x.code !== "EU").forEach(({ ps }) => ps.forEach((p) => {
     const k = String(p.sku);
     if (!bySku[k]) bySku[k] = { sku: p.sku, title: p.title, img: p.img, status: p.status, price: p.price, stock: p.stock, m: p.m.slice() };
     else {
@@ -258,6 +271,11 @@ async function stockDataAll(tokens) {
       if (!o.img && p.img) o.img = p.img;
       if (p.price != null && o.price == null) o.price = p.price;
     }
+  }));
+  per.filter((x) => x.code === "EU").forEach(({ ps }) => ps.forEach((p) => {
+    const o = bySku[String(p.sku)];
+    if (!o) return;
+    for (let i = 0; i < p.m.length; i++) o.m[i] = (o.m[i] || 0) + (p.m[i] || 0);
   }));
   return Object.values(bySku);
 }
