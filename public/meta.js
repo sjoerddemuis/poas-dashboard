@@ -176,11 +176,11 @@ function cards(c,p){
   const on=k=>`class="mcard ${matrixMetric===k?"on":""}" data-k="${k}"`;
   return`<div class="mcards">
   <div ${on("spend")}><div class="l">Besteed</div><div class="v">${eur(c.spend)}</div><div class="d">${delta(c.spend,p.spend,true)}</div></div>
-  <div ${on("value")}><div class="l">Omzet (Meta)</div><div class="v">${eur(c.value)}</div><div class="d">${delta(c.value,p.value)}</div></div>
-  <div ${on("roas")}><div class="l">ROAS</div><div class="v"><span class="roas ${roasCls(c.roas,c.spend)}" style="font-size:18px">${x2(c.roas)}</span></div><div class="d">${delta(c.roas,p.roas)}</div></div>
-  <div ${on("purch")}><div class="l">Aankopen</div><div class="v">${num(c.purch)}</div><div class="d">${delta(c.purch,p.purch)}</div></div>
-  <div ${on("cpa")}><div class="l">Kosten / aankoop</div><div class="v">${eur2(c.cpa)}</div><div class="d">${delta(c.cpa,p.cpa,true)}</div></div>
-  <div ${on("ctr")}><div class="l">CTR · Orderwaarde</div><div class="v" style="font-size:17px">${pct1(c.ctr)} · ${eur2(c.aov)}</div><div class="d">${num(c.clicks)} klikken</div></div>
+  <div ${on("value")}><div class="l">Omzet (Meta)${qtip("Aankoopwaarde die Meta aan je advertenties toeschrijft, volgens de standaardattributie van het advertentieaccount.")}</div><div class="v">${eur(c.value)}</div><div class="d">${delta(c.value,p.value)}</div></div>
+  <div ${on("roas")}><div class="l">ROAS${qtip("Omzet (Meta) ÷ besteed. Dit is Meta-attributie, dus niet hetzelfde als de blended POAS uit Metorik.")}</div><div class="v"><span class="roas ${roasCls(c.roas,c.spend)}" style="font-size:18px">${x2(c.roas)}</span></div><div class="d">${delta(c.roas,p.roas)}</div></div>
+  <div ${on("purch")}><div class="l">Aankopen${qtip("Aankopen die Meta aan je advertenties toeschrijft.")}</div><div class="v">${num(c.purch)}</div><div class="d">${delta(c.purch,p.purch)}</div></div>
+  <div ${on("cpa")}><div class="l">Kosten / aankoop${qtip("Besteed ÷ aankopen (volgens Meta).")}</div><div class="v">${eur2(c.cpa)}</div><div class="d">${delta(c.cpa,p.cpa,true)}</div></div>
+  <div ${on("ctr")}><div class="l">CTR · Orderwaarde${qtip("CTR = klikken ÷ vertoningen, zoals Meta het rapporteert. Orderwaarde = omzet (Meta) ÷ aankopen.")}</div><div class="v" style="font-size:17px">${pct1(c.ctr)} · ${eur2(c.aov)}</div><div class="d">${num(c.clicks)} klikken</div></div>
   </div>`;
 }
 function renderChips(){
