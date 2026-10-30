@@ -128,14 +128,14 @@ function render(){
   const costTarget=T>0&&cur.cpr>0?T/1000*cur.cpr:null;
   const body=document.getElementById("mrBody");
   body.innerHTML=`<div class="rcards">
-    <div class="rcard hero ${onTrack===false?"off":""} ${kpi==="reach"?"on":""}" data-k="reach"><div class="l">Uniek bereik · 7 dagen · ${winLbl(R.today)}</div><div class="v">${num(cur.reach)}${onTrack==null?'<span class="status no">geen doel</span>':onTrack?'<span class="status ok">✓ on track</span>':'<span class="status off">achter op doel</span>'}</div>
+    <div class="rcard hero ${onTrack===false?"off":""} ${kpi==="reach"?"on":""}" data-k="reach"><div class="l">Uniek bereik · 7 dagen · ${winLbl(R.today)}${qtip("Unieke personen die je advertenties minstens één keer zagen in de laatste 7 dagen (rollend venster, volgens Meta). Ontdubbeld binnen het venster, dus dagen niet bij elkaar optellen. On track = bereik ≥ je doel per 7 dagen.")}</div><div class="v">${num(cur.reach)}${onTrack==null?'<span class="status no">geen doel</span>':onTrack?'<span class="status ok">✓ on track</span>':'<span class="status off">achter op doel</span>'}</div>
       <div class="d">${T>0?`<b class="${p>=100?"up":""}">${pct(p)}</b> van ${num(T)}${gap>0?` · <b>−${num(gap)}</b>`:gap!=null?` · <b class="up">+${num(-gap)}</b>`:""}`:'<span class="mute">geen doel ingesteld</span>'}</div>
       ${T>0?`<div class="rbarw"><div class="rbarf ${p<100?"warn":""}" style="width:${Math.min(100,p||0)}%"></div></div>`:""}
       <div class="d">vs vorige 7 d ${dPrev==null?"—":`<span class="${dPrev>=0?"up":"dn"}">${dPrev>0?"+":""}${Math.round(dPrev)}%</span>`} · vs 4 wk ${d4==null?"—":`<span class="${d4>=0?"up":"dn"}">${d4>0?"+":""}${Math.round(d4)}%</span>`}</div>
     </div>
-    <div class="rcard ${kpi==="perday"?"on":""}" data-k="perday"><div class="l">Per dag</div><div class="v">${num(cur.reach/7)}</div><div class="d">${T>0?`nodig ${num(T/7)}`:"&nbsp;"}</div></div>
-    <div class="rcard ${kpi==="cpr"?"on":""}" data-k="cpr"><div class="l">€ / 1.000 bereikt</div><div class="v">${eur2(cur.cpr)}</div><div class="d">${eur(cur.spend)} besteed${costTarget?` · doel ≈ ${eur(costTarget)}`:""}</div></div>
-    <div class="rcard ${kpi==="freq"?"on":""}" data-k="freq"><div class="l">Frequentie</div><div class="v">${f1(cur.freq)}×</div><div class="d">${num(cur.impr)} impr.</div></div>
+    <div class="rcard ${kpi==="perday"?"on":""}" data-k="perday"><div class="l">Per dag${qtip("Uniek bereik ÷ 7. ‘Nodig’ = je doel per 7 dagen ÷ 7.")}</div><div class="v">${num(cur.reach/7)}</div><div class="d">${T>0?`nodig ${num(T/7)}`:"&nbsp;"}</div></div>
+    <div class="rcard ${kpi==="cpr"?"on":""}" data-k="cpr"><div class="l">€ / 1.000 bereikt${qtip("Besteed ÷ uniek bereik × 1.000. ‘Doel ≈’ = het budget dat je bij deze prijs nodig hebt om je 7-daagse doel te halen.")}</div><div class="v">${eur2(cur.cpr)}</div><div class="d">${eur(cur.spend)} besteed${costTarget?` · doel ≈ ${eur(costTarget)}`:""}</div></div>
+    <div class="rcard ${kpi==="freq"?"on":""}" data-k="freq"><div class="l">Frequentie${qtip("Gemiddeld aantal keer dat iemand je advertentie zag: vertoningen ÷ uniek bereik.")}</div><div class="v">${f1(cur.freq)}×</div><div class="d">${num(cur.impr)} impr.</div></div>
   </div>
   <div class="rpanel"><div class="rph"><h3>${KPI[kpi].t}</h3><span class="sub">${esc((ACC.find(a=>a.id===acc)||{}).name||acc)}</span></div><div class="rchart"><canvas id="mrChart"></canvas></div></div>
   <div class="rgrid">
