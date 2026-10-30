@@ -651,7 +651,6 @@ summary{border-radius:11px;font-weight:600}
   </div><!-- /sec-poas -->
 
   <div id="sec-kern" style="display:none">
-    <div class="knsub">Alle kerncijfers per land en totaal, live uit Metorik. Klik op een cijfer om het in de grafiek te zetten; klik meerdere aan om te vergelijken. Bij een percentage kun je togglen tussen % en €.</div>
     <div class="knbar">
       <div class="knseg" id="knland">
         <button data-l="total" class="on">Totaal</button>
@@ -685,6 +684,7 @@ summary{border-radius:11px;font-weight:600}
       <span class="knsep"></span>
       <span class="knlbl" id="knupd"></span>
       <button id="knref" class="knref">↻ Ververs</button>
+      <span class="qtip" tabindex="0" data-tip="Alle kerncijfers per land en totaal, live uit Metorik. Klik op een cijfer om het in de grafiek te zetten; klik meerdere aan om te vergelijken. Bij een percentage kun je togglen tussen % en €.">?</span>
     </div>
     <div id="kncontent"><div class="knloading">Kerncijfers laden uit Metorik…</div></div>
   </div><!-- /sec-kern -->
@@ -736,7 +736,6 @@ summary{border-radius:11px;font-weight:600}
     #sec-prod #pdbmsave{background:var(--ink);border-color:var(--ink);color:#fff}
     #sec-prod #pdbmsave:hover{opacity:.9}
     </style>
-    <div class="knsub">Productdata per SKU — live uit Metorik + GA4. Kies een shop en tik één SKU in, of <b>meerdere SKU's gescheiden met een komma</b> (bijv. <span style="font-family:var(--mono)">1333, 1420, 1500</span>) voor een gecombineerde weergave (alle data opgeteld). Zet in elk van de 5 velden een cijfer naar keuze; de grafiek toont ze over tijd. Bewaar een selectie als bookmark om er snel op terug te komen.</div>
     <div class="knbar">
       <div class="knseg" id="pdshop">
         <button data-s="NL" class="on">NL</button>
@@ -761,6 +760,7 @@ summary{border-radius:11px;font-weight:600}
       </div>
       <span class="knsep"></span>
       <button id="pdref" class="knref">↻ Ververs</button>
+      <span class="qtip" tabindex="0" data-tip="Productdata per SKU — live uit Metorik + GA4. Kies een shop en tik één SKU in, of meerdere SKU's gescheiden met een komma (bijv. 1333, 1420, 1500) voor een gecombineerde weergave (alle data opgeteld). Zet in elk van de 5 velden een cijfer naar keuze; de grafiek toont ze over tijd. Bewaar een selectie als bookmark om er snel op terug te komen.">?</span>
     </div>
     <div class="pdbookbar">
       <input type="text" id="pdbmname" class="kndate" placeholder="Bookmark-naam (optioneel)" style="width:180px">
@@ -809,7 +809,6 @@ summary{border-radius:11px;font-weight:600}
     #sec-market .mkd.dn{color:#C0392B}
     #sec-market .mkd.zero{color:var(--mute);font-weight:600}
     </style>
-    <div class="knsub">Marktaandeel op basis van verkoopgroei: per maand het daggemiddelde aantal verkopen per concurrent. Jouw aandeel = ongediertewinkel.nl gedeeld door alle gevolgde shops samen. Kies <b>Marktaandeel %</b> voor het aandeel, of <b>Sales/dag</b> voor de absolute snelheid.</div>
     <div class="knbar">
       <span class="knlbl">Weergave</span>
       <div class="knseg" id="mkmode">
@@ -820,6 +819,7 @@ summary{border-radius:11px;font-weight:600}
       <span class="knlbl" id="mkupd"></span>
       <a class="knref" id="mksheet" target="_blank" rel="noopener">Open sheet ↗</a>
       <button id="mkref" class="knref">↻ Ververs</button>
+      <span class="qtip" tabindex="0" data-tip="Marktaandeel op basis van verkoopgroei: per maand het daggemiddelde aantal verkopen per concurrent. Jouw aandeel = ongediertewinkel.nl gedeeld door alle gevolgde shops samen. Kies Marktaandeel % voor het aandeel, of Sales/dag voor de absolute snelheid.">?</span>
     </div>
     <div id="mkcontent"><div class="knloading">Marktaandeel laden…</div></div>
   </div><!-- /sec-market -->
@@ -860,7 +860,6 @@ summary{border-radius:11px;font-weight:600}
 #sec-heat .hthist .bar i{display:block;height:100%;background:var(--green);width:0;transition:width .3s}
 #sec-heat .htlegend{font-size:11px;color:var(--mute);margin-top:6px}
 </style>
-<div class="htsub">Waar komen je bestellingen vandaan? Elk order valt in een postcodegebied (NL = 4 cijfers, DE/FR = PLZ/code postal). Kies bij Weergave <b>Heatmap</b> of <b>Stippen</b> voor de optelsom over een tijdvak, of <b>▶ Verloop</b> en druk op Afspelen: de tijd loopt per dag of per maand en orders poppen op de kaart op waar ze binnenkomen. Alle orders staan in de eigen database; Metorik wordt alleen belast bij het inladen van historie.</div>
 <div class="htbar" id="htbar"></div>
 <div id="htstat" class="htstat">Order-heatmap laden…</div>
 <div id="htplay" class="htplay" style="display:none"></div>
@@ -909,7 +908,6 @@ summary{border-radius:11px;font-weight:600}
     #sec-tel .tupmsg{font-size:12px;color:var(--mute);margin-left:12px}
     #sec-tel .tloading,#sec-tel .terr{padding:40px;text-align:center;color:var(--mute)}
     </style>
-    <div class="tsub">Hoeveel tijd gaat er op aan bellen? Per <b>maand</b> of per <b>dag</b>, met <b>inkomend</b> en <b>uitgaand</b> apart. Gespreksduur telt alleen opgenomen gesprekken; oproepen van 0 seconden staan apart als <b>gemist / niet opgenomen</b>.</div>
     <div class="tbar">
       <span class="tlbl">Weergave</span>
       <div class="knseg" id="tgran"><button data-g="month" class="on">Per maand</button><button data-g="day">Per dag</button></div>
@@ -920,12 +918,12 @@ summary{border-radius:11px;font-weight:600}
       <button class="tclear" id="tclear">✕ tijdvak wissen</button>
       <span class="tsep"></span>
       <button id="tref" class="tclear">↻ Ververs</button>
+      <span class="qtip" tabindex="0" data-tip="Hoeveel tijd gaat er op aan bellen? Per maand of per dag, met inkomend en uitgaand apart. Gespreksduur telt alleen opgenomen gesprekken; oproepen van 0 seconden staan apart als gemist / niet opgenomen.">?</span>
     </div>
     <div id="telcontent"><div class="tloading">Telefoniedata laden…</div></div>
   </div><!-- /sec-tel -->
 
   <div id="sec-ronada" style="display:none">
-    <div class="rsub">Aandeel eigen huismerk (<b>Ronada + RTM</b>) t.o.v. alle overige merken — maand op maand, live uit Metorik. Omzet = excl. btw &amp; verzending.</div>
     <div class="rcontrols">
       <select id="rstore">
         <option value="NL">Ongediertewinkel.nl</option>
@@ -936,6 +934,7 @@ summary{border-radius:11px;font-weight:600}
         <button data-m="omzet" class="on">Omzet</button>
         <button data-m="orders">Orders</button>
       </div>
+      <span class="qtip" tabindex="0" data-tip="Aandeel eigen huismerk (Ronada + RTM) t.o.v. alle overige merken — maand op maand, live uit Metorik. Omzet = excl. btw &amp; verzending.">?</span>
     </div>
     <div id="rcontent"><div class="rloading">Gegevens laden uit Metorik…</div></div>
   </div><!-- /sec-ronada -->
@@ -1194,13 +1193,13 @@ summary{border-radius:11px;font-weight:600}
     #sec-doel .dloading,#sec-doel .derr{padding:40px;text-align:center;color:var(--mute)}
     #sec-doel .dnote{font-size:11px;color:var(--mute);margin-top:6px;line-height:1.6;max-width:940px}
     </style>
-    <div class="dsub">Per shop stuur je op een eigen doel: een <b>kostendoel</b> (AVK — verkoopkosten als % van de omzet — moet ónder de drempel blijven) of een <b>margedoel</b> (nettomarge moet bóven de drempel blijven). Live uit Metorik. AVK = transactie- + advertentie- + operationele kosten ÷ omzet. Marge = winst ÷ omzet. Doelen pas je hieronder aan; ze worden onthouden in deze browser.</div>
     <div class="dbar">
       <span class="dlbl">Maand</span>
       <input type="month" id="dmonth">
       <span class="dsep"></span>
       <span class="dlbl" id="dupd"></span>
       <button id="dref" class="dref">↻ Ververs</button>
+      <span class="qtip" tabindex="0" data-tip="Per shop stuur je op een eigen doel: een kostendoel (AVK — verkoopkosten als % van de omzet — moet ónder de drempel blijven) of een margedoel (nettomarge moet bóven de drempel blijven). Live uit Metorik. AVK = transactie- + advertentie- + operationele kosten ÷ omzet. Marge = winst ÷ omzet. Doelen pas je hieronder aan; ze worden onthouden in deze browser.&#10;Verkoopkosten = transactie- + advertentie- + operationele kosten uit Metorik. Marge = winst ÷ omzet (winst = omzet minus alle kosten).&#10;Prognose lopende maand = maand-tot-nu + resterende dagen × het 7-daags daggemiddelde (laatste 7 volledige dagen) — dezelfde run-rate-methode als de Prognose-tab.">?</span>
     </div>
     <div id="dcontent"><div class="dloading">Doelen laden…</div></div>
   </div><!-- /sec-doel -->
@@ -1235,7 +1234,6 @@ summary{border-radius:11px;font-weight:600}
     #sec-prest .perr{color:#C0392B}
     #sec-prest .pnote{font-size:11px;color:var(--mute);margin-top:6px;line-height:1.6;max-width:940px}
     </style>
-    <div class="psub">Maandelijkse en jaarlijkse prestaties per shop en gecombineerd — live uit Metorik. Kies een shop of het totaal. Groei is t.o.v. dezelfde maand vorig jaar. AOV = omzet ÷ orders · AVK = verkoopkosten (transactie + advertentie + operationeel) ÷ omzet · marge = winst ÷ omzet.</div>
     <div class="pbar">
       <span class="plbl">Shop</span>
       <div class="pseg" id="prshop">
@@ -1247,6 +1245,7 @@ summary{border-radius:11px;font-weight:600}
       <span class="psep"></span>
       <span class="plbl" id="prupd"></span>
       <button id="prref" class="pref">↻ Ververs</button>
+      <span class="qtip" tabindex="0" data-tip="Maandelijkse en jaarlijkse prestaties per shop en gecombineerd — live uit Metorik. Kies een shop of het totaal. Groei is t.o.v. dezelfde maand vorig jaar. AOV = omzet ÷ orders · AVK = verkoopkosten (transactie + advertentie + operationeel) ÷ omzet · marge = winst ÷ omzet.&#10;Bron: Metorik. Winst = netto-omzet minus alle kosten uit het winstrapport (inkoop, verzending, transactie, ads, operationeel, extra). AVK = verkoopkosten (transactie + advertentie + operationeel) ÷ omzet. Data vanaf augustus 2024. Jaargroei wordt alleen getoond als het voorgaande jaar volledig is; het lopende jaar vergelijkt YTD met dezelfde periode vorig jaar.">?</span>
     </div>
     <div id="prcontent"><div class="ploading">Prestaties laden…</div></div>
   </div><!-- /sec-prest -->
@@ -1282,6 +1281,7 @@ document.addEventListener("mouseover",function(e){const el=e.target&&e.target.cl
 document.addEventListener("focusin",function(e){const el=e.target&&e.target.closest?e.target.closest(".qtip"):null;if(el)show(el);});
 document.addEventListener("focusout",function(e){if(e.target&&e.target.classList&&e.target.classList.contains("qtip"))hide();});
 window.addEventListener("scroll",hide,true);
+document.addEventListener("click",function(e){if(e.target&&e.target.closest&&e.target.closest(".qtip")){e.preventDefault();e.stopPropagation();}},true);
 })();
 
 "use strict";
@@ -2430,12 +2430,11 @@ function rvrender(){
     <div class="rvcard"><div class="l">Verloren punten</div><div class="v">${f2(5-a.avg)}</div><div class="s">t.o.v. een perfecte 5,00</div></div>
     <div class="rvcard"><div class="l">Grootste scoredrukker</div><div class="v" style="font-size:15px;line-height:1.3;margin-top:6px">${best?esc(best.label):"—"}</div><div class="s">${best?"kost je "+f2(best.impact)+" punt":""}</div></div>
   </div>`;
-  const dist=`<div class="rvpanel"><div class="rvh">Verdeling</div><div class="rvsub">Waar zitten je reviews? Elke 1-ster kost je het meest.</div><div class="rvdist">${
+  const dist=`<div class="rvpanel"><div class="rvh">Verdeling${qtip(`Waar zitten je reviews? Elke 1-ster kost je het meest.`)}</div><div class="rvdist">${
     [5,4,3,2,1].map(st=>{const cnt=a.dist[st-1];const pct=cnt/a.n*100;return `<div class="rvdrow"><span class="st">${st} ★</span><span class="rvdbar"><i style="width:${pct.toFixed(1)}%;background:${barCol(st-1)}"></i></span><span class="n">${n0(cnt)} · ${f1(pct)}%</span></div>`;}).join("")
   }</div></div>`;
   const maxImp=top.length?top[0].impact:1;
-  const prio=`<div class="rvpanel"><div class="rvh">Wat haalt je score het meest omlaag?</div>
-    <div class="rvsub">Per thema: hoeveel punt het je kost op je gemiddelde van ${f2(a.avg)}. Los je een thema volledig op (alle reviews erin naar 5★), dan stijgt je score met dat bedrag.</div>
+  const prio=`<div class="rvpanel"><div class="rvh">Wat haalt je score het meest omlaag?${qtip(`Per thema: hoeveel punt het je kost op je gemiddelde van ${f2(a.avg)}. Los je een thema volledig op (alle reviews erin naar 5★), dan stijgt je score met dat bedrag.`)}</div>
     ${top.length?top.map((t,i)=>`<div class="rvth">
       <span class="rvrank">${i+1}</span>
       <span class="rvtn"><span class="t">${esc(t.label)}</span><div class="d">${n0(t.neg)} negatieve van ${n0(t.n)} reviews die dit noemen</div></span>
@@ -2445,7 +2444,7 @@ function rvrender(){
     </div>`).join(""):'<div class="rvsub">Geen thema’s met impact gevonden.</div>'}
     ${best?`<div class="rvgain"><b>Grootste winst:</b> los je “${esc(best.label)}” op, dan gaat je score van <b>${f2(a.avg)}</b> naar <b>${f2(a.avg+best.impact)}</b>. Pak je de top-3 samen aan, dan kom je op <b>${f2(Math.min(5,a.avg+top.slice(0,3).reduce((s,t)=>s+t.impact,0)))}</b>.</div>`:""}
   </div>`;
-  const trend=`<div class="rvpanel"><div class="rvh">Trend over tijd</div><div class="rvsub">Gemiddelde score per maand (lijn) en het aantal negatieve reviews (balken). Zo zie je of een probleem groeit of juist opgelost is.</div><div class="rvchartbox"><canvas id="rvchart"></canvas></div></div>`;
+  const trend=`<div class="rvpanel"><div class="rvh">Trend over tijd${qtip(`Gemiddelde score per maand (lijn) en het aantal negatieve reviews (balken). Zo zie je of een probleem groeit of juist opgelost is.`)}</div><div class="rvchartbox"><canvas id="rvchart"></canvas></div></div>`;
   c.innerHTML=cards+prio+dist+trend;
   drawTrend(a.months);
 }
@@ -2719,8 +2718,7 @@ function krenderLand(){
     const clr=LANDCLR[L.code]||"#6b7280", lc=last.parts[L.code], tot=totLand[L.code];
     return `<div class="kcard"><div class="l" style="color:${clr}">${esc(L.label)} — ${esc(last.label)}</div><div class="v">${lc.pct!=null?pct1(lc.pct):"—"}</div><div class="s">${lc.cost!=null?eur0(lc.cost):"—"} kosten ÷ ${eur0(lc.rev)} omzet · ${eur0(tot)} periode</div></div>`;
   }).join("")+`</div>`;
-  const chart=`<div class="kpanel"><div class="kh">${focus?esc(kPost):"Verkoopkosten"} als % van omzet, per land</div>
-    <div class="ksub">Per maand per land: kosten ÷ netto-omzet. De sheetkosten reken ik naar rato van omzet toe; advertentie- en transactiekosten komen echt per land uit Metorik. Daardoor verschilt het % nu per land. ${extra?"("+extra+".) ":""}Deze weergave toont altijd alle maanden; het dag/week- en datumfilter geldt hier niet.</div>
+  const chart=`<div class="kpanel"><div class="kh">${focus?esc(kPost):"Verkoopkosten"} als % van omzet, per land${qtip(`Per maand per land: kosten ÷ netto-omzet. De sheetkosten reken ik naar rato van omzet toe; advertentie- en transactiekosten komen echt per land uit Metorik. Daardoor verschilt het % nu per land. ${extra?"("+extra+".) ":""}Deze weergave toont altijd alle maanden; het dag/week- en datumfilter geldt hier niet.`)}</div>
     <div class="kchartbox"><canvas id="kchart"></canvas></div></div>`;
   const th=`<tr><th>Maand</th>`+landen.map(L=>`<th>${esc(L.label)}</th>`).join("")+`<th>Kosten</th><th>Omzet</th><th>% van omzet</th></tr>`;
   const body=rows.map(r=>`<tr><td>${esc(r.label)}</td>`+landen.map(L=>{const p=r.parts[L.code];return `<td>${p.pct!=null?pct1(p.pct):'<span class="kflat">—</span>'}${p.cost!=null?`<div class="khint" style="margin:2px 0 0">${eur0(p.cost)}</div>`:""}</td>`;}).join("")+`<td>${r.cost!=null?eur0(r.cost):"—"}</td><td>${r.revT>0?eur0(r.revT):"—"}</td><td><b>${r.pct!=null?pct1(r.pct):"—"}</b></td></tr>`).join("");
@@ -2770,8 +2768,7 @@ function krender(){
       :`<div class="kcard"><div class="l">Totaal periode</div><div class="v">${eur0(totalAll)}</div><div class="s">${dagen.length} dagen</div></div>`}
   </div>`;
 
-  const chart=`<div class="kpanel"><div class="kh">${focus?esc(kPost):"Alle verkoopkosten"} per ${GLBL}</div>
-    <div class="ksub">Maandkosten uit je sheet zijn gelijk verdeeld over de dagen van die maand${kAds?"; adskosten komen per dag uit Metorik":""}. Payments = je sheetbedrag plus de transactiekosten uit Metorik. De oranje lijn is kosten als % van je netto-omzet.</div>
+  const chart=`<div class="kpanel"><div class="kh">${focus?esc(kPost):"Alle verkoopkosten"} per ${GLBL}${qtip(`Maandkosten uit je sheet zijn gelijk verdeeld over de dagen van die maand${kAds?"; adskosten komen per dag uit Metorik":""}. Payments = je sheetbedrag plus de transactiekosten uit Metorik. De oranje lijn is kosten als % van je netto-omzet.`)}</div>
     <div class="kchartbox"><canvas id="kchart"></canvas></div></div>`;
 
   // Tabel: alle posten over het bereik (naar rato van de dagen in beeld)
@@ -2797,10 +2794,8 @@ function krender(){
     </table></div>`;
 
   // Maandenstrip: klik een maand om te zien wat er exact in de sheet staat
-  const strip=`<div class="kpanel"><div class="kh">Controleer per maand</div>
-    <div class="ksub">Klik een maand om precies te zien wat er in dat tabblad van je sheet staat, inclusief de totaalcontrole.</div>
-    <div class="kseg" style="flex-wrap:wrap">${ms.map(m=>`<button data-mon="${esc(m.key)}">${esc(m.label)}${m.klopt===false?" ⚠":""}</button>`).join("")}</div>
-    <div class="khint">Een ⚠ betekent dat mijn optelling afwijkt van het totaal onderaan dat tabblad.</div></div>`;
+  const strip=`<div class="kpanel"><div class="kh">Controleer per maand${qtip(`Klik een maand om precies te zien wat er in dat tabblad van je sheet staat, inclusief de totaalcontrole. Een ⚠ betekent dat mijn optelling afwijkt van het totaal onderaan dat tabblad.`)}</div>
+    <div class="kseg" style="flex-wrap:wrap">${ms.map(m=>`<button data-mon="${esc(m.key)}">${esc(m.label)}${m.klopt===false?" ⚠":""}</button>`).join("")}</div></div>`;
 
   c.innerHTML=cards+chart+tbl+strip;
   drawK(bk,focus);
@@ -3051,8 +3046,7 @@ function render(){
   const anyOn=KMET.some(m=>chartOn[m.id]);
   c.innerHTML=(capped?'<div class="knwarn">Let op: er zijn heel veel nieuwe klanten in deze periode; de returning-berekening is afgetopt en kan licht afwijken. Kies eventueel een kortere periode.</div>':'')
     +'<div class="kncards">'+cards+'</div>'
-    +'<div class="knchartwrap"><div class="kncharthd">Grafiek — '+kesc(landName())+'</div>'
-    +'<div class="knchartsub">Per '+granWord()+' · klik kerncijfers hierboven aan/uit om te vergelijken</div>'
+    +'<div class="knchartwrap"><div class="kncharthd">Grafiek — '+kesc(landName())+''+qtip('Per '+granWord()+' · klik kerncijfers hierboven aan/uit om te vergelijken')+'</div>'
     +(anyOn?('<div class="kncmp" style="margin-bottom:10px"><button class="kncmpbtn" style="border:1.5px solid var(--line);border-radius:8px;background:'+(knCompare?'var(--green)':'var(--card)')+';color:'+(knCompare?'#fff':'var(--mute)')+';font-size:12px;font-weight:600;padding:6px 12px;cursor:pointer">'+(knCompare?'✓ ':'')+'Vorige periode vergelijken</button>'+(knCompare&&KMprev?'<span style="font-size:11.5px;color:var(--mute);margin-left:10px">vorige periode: '+kesc(KMprev.start)+' t/m '+kesc(KMprev.end)+' (gestippeld)</span>':'')+'</div><div class="knchartbox"><canvas id="knchart"></canvas></div>'):'<div class="knempty">Klik hierboven op één of meer kerncijfers om ze in de grafiek te zetten.</div>')
     +'</div>';
   setUpd();
@@ -3214,8 +3208,7 @@ window.__kernLoad=function(){
     }).join("");
     const anySlot=slots.some(Boolean);
     c.innerHTML=head+'<div class="pdslots">'+slotHtml+'</div>'
-      +'<div class="knchartwrap"><div class="kncharthd">Grafiek — '+esc(p.title||PD.sku)+'</div>'
-      +'<div class="knchartsub">Per '+(pdGran==="day"?"dag":pdGran==="week"?"week":"maand")+' · kies per veld hierboven welk cijfer je wilt zien</div>'
+      +'<div class="knchartwrap"><div class="kncharthd">Grafiek — '+esc(p.title||PD.sku)+''+qtip('Per '+(pdGran==="day"?"dag":pdGran==="week"?"week":"maand")+' · kies per veld hierboven welk cijfer je wilt zien')+'</div>'
       +(anySlot?'<div class="knchartbox"><canvas id="pdchart"></canvas></div>':'<div class="knempty">Kies in de velden hierboven een cijfer om de grafiek te tonen.</div>')+'</div>';
     if(anySlot)drawChart(bks);
   }
@@ -3325,9 +3318,8 @@ window.__kernLoad=function(){
     const rows=entries.slice().reverse().map(e=>'<tr><td>'+esc(e.date)+'</td>'+comps.map(c=>'<td>'+(e.vals&&e.vals[c]!=null?e.vals[c].toLocaleString("nl-NL"):'—')+'</td>').join("")+'</tr>').join("");
     const sheet=MK.sheetUrl||'#';
     return '<div class="mkadmin">'
-      +'<div class="mkah">Metingen — uit je Google Sheet</div>'
-      +'<div class="mkasub">Voeg nieuwe metingen toe in de <b>gekoppelde Google Sheet</b>: één rij per datum, met per concurrent hun <b>ordernummer</b> (het volgnummer van hun laatste order) op die dag. De app leest de sheet automatisch uit, berekent het aantal orders sinds de vorige meting en het gemiddelde per dag, en toont het marktaandeel hierboven. Zo staat je data veilig in je eigen sheet.</div>'
-      +'<div class="mkabtns"><a href="'+esc(sheet)+'" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none;border-radius:9px;background:var(--green);color:#fff;font-size:13px;font-weight:700;padding:9px 18px">Open metingen-sheet ↗</a><span class="mksavemsg">Na wijzigen in de sheet: klik op ↻ Ververs rechtsboven.</span></div>'
+      +'<div class="mkah">Metingen — uit je Google Sheet'+qtip('Voeg nieuwe metingen toe in de <b>gekoppelde Google Sheet</b>: één rij per datum, met per concurrent hun <b>ordernummer</b> (het volgnummer van hun laatste order) op die dag. De app leest de sheet automatisch uit, berekent het aantal orders sinds de vorige meting en het gemiddelde per dag, en toont het marktaandeel hierboven. Zo staat je data veilig in je eigen sheet. Na wijzigen in de sheet: klik op ↻ Ververs rechtsboven.')+'</div>'
+      +'<div class="mkabtns"><a href="'+esc(sheet)+'" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none;border-radius:9px;background:var(--green);color:#fff;font-size:13px;font-weight:700;padding:9px 18px">Open metingen-sheet ↗</a></div>'
       +(MK.note?'<div style="font-size:12px;color:#C0392B;margin-bottom:12px">'+esc(MK.note)+'</div>':'')
       +(entries.length?'<div class="mkatbl"><table><thead>'+eth+'</thead><tbody>'+rows+'</tbody></table></div>':'<div class="mkaempty">Nog geen datumrijen in de sheet.</div>')
       +'</div>';
@@ -3379,8 +3371,7 @@ window.__kernLoad=function(){
         +((mkFrom||mkTo)?'<button class="mktfclear">✕ tijdvak wissen</button>':'')
         +'</div>';
     }
-    const chartBlock = P ? ('<div class="knchartwrap"><div class="kncharthd">Marktaandeel via verkoopgroei &nbsp; '+head+'</div>'
-      +'<div class="knchartsub">'+sub+esc(src)+' · ongediertewinkel.nl uitgelicht (dik groen)</div>'
+    const chartBlock = P ? ('<div class="knchartwrap"><div class="kncharthd">Marktaandeel via verkoopgroei &nbsp; '+head+''+qtip(''+sub+esc(src)+' · ongediertewinkel.nl uitgelicht (dik groen)')+'</div>'
       +ctrls
       +'<div class="knchartbox"><canvas id="mkchart"></canvas></div></div>'
       +'<div class="mtbl"><div class="mtscroll"><table><thead>'+th+'</thead><tbody>'+totRow+body+'</tbody></table></div>'
@@ -3655,7 +3646,7 @@ window.__kernLoad=function(){
           +'<div class="dc-st"><span class="l">Verkoopk.</span><span class="v">'+eur0(a.vk)+'</span></div>'
           +'<div class="dc-st"><span class="l">Winst</span><span class="v">'+eur0(a.winst)+'</span></div>'
         +'</div>'
-        +(R.isCur?'<div class="dc-proj"><span class="pl">Prognose maand</span> '+eur0(pj.net)+' omzet · '+(st.type==="marge"?"marge ~"+pct1(pj.marge):st.type==="avk"?"AVK ~"+pct1(pj.avk):"geen doel")+'<br><span style="font-size:10.5px">7-daags run-rate · tot nu + '+remDays+' dagen × daggem.</span></div>':'')
+        +(R.isCur?'<div class="dc-proj"><span class="pl">Prognose maand'+qtip('7-daags run-rate: tot nu + '+remDays+' dagen × daggemiddelde.')+'</span> '+eur0(pj.net)+' omzet · '+(st.type==="marge"?"marge ~"+pct1(pj.marge):st.type==="avk"?"AVK ~"+pct1(pj.avk):"geen doel")+'</div>':'')
         +'</div>';
     }).join("");
     // Config panel
@@ -3699,12 +3690,11 @@ window.__kernLoad=function(){
       }).join('');
       dBody+='<tr><td>'+p2(dd)+'-'+p2(R.mo)+'</td>'+cells+'</tr>';
     }
-    const daily='<div class="dpanel"><div class="hd">Dagelijks overzicht</div><div class="hs">Per dag de stuur-metriek per shop (AVK of marge), gekleurd t.o.v. het doel. Nieuwste dag bovenaan · hover voor omzet/kosten.</div><div style="overflow-x:auto"><table><thead>'+dHead+'</thead><tbody>'+(dBody||'<tr><td colspan="'+(SHOPS.length+1)+'" style="color:var(--mute)">Nog geen dagen met data.</td></tr>')+'</tbody></table></div></div>';
+    const daily='<div class="dpanel"><div class="hd">Dagelijks overzicht'+qtip('Per dag de stuur-metriek per shop (AVK of marge), gekleurd t.o.v. het doel. Nieuwste dag bovenaan · hover voor omzet/kosten.')+'</div><div style="overflow-x:auto"><table><thead>'+dHead+'</thead><tbody>'+(dBody||'<tr><td colspan="'+(SHOPS.length+1)+'" style="color:var(--mute)">Nog geen dagen met data.</td></tr>')+'</tbody></table></div></div>';
     c.innerHTML=''
       +'<div class="dcards">'+cards+'</div>'
-      +'<div class="dpanel"><div class="hd">Doelen instellen</div><div class="hs">Kies per shop of je op kosten (AVK) of op marge stuurt, en zet de drempel. Wordt onthouden in deze browser.</div><div class="dcfg">'+cfgHtml+'</div></div>'
-      +daily
-      +'<div class="dnote">Verkoopkosten = transactie- + advertentie- + operationele kosten uit Metorik. AVK = verkoopkosten ÷ omzet. Marge = winst ÷ omzet (winst = omzet minus alle kosten). '+(R.isCur?'Prognose = maand-tot-nu + resterende dagen × het 7-daags daggemiddelde (laatste 7 volledige dagen) — dezelfde run-rate-methode als de Prognose-tab.':'Volledige maand.')+'</div>';
+      +'<div class="dpanel"><div class="hd">Doelen instellen'+qtip('Kies per shop of je op kosten (AVK) of op marge stuurt, en zet de drempel. Wordt onthouden in deze browser.')+'</div><div class="dcfg">'+cfgHtml+'</div></div>'
+      +daily;
   }
   window.__doelLoad=function(){
     if(!dInited){ dInited=true;
@@ -3788,7 +3778,7 @@ window.__kernLoad=function(){
         +'<td>'+pct1(m.marge)+'</td><td>'+eur2(m.aov)+'</td><td>'+pct1(m.avk)+'</td>'
         +gcell(pv?growth(m.orders,pv.orders):null)+gcell(pv?growth(m.omzet,pv.omzet):null)+gcell(pv?growth(m.winst,pv.winst):null)+'</tr>';
     }).join("");
-    const mth='<div class="ppanel"><div class="hd">Per maand — '+pesc(SLABEL[pShop])+'</div><div class="hs">De lopende maand telt alleen volledig afgeronde dagen mee — vandaag doet niet mee, ook niet in de vergelijking met vorig jaar. Nieuwste maand bovenaan. Groei = t.o.v. dezelfde maand vorig jaar; de lopende maand wordt vergeleken t/m dezelfde dag als vorig jaar.</div>'
+    const mth='<div class="ppanel"><div class="hd">Per maand — '+pesc(SLABEL[pShop])+''+qtip('De lopende maand telt alleen volledig afgeronde dagen mee — vandaag doet niet mee, ook niet in de vergelijking met vorig jaar. Nieuwste maand bovenaan. Groei = t.o.v. dezelfde maand vorig jaar; de lopende maand wordt vergeleken t/m dezelfde dag als vorig jaar.')+'</div>'
       +'<div class="ptbl"><table><thead><tr><th>Maand</th><th>Orders</th><th>Omzet</th><th>Winst</th><th>Marge</th><th>AOV</th><th>AVK</th><th>Δ Orders</th><th>Δ Omzet</th><th>Δ Winst</th></tr></thead><tbody>'+body+'</tbody></table></div></div>';
     // ---- Jaartabel ----
     function yearFull(yr){ const a=blank(); Object.keys(map).forEach(ym=>{ if(+ym.slice(0,4)!==yr)return; if(ym===curMonth)return; addAgg(a,map[ym]); }); return a; }
@@ -3812,9 +3802,9 @@ window.__kernLoad=function(){
       projRow='<tr class="proj"><td>Prognose '+curYear+'</td><td>'+num0(pOrders)+'</td><td>'+eur0(pOmzet)+'</td><td>'+eur0(pWinst)+'</td><td>'+pct1(pOmzet>0?pWinst/pOmzet*100:null)+'</td><td>'+eur2(pOrders>0?pOmzet/pOrders:null)+'</td><td>—</td>'
         +gcell((gO-1)*100)+gcell((gM-1)*100)+gcell((gW-1)*100)+'</tr>';
     }
-    const yr='<div class="ppanel"><div class="hd">Per jaar — '+pesc(SLABEL[pShop])+'</div><div class="hs">Heel-jaartotalen (lopend jaar t/m laatste complete maand). Prognose = vorig jaar × YTD-groei — dezelfde methode als je sheet.</div>'
+    const yr='<div class="ppanel"><div class="hd">Per jaar — '+pesc(SLABEL[pShop])+''+qtip('Heel-jaartotalen (lopend jaar t/m laatste complete maand). Prognose = vorig jaar × YTD-groei — dezelfde methode als je sheet.')+'</div>'
       +'<div class="ptbl"><table><thead><tr><th>Jaar</th><th>Orders</th><th>Omzet</th><th>Winst</th><th>Marge</th><th>AOV</th><th>AVK</th><th>Δ Orders</th><th>Δ Omzet</th><th>Δ Winst</th></tr></thead><tbody>'+yrBody+projRow+'</tbody></table></div></div>';
-    c.innerHTML=yr+mth+'<div class="pnote">Bron: Metorik. Winst = netto-omzet minus alle kosten uit het winstrapport (inkoop, verzending, transactie, ads, operationeel, extra). AVK = verkoopkosten (transactie + advertentie + operationeel) ÷ omzet. Data vanaf augustus 2024. Jaargroei wordt alleen getoond als het voorgaande jaar volledig is; het lopende jaar vergelijkt YTD met dezelfde periode vorig jaar.</div>';
+    c.innerHTML=yr+mth;
   }
   window.__prestLoad=function(){
     if(!pInited){ pInited=true;
@@ -3926,7 +3916,7 @@ window.__kernLoad=function(){
     b.innerHTML='<span class="htlbl">Shop</span>'+seg("shop",[["NL","NL"],["DE","DE"],["FR","FR"],["EU","EU"]],shop)
       +'<span class="htlbl">Weergave</span>'+seg("view",[["heat","Heatmap"],["dots","Stippen"],["play","&#9654; Verloop"]],view)
       +'<span class="htlbl">'+(view==="play"?"Afspelen per":"Periode")+'</span>'+per
-      +'<span class="knsep"></span><button class="knref" id="htref">&#8635; Ververs</button>';
+      +'<span class="knsep"></span><button class="knref" id="htref">&#8635; Ververs</button>'+qtip("Waar komen je bestellingen vandaan? Elk order valt in een postcodegebied (NL = 4 cijfers, DE/FR = PLZ/code postal). Kies bij Weergave Heatmap of Stippen voor de optelsom over een tijdvak, of ▶ Verloop en druk op Afspelen: de tijd loopt per dag of per maand en orders poppen op de kaart op waar ze binnenkomen. Alle orders staan in de eigen database; Metorik wordt alleen belast bij het inladen van historie.");
     b.querySelectorAll(".knseg button").forEach(btn=>btn.addEventListener("click",()=>{
       const k=btn.parentElement.dataset.k, v=btn.dataset.v;
       if(k==="shop"){ shop=v; if(map)map.setView(CENTER[shop][0],CENTER[shop][1],{animate:false}); }
@@ -4045,7 +4035,7 @@ window.__kernLoad=function(){
       +'<input type="range" class="htprange" id="htprange" min="0" max="'+tMax+'" step="1" value="0">'
       +'<span class="htptime" id="htptime"></span><span class="htpcount" id="htpcount"></span>'
       +'<select class="htpspeed" id="htpspeed"><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option></select>'
-      +'<span class="htphint">'+(mode==="day"?"Eén dag van 00:00 tot 24:00; op 1× duurt een dag ongeveer 36 seconden.":"Elke dag duurt op 1× ongeveer 2 seconden; oranje = net binnengekomen, groen = eerder vandaag/deze maand.")+' Sleep de schuif om te spoelen.</span>';
+      +qtip((mode==="day"?"Eén dag van 00:00 tot 24:00; op 1× duurt een dag ongeveer 36 seconden.":"Elke dag duurt op 1× ongeveer 2 seconden; oranje = net binnengekomen, groen = eerder vandaag/deze maand.")+' Sleep de schuif om te spoelen.');
     document.getElementById("htpbtn").addEventListener("click",()=>playing?stopPlay():startPlay());
     document.getElementById("htpreset").addEventListener("click",()=>{ stopPlay(); cur=0; frame(0); });
     document.getElementById("htprange").addEventListener("input",e=>{ cur=+e.target.value; frame(cur,true); });
@@ -4181,8 +4171,7 @@ window.__kernLoad=function(){
   }
   function uploadPanel(){
     if(!admin())return "";
-    return '<div class="tupl"><div class="tuph">Belgegevens toevoegen</div>'
-      +'<div class="tupsub">Upload de CSV-export van je telefooncentrale (kolommen <b>Datum</b>, <b>Inkomend / Uitgaand</b>, <b>Tijdsduur</b>). Je kunt meerdere maandbestanden tegelijk kiezen. Een dag die je opnieuw uploadt wordt overschreven, dus dubbel uploaden kan geen kwaad.</div>'
+    return '<div class="tupl"><div class="tuph">Belgegevens toevoegen'+qtip('Upload de CSV-export van je telefooncentrale (kolommen <b>Datum</b>, <b>Inkomend / Uitgaand</b>, <b>Tijdsduur</b>). Je kunt meerdere maandbestanden tegelijk kiezen. Een dag die je opnieuw uploadt wordt overschreven, dus dubbel uploaden kan geen kwaad.')+'</div>'
       +'<input type="file" id="telfile" accept=".csv,text/csv" multiple style="display:none">'
       +'<button class="tupbtn" id="telpick">CSV-bestand(en) kiezen</button>'
       +'<span class="tupmsg" id="telmsg">'+(TEL&&TEL.updated?("laatst bijgewerkt "+esc(String(TEL.updated).slice(0,10))):"")+'</span></div>';
@@ -4209,8 +4198,7 @@ window.__kernLoad=function(){
       +'<div class="tcard"><div class="tt">Gemiddeld per '+perLbl+'</div><div class="tv">'+hms(act?totSec/act:0)+'</div><div class="th">'+int0(act?totCalls/act:0)+' gesprekken per '+perLbl+' · '+act+' '+perLbl+'en met gesprekken'+(skip?(' · '+skip+' zonder gesprekken niet meegeteld'):'')+'</div></div>'
       +'<div class="tcard miss"><div class="tt">Gemist / niet opgenomen</div><div class="tv" style="color:var(--orange)">'+int0(min+mout)+'</div><div class="th">'+int0(min)+' inkomend · '+int0(mout)+' uitgaand<br>oproepen van 0 seconden</div></div>'
       +'</div>';
-    const chart='<div class="tchartwrap"><div class="tcharthd">Beltijd per '+perLbl+'</div>'
-      +'<div class="tchartsub">Gestapeld: inkomend (groen) en uitgaand (blauw)'+(tMetric==="hours"?" in uren":" in aantal gesprekken")+' · hover voor de exacte tijd</div>'
+    const chart='<div class="tchartwrap"><div class="tcharthd">Beltijd per '+perLbl+''+qtip('Gestapeld: inkomend (groen) en uitgaand (blauw)'+(tMetric==="hours"?" in uren":" in aantal gesprekken")+' · hover voor de exacte tijd')+'</div>'
       +'<div class="tchartbox"><canvas id="telchart"></canvas></div></div>';
     const th='<tr><th>'+(tGran==="month"?"Maand":"Dag")+'</th><th>Gesprekken in</th><th>Tijd in</th><th>Gem. in</th><th>Gesprekken uit</th><th>Tijd uit</th><th>Gem. uit</th><th>Totale tijd</th><th>Gemist</th></tr>';
     const body=bks.slice().reverse().map(b=>{
