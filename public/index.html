@@ -2572,7 +2572,7 @@ window.__reviewsLoad=function(){
 "use strict";
 let K={months:[],names:[],revenue:{},ads:{},days:{}},kInit=false,kPost="__all",kChart=null,kAds=false;
 let kGran="maand",kFrom="",kTo="",kLand=false;
-const LANDCLR={NL:"#01B52D",DE:"#0A6CCB",FR:"#E8710A",EU:"#8E44AD"};
+const LANDCLR={NL:"#01B52D",DE:"#0A6CCB",FR:"#16A085",EU:"#ff6d2c"};
 const ADSNAME="Advertentiekosten (Metorik)";
 // Items van een maand; met de adskosten-knop aan komt Metorik's adspend erbij.
 function itemsOf(m){ return kAds?Object.assign({},m.items,{[ADSNAME]:(K.ads&&K.ads[m.key])||0}):m.items; }
@@ -2932,7 +2932,7 @@ const KMET=[
   { id:"product", label:"Productkosten", cost:"product", color:"#E5484D" },
   { id:"shipping", label:"Verzendkosten", cost:"shipping", color:"#F06828" },
   { id:"transaction", label:"Transactiekosten", cost:"transaction", color:"#B58900" },
-  { id:"advertising", label:"Advertentiekosten", cost:"advertising", color:"#9C27B0" },
+  { id:"advertising", label:"Advertentiekosten", cost:"advertising", color:"#ff6d2c" },
   { id:"operational", label:"Operationele kosten", cost:"operational", color:"#607D8B" },
   { id:"extra", label:"Extra kosten", cost:"extra", color:"#795548" },
 ];
@@ -3131,7 +3131,7 @@ window.__kernLoad=function(){
     { id:"views", label:"Product-views (GA4)", unit:"num", v:a=>a.views },
     { id:"conversie", label:"Conversie (orders/views)", unit:"pct", v:a=>a.views>0?a.orders/a.views*100:null },
   ];
-  const PCOL=["#00A0A0","#009626","#9C27B0","#F06828","#2D6CDF"];
+  const PCOL=["#00A0A0","#009626","#ff6d2c","#8D6E63","#2D6CDF"];
   let PD=null, pdShop="NL", pdSku="", pdGran="month", pdFrom, pdTo, pdInited=false, pdChart=null;
   let slots=["netSales","orders","netItems","views","conversie"];
   const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
@@ -3251,7 +3251,7 @@ window.__kernLoad=function(){
 /* ===== Marktaandeel (bron = Google Sheet; week/maand-weergave + tijdvak) ===== */
 (function(){
   let MK=null, mkMode="share", mkInited=false, mkChart=null, mkGran="week", mkFrom="", mkTo="", VIEW=null;
-  const COLORS=["#01B52D","#0A6CCB","#E8710A","#8E44AD","#C0392B","#16A085","#D4A017","#7F8C8D"];
+  const COLORS=["#01B52D","#0A6CCB","#8D6E63","#ff6d2c","#C0392B","#16A085","#D4A017","#7F8C8D"];
   const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
   const admin=()=>!!(window.isAdmin&&window.isAdmin());
   const MND=["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
