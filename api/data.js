@@ -607,7 +607,7 @@ function gdKey(shop, d) { return "gd:" + shop + ":" + d; }   // dag-aggregaat (p
 function geKey(shop, d) { return "ge:" + shop + ":" + d; }   // dag-tijdlijn (per order een tijdstip+locatie)
 function gmKey(shop) { return "gm:" + shop; }                 // backfill-meta
 function normDate(s) { const m = String(s || "").match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); return m ? m[1] + "-" + m[2].padStart(2, "0") + "-" + m[3].padStart(2, "0") : null; }
-const GEO_SHOPS = ["NL", "DE", "FR"];
+const GEO_SHOPS = ["NL", "DE", "FR", "EU"];
 const GEO_FLOOR = "2015-01-01";
 const CRON_KEY = process.env.CRON_KEY || "owgeo";
 
