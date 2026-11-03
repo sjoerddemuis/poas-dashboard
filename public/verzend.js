@@ -176,13 +176,17 @@
 
     var rows = sortRows(A.rows.filter(function (r) { return match(r, st.q); }));
     var units = rows.reduce(function (a, r) { return a + r.total; }, 0);
-    var od = daysAgo(A.oldest);
-    var ordCount = st.q ? Object.keys(rows.reduce(function (m, r) { r.o.forEach(function (l) { m[l[0] + "#" + l[1]] = 1; }); return m; }, {})).length : A.orders;
+    // kaarten volgen zoekterm + statusfilter
+    var om = {}, oldest = null, perShop = { NL: 0, DE: 0, FR: 0, EU: 0 };
+    rows.forEach(function (r) { r.o.forEach(function (l) { om[l[0] + "#" + l[1]] = l[0]; if (l[3] && (!oldest || l[3] < oldest)) oldest = l[3]; }); });
+    Object.keys(om).forEach(function (k) { perShop[om[k]] = (perShop[om[k]] || 0) + 1; });
+    var ordCount = Object.keys(om).length;
+    var od = daysAgo(oldest);
     el("vzcards").innerHTML = ""
       + '<div class="vzcard"><div class="l">Te verzenden</div><div class="v">' + n0(units) + '</div><div class="d">stuks</div></div>'
-      + '<div class="vzcard"><div class="l">Open orders</div><div class="v">' + n0(ordCount) + '</div><div class="d">' + (D.shops || []).map(function (s) { return s.code + " " + n0(s.orders); }).join(" · ") + "</div></div>"
+      + '<div class="vzcard"><div class="l">Open orders</div><div class="v">' + n0(ordCount) + '</div><div class="d">' + SHOPS.map(function (c) { return c + " " + n0(perShop[c]); }).join(" · ") + "</div></div>"
       + '<div class="vzcard"><div class="l">Producten</div><div class="v">' + n0(rows.length) + '</div><div class="d">SKU\'s</div></div>'
-      + '<div class="vzcard"><div class="l">Oudste order' + tip("Datum van de oudste openstaande order (met de statussen die nu aan staan).") + '</div><div class="v">' + (A.oldest ? dmy(A.oldest) : "—") + '</div><div class="d">' + (od == null ? "" : od === 0 ? "vandaag" : od + " dagen geleden") + "</div></div>";
+      + '<div class="vzcard"><div class="l">Oudste order' + tip("Datum van de oudste openstaande order (met de statussen die nu aan staan).") + '</div><div class="v">' + (oldest ? dmy(oldest) : "—") + '</div><div class="d">' + (od == null ? "" : od === 0 ? "vandaag" : od + " dagen geleden") + "</div></div>";
 
     var cols = [["sku", "Product"]].concat(SHOPS.map(function (c) { return [c, c]; })).concat([["total", "Totaal"]]);
     var head = "<tr>" + cols.map(function (c) {
