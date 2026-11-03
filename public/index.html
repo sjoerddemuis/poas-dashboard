@@ -638,12 +638,14 @@ summary{border-radius:11px;font-weight:600}
       <button class="navtop" type="button">Operatie <span class="navcar">&#9662;</span></button>
       <div class="navmenu">
         <button class="snav" data-sec="voorraad">Voorraad</button>
+        <button class="snav" data-sec="verzend">Te verzenden</button>
         <button class="snav" data-sec="kosten">Verkoopkosten</button>
         <button class="snav" data-sec="reviews">Reviews</button>
         <button class="snav" data-sec="tel">Telefonie</button>
       </div>
     </div>
   </div>
+  <div id="sec-verzend" style="display:none"></div>
   <div id="sec-poas">
   <div class="refresh"><span class="dot" id="dot"></span><span id="status">Laden…</span><button class="btn" id="reloadBtn" style="margin-left:auto">↻ Ververs</button></div>
   <div class="tabs" id="tabs"></div>
@@ -1269,6 +1271,7 @@ summary{border-radius:11px;font-weight:600}
 
 <script src="/meta.js?v=1"></script>
 <script src="/reach.js?v=1"></script>
+<script src="/verzend.js?v=1"></script>
 <script>
 /* ---- ?-uitleg (hover/focus) ---- */
 function qtip(t){if(t==null||t==="")return "";const s=String(t).replace(/<[^>]+>/g,"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");return '<span class="qtip" tabindex="0" data-tip="'+s+'">?</span>';}
@@ -4260,7 +4263,7 @@ window.__kernLoad=function(){
 /* ===== Sectienavigatie (onthoudt actieve tab via URL-hash) ===== */
 (function(){
   const nav=document.getElementById("secnav");
-  const SECS=["poas","kern","prod","market","heat","ronada","prijs","voorraad","reviews","tel","kosten","forecast","doel","prest","meta","reach"];
+  const SECS=["poas","kern","prod","market","heat","ronada","prijs","voorraad","verzend","reviews","tel","kosten","forecast","doel","prest","meta","reach"];
   function activate(sec,updateHash){
     if(!SECS.includes(sec))sec="poas";
     const b=nav.querySelector('.snav[data-sec="'+sec+'"]');
@@ -4274,6 +4277,7 @@ window.__kernLoad=function(){
     if(sec==="ronada"&&window.__ronadaLoad)window.__ronadaLoad();
     if(sec==="prijs"&&window.__prijsLoad)window.__prijsLoad();
     if(sec==="voorraad"&&window.__voorraadLoad)window.__voorraadLoad();
+    if(sec==="verzend"&&window.__verzendLoad)window.__verzendLoad();
     if(sec==="reviews"&&window.__reviewsLoad)window.__reviewsLoad();
     if(sec==="tel"&&window.__telLoad)window.__telLoad();
     if(sec==="kosten"&&window.__kostenLoad)window.__kostenLoad();
