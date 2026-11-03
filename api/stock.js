@@ -1,12 +1,15 @@
 // Beveiligd: voorraad-runway (Ronada/RTM) per shop, 12 maandbuckets/product. 30 min cache.
 const { getSession } = require("./_lib/util");
 const { stockData, stockDataAll, SHOPS } = require("./_lib/metorik");
+const { toship } = require("./_lib/toship");
 
 const cache = {}, cacheAt = {};
 const TTL = 30 * 60 * 1000;
 
 module.exports = async (req, res) => {
   if (!getSession(req)) return res.status(401).json({ error: "unauthorized" });
+  // Nog te verzenden (open orders per SKU, alle shops) — /api/stock?view=toship
+  if (req.query && req.query.view === "toship") return toship(req, res);
   const shop = (req.query && req.query.shop) || "ALL";
   const now = Date.now();
   if (cache[shop] && now - cacheAt[shop] < TTL) return res.json({ shop, products: cache[shop] });
