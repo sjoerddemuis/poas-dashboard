@@ -4123,7 +4123,7 @@ window.__kernLoad=function(){
       else if(c===";"&&!q){ out.push(cur); cur=""; }
       else cur+=c; }
     out.push(cur); return out; }
-  function parseCsv(text){
+  function parseCsv(text,seen){
     const lines=text.split(/\r?\n/).filter(l=>l.trim().length);
     if(lines.length<2) return {days:{},rows:0};
     const head=splitLine(lines[0]).map(h=>h.replace(/"/g,"").toLowerCase().trim());
@@ -4133,6 +4133,7 @@ window.__kernLoad=function(){
     if(iDate<0||iDir<0||iDur<0) return {days:{},rows:0,err:"kolommen Datum / Inkomend-Uitgaand / Tijdsduur niet gevonden"};
     const days={}; let rows=0;
     for(let i=1;i<lines.length;i++){
+      if(seen){ const raw=lines[i].trim(); if(seen.has(raw))continue; seen.add(raw); } // zelfde gesprek in 2 exports telt 1x
       const c=splitLine(lines[i]).map(x=>x.replace(/^"|"$/g,"").trim());
       const date=(c[iDate]||"").slice(0,10); if(!/^\d{4}-\d{2}-\d{2}$/.test(date))continue;
       const dir=(c[iDir]||"").toLowerCase().indexOf("inkom")>=0?"in":"out";
@@ -4226,15 +4227,17 @@ window.__kernLoad=function(){
   }
   async function handleFiles(files){
     const msg=document.getElementById("telmsg");
-    const all={}; let rows=0, err="";
+    const all={}, seen=new Set(); let rows=0, err="";
     for(const f of files){
-      try{ const txt=await f.text(); const p=parseCsv(txt);
+      try{ const txt=await f.text(); const p=parseCsv(txt,seen);
         if(p.err){ err=p.err; continue; }
         rows+=p.rows;
         Object.keys(p.days).forEach(dt=>{ const a=all[dt]||(all[dt]={in:{calls:0,sec:0,missed:0},out:{calls:0,sec:0,missed:0}});
           ["in","out"].forEach(w=>{ a[w].calls+=p.days[dt][w].calls; a[w].sec+=p.days[dt][w].sec; a[w].missed+=p.days[dt][w].missed; }); });
       }catch(e){ err=String(e.message||e); }
     }
+    // vandaag is nog niet compleet: niet opslaan (anders blijft er een te lage dag staan)
+    { const nu=new Date(); const td=nu.getFullYear()+"-"+String(nu.getMonth()+1).padStart(2,"0")+"-"+String(nu.getDate()).padStart(2,"0"); delete all[td]; }
     const dagen=Object.keys(all).length;
     if(!dagen){ if(msg)msg.textContent="Geen bruikbare regels gevonden"+(err?(" — "+err):""); return; }
     if(msg)msg.textContent="Bezig met opslaan… ("+rows+" gesprekken, "+dagen+" dagen)";
