@@ -123,3 +123,14 @@ th{letter-spacing:.2px!important}
 [id^="sec-"] .m-has-ind > button.on,#tabs.m-has-ind > .tab.on{color:#fff!important;text-shadow:0 1px 1px rgba(0,40,10,.18)}
 #sec-verzend .vzchip.on b{color:rgba(255,255,255,.78)!important}
 .m-ind{box-shadow:inset 0 1px 0 rgba(255,255,255,.38)}
+
+/* ---------- overige knoppen in dezelfde stijl: aan-staten en hoofdacties (waren zwart of plat groen) ---------- */
+[id^="sec-"] :not(.m-has-ind) > button.on,
+[id^="sec-"] [class*="chip"].on,
+.snav.on,
+#pdgo,#pdbmsave,#htpbtn,#prun,#svmkorder,#kref,#rvimport,.tupbtn,
+#sec-voorraad .svexport,#sec-market .mkabtns a{
+  background:var(--act-bg)!important;background-color:transparent!important;color:#fff!important;
+  border-color:rgba(255,255,255,.28)!important;box-shadow:var(--act-shadow)!important;text-shadow:0 1px 1px rgba(0,40,10,.18)}
+[id^="sec-"] [class*="chip"].on b{color:rgba(255,255,255,.78)!important}
+.qtip:hover,.qtip:focus-visible{background:var(--act-bg)!important;border-color:transparent!important;color:#fff!important}
