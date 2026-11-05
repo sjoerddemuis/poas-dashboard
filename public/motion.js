@@ -140,11 +140,19 @@
     return { h: el.offsetHeight, pt: cs.paddingTop, pb: cs.paddingBottom, mt: cs.marginTop, mb: cs.marginBottom };
   }
   function durFor(h) { return Math.round(Math.min(420, 240 + h * 0.18)); }
-  function clipDuring(el, a) {
-    var prev = el.style.overflow;
+  // Tijdens het uitklappen niets laten uitsteken; daarna terug. Timer als vangnet (animatie-events komen pas bij een volgend frame).
+  function clipDuring(el, a, ms) {
+    var prev = el.style.overflow, back = false;
     el.style.overflow = "hidden";
-    if (a) a.addEventListener("finish", function () { el.style.overflow = prev; });
-    if (a) a.addEventListener("cancel", function () { el.style.overflow = prev; });
+    function restore() { if (back) return; back = true; el.style.overflow = prev; }
+    if (a) { a.addEventListener("finish", restore); a.addEventListener("cancel", restore); }
+    setTimeout(restore, (ms || 400) + 80);
+  }
+  function whenDone(a, ms, fn) {
+    var ran = false;
+    function go() { if (ran) return; ran = true; fn(); }
+    if (a) a.addEventListener("finish", go);
+    setTimeout(go, ms + 80);
   }
   function contentIn(el, delay) {
     var kids = [].slice.call(el.querySelectorAll("tbody > tr")).slice(0, 12);
@@ -164,20 +172,20 @@
       { height: "0px", paddingTop: "0px", paddingBottom: "0px", marginTop: "0px", marginBottom: "0px", opacity: 0 },
       { height: b.h + "px", paddingTop: b.pt, paddingBottom: b.pb, marginTop: b.mt, marginBottom: b.mb, opacity: 1 }
     ], { duration: d, easing: EASE_OUT }, "m-expand");
-    clipDuring(el, a);
+    clipDuring(el, a, d);
     contentIn(el, 60);
     return a;
   }
   function collapse(el, done) {
     if (off() || !visible(el)) { if (done) done(); return null; }
-    var b = boxOf(el);
+    var b = boxOf(el), ms = Math.round(durFor(b.h) * 0.8);
     var a = anim(el, [
       { height: b.h + "px", paddingTop: b.pt, paddingBottom: b.pb, marginTop: b.mt, marginBottom: b.mb, opacity: 1 },
       { height: "0px", paddingTop: "0px", paddingBottom: "0px", marginTop: "0px", marginBottom: "0px", opacity: 0 }
-    ], { duration: Math.round(durFor(b.h) * 0.8), easing: EASE_OUT, fill: "forwards" }, "m-collapse");
-    clipDuring(el, a);
+    ], { duration: ms, easing: EASE_OUT, fill: "forwards" }, "m-collapse");
     if (!a) { if (done) done(); return null; }
-    a.addEventListener("finish", function () { if (done) done(); a.cancel(); });
+    clipDuring(el, a, ms);
+    whenDone(a, ms, function () { if (done) done(); try { a.cancel(); } catch (e) {} });
     return a;
   }
 
@@ -193,15 +201,17 @@
     if (!d.open) {
       d.open = true;
       to = d.offsetHeight;
-      var a = anim(d, [{ height: from + "px" }, { height: to + "px" }], { duration: durFor(to - from), easing: EASE_OUT }, "m-expand");
-      clipDuring(d, a);
+      var ms1 = durFor(to - from);
+      var a = anim(d, [{ height: from + "px" }, { height: to + "px" }], { duration: ms1, easing: EASE_OUT }, "m-expand");
+      clipDuring(d, a, ms1);
       [].forEach.call(d.children, function (c) { if (c !== s) contentIn(c, 40); });
-      if (a) a.addEventListener("finish", function () { d.__mBusy = false; }); else d.__mBusy = false;
+      whenDone(a, ms1, function () { d.__mBusy = false; });
     } else {
       d.open = false; to = d.offsetHeight; d.open = true;   // dichte hoogte meten
-      var c = anim(d, [{ height: from + "px" }, { height: to + "px" }], { duration: Math.round(durFor(from - to) * 0.8), easing: EASE_OUT }, "m-collapse");
-      clipDuring(d, c);
-      if (c) c.addEventListener("finish", function () { d.open = false; d.__mBusy = false; }); else { d.open = false; d.__mBusy = false; }
+      var ms2 = Math.round(durFor(from - to) * 0.8);
+      var c = anim(d, [{ height: from + "px" }, { height: to + "px" }], { duration: ms2, easing: EASE_OUT }, "m-collapse");
+      clipDuring(d, c, ms2);
+      whenDone(c, ms2, function () { d.open = false; d.__mBusy = false; });
     }
   }, true);
 
