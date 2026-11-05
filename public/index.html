@@ -589,6 +589,7 @@ summary{border-radius:11px;font-weight:600}
 .refresh{color:var(--mute)}
 @media(max-width:640px){.secnav{display:flex}.brandlogo{height:32px}h1{font-size:20px}}
 </style>
+<script src="/motion.js?v=1"></script>
 </head>
 <body>
 <div class="wrap" id="app" style="display:none">
@@ -4289,6 +4290,7 @@ window.__kernLoad=function(){
     if(sec==="prest"&&window.__prestLoad)window.__prestLoad();
     if(sec==="meta"&&window.__metaLoad)window.__metaLoad();
     if(sec==="reach"&&window.__reachLoad)window.__reachLoad();
+    if(window.Motion)window.Motion.shown(sec);                 // beweging: blokken komen binnen, pil schuift mee
     if(updateHash&&location.hash!=="#"+sec)history.replaceState(null,"","#"+sec);
     window.dispatchEvent(new Event("resize")); // charts hersizen na tab-wissel
   }
