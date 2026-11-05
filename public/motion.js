@@ -1,30 +1,33 @@
 /* ===== Beweging (motion.js) =====
  * Overgenomen uit de Lex-app (Motion-blok + CSS "beweging") en aangepast aan dit dashboard.
- * Zonder library: WAAPI (element.animate) voor binnenkomen/verschuiven, één requestAnimationFrame-lus
- * voor optellende getallen. Alleen transform en opacity (plus clip-path voor de tab-pil).
+ * Zonder library: WAAPI (element.animate). Geen optellende getallen meer: getallen staan meteen goed.
  *
- * Generiek: elke innerHTML-wissel binnen een tabblad (#sec-…) wordt onderschept. Vlak vóór de wissel
- * meten we de rijen, vlak erna (microtask, vóór de volgende paint) kiezen we:
- *   - binnenkomen   → bij openen/wisselen van tabblad of als er "laden…" stond (nieuwe data)
- *   - verschuiven   → bij klikken/verversen: rijen glijden naar hun nieuwe plek (FLIP), getallen tellen
+ * Wat beweegt er:
+ *   - binnenkomen   → bij openen/wisselen van tabblad of als er "laden…" stond: blokken en de eerste rijen
+ *                      glijden kort na elkaar in beeld
+ *   - uitklappen    → <details>, panelen die verschijnen, het product-detail bij Te verzenden, menu's en
+ *                      vensters openen soepel (hoogte + inhoud die na elkaar in beeld komt) en klappen netjes dicht
+ *   - verschuiven   → bij sorteren/filteren glijden rijen naar hun nieuwe plek (FLIP), een verdwenen rij schuift weg
+ *   - tab-pil       → één pil achter de actieve knop die via clip-path meeschuift
  *   - stil          → tijdens typen in een zoekveld, of bij "minder beweging"
- * Zelfde HTML opnieuw gezet (bijv. na opslaan zonder zichtbare wijziging): lopende animaties lopen door.
- * Bestaande render-code hoeft dus niet aangepast te worden; index.html roept alleen Motion.shown(sec) aan.
+ * Generiek: elke innerHTML-wissel binnen een tabblad (#sec-…) wordt onderschept (vóór en ná meten), dus bestaande
+ * render-code hoeft niet aangepast te worden; index.html roept alleen Motion.shown(sec) aan.
  */
 (function () {
   "use strict";
   if (window.Motion || !window.Element || !Element.prototype.animate) return;
 
   var REDUCE = window.matchMedia ? matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
-  var EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)";       // binnenkomen
+  var EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)";       // binnenkomen, uitklappen
   var EASE_IN_OUT = "cubic-bezier(0.77, 0, 0.175, 1)";   // verschuiven
   var MOVE_MS = 300;
-  var forceOff = false;
+  var forceOff = false, quietDepth = 0;
   function off() { return forceOff || REDUCE.matches; }
   function now() { return performance.now(); }
 
   /* ---------- CSS ---------- */
   var LOADERS = ".knloading,.tloading,.rloading,.svloading,.adloading,.rvloading,.kloading,.floading,.dloading,.ploading,.vzload,.m-loading";
+  function each(sel, suffix) { return sel.split(",").map(function (s) { return s + suffix; }).join(","); }
   var CSS = ""
     + ":root{--ease-out:cubic-bezier(0.23,1,0.32,1);--ease-in-out:cubic-bezier(0.77,0,0.175,1)}"
     /* tab-pil: één element achter de knoppen, clip-path schuift naar de actieve */
@@ -33,27 +36,30 @@
     + ".m-has-ind>button{transition:color 200ms ease,background-color 150ms ease,border-color 150ms ease,transform 160ms var(--ease-out)}"
     + ".m-has-ind>button.on{background:transparent!important;background-image:none!important;border-color:transparent!important;box-shadow:none!important}"
     + "#secnav.m-has-ind .navgroup .navtop{transition:color 200ms ease,background-color 150ms ease,box-shadow 150ms ease,transform 160ms var(--ease-out)}"
-    + "#secnav.m-has-ind .navgroup.hasactive .navtop{background:transparent!important;background-image:none!important;border-color:transparent!important;box-shadow:none!important}"
+    + "#secnav.m-has-ind .navgroup.hasactive .navtop{background:transparent!important;background-image:none!important;border-color:transparent!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}"
     /* knoppen veren in bij klikken */
     + "button:active:not(:disabled),.btn:active{transform:scale(.97)}"
     + "button,.btn{transition-property:transform,background-color,color,border-color,box-shadow,opacity;transition-duration:160ms,150ms,150ms,150ms,150ms,150ms;transition-timing-function:var(--ease-out),ease,ease,ease,ease,ease}"
+    /* uitklapmenu's in de navigatie: uit de knop tevoorschijn */
+    + ".navgroup.open .navmenu{transform-origin:top left;animation:m-menu 200ms var(--ease-out)}"
+    + "@keyframes m-menu{from{opacity:0;transform:translateY(-6px) scale(.97)}}"
+    + ".navcar{transition:transform 200ms var(--ease-out)}"
     /* bolletjes die ploppen */
     + ".vzchip b{display:inline-block}"
-    + ".m-num{font-variant-numeric:tabular-nums}"
     /* verdwijnende rij + oplichten */
     + ".m-ghost{position:absolute;z-index:60;pointer-events:none;overflow:hidden;border-radius:10px;background:rgba(255,255,255,.94);box-shadow:0 8px 24px rgba(31,38,35,.12)}"
     + ".m-ghost table{border-collapse:collapse}"
     + ".m-glow{position:absolute;z-index:5;pointer-events:none;border-radius:8px;background:rgba(1,181,45,.16)}"
     /* laadbalkje dat glanst (alleen transform) */
-    + LOADERS.split(",").map(function (s) { return s + "{position:relative;overflow:hidden}"; }).join("")
-    + LOADERS.split(",").map(function (s) { return s + "::after"; }).join(",") + "{content:\"\";display:block;width:min(220px,60%);height:6px;margin:14px auto 0;border-radius:999px;background:rgba(60,60,67,.10)}"
-    + LOADERS.split(",").map(function (s) { return s + "::before"; }).join(",") + "{content:\"\";position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,rgba(255,255,255,0) 30%,rgba(255,255,255,.75) 50%,rgba(255,255,255,0) 70%);transform:translateX(-100%);animation:m-sheen 1.3s linear infinite}"
+    + each(LOADERS, "{position:relative;overflow:hidden}").replace(/,/g, "")
+    + each(LOADERS, "::after") + "{content:\"\";display:block;width:min(220px,60%);height:6px;margin:14px auto 0;border-radius:999px;background:rgba(60,60,67,.10)}"
+    + each(LOADERS, "::before") + "{content:\"\";position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,rgba(255,255,255,0) 30%,rgba(255,255,255,.75) 50%,rgba(255,255,255,0) 70%);transform:translateX(-100%);animation:m-sheen 1.3s linear infinite}"
     + "@keyframes m-sheen{to{transform:translateX(100%)}}"
     /* minder beweging: alles meteen op zijn plek */
-    + "@media (prefers-reduced-motion:reduce){.m-ind{transition:none}button:active,.btn:active{transform:none}"
-    + LOADERS.split(",").map(function (s) { return s + "::before"; }).join(",") + "{animation:none;display:none}}"
-    + "html.m-reduce .m-ind{transition:none}html.m-reduce button:active,html.m-reduce .btn:active{transform:none}"
-    + LOADERS.split(",").map(function (s) { return "html.m-reduce " + s + "::before"; }).join(",") + "{animation:none;display:none}";
+    + "@media (prefers-reduced-motion:reduce){.m-ind{transition:none}button:active,.btn:active{transform:none}.navgroup.open .navmenu{animation:none}"
+    + each(LOADERS, "::before") + "{animation:none;display:none}}"
+    + "html.m-reduce .m-ind{transition:none}html.m-reduce button:active,html.m-reduce .btn:active{transform:none}html.m-reduce .navgroup.open .navmenu{animation:none}"
+    + each(LOADERS.split(",").map(function (s) { return "html.m-reduce " + s; }).join(","), "::before") + "{animation:none;display:none}";
   function injectCss() {
     if (document.getElementById("motion-css")) return;
     var st = document.createElement("style");
@@ -62,27 +68,6 @@
     (document.head || document.documentElement).appendChild(st);
   }
   injectCss();
-
-  /* ---------- easing voor de getallen-lus ---------- */
-  function bezier(x1, y1, x2, y2) {
-    var cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
-    var cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
-    function sx(t) { return ((ax * t + bx) * t + cx) * t; }
-    function sy(t) { return ((ay * t + by) * t + cy) * t; }
-    return function (x) {
-      if (x <= 0) return 0;
-      if (x >= 1) return 1;
-      var lo = 0, hi = 1, t = x;
-      for (var i = 0; i < 28; i++) {
-        var v = sx(t);
-        if (Math.abs(v - x) < 1e-5) break;
-        if (v < x) lo = t; else hi = t;
-        t = (lo + hi) / 2;
-      }
-      return sy(t);
-    };
-  }
-  var easeOut = bezier(0.23, 1, 0.32, 1);
 
   /* ---------- wat doet de gebruiker? ---------- */
   var typeAt = 0, enterUntil = new Map();
@@ -106,10 +91,10 @@
   /* ---------- 1. binnenkomen ---------- */
   function cardLike(el) { var c = typeof el.className === "string" ? el.className : ""; return /card|(^|\s)pc(\s|$)/.test(c); }
   // Een rij kaarten komt kaart voor kaart binnen; een inhoudsvak (div met id) per onderdeel.
-  function expand(el, out, depth) {
+  function expandList(el, out, depth) {
     var kids = el.children ? [].slice.call(el.children) : [];
     if (kids.length >= 2 && kids.length <= 10 && kids.filter(cardLike).length >= Math.max(2, kids.length - 1)) kids.forEach(function (k) { out.push(k); });
-    else if (!depth && el.id && !/^sec-/.test(el.id) && !el.classList.contains("m-has-ind") && kids.length >= 2 && kids.length <= 12 && el.tagName === "DIV") kids.forEach(function (k) { expand(k, out, 1); });
+    else if (!depth && el.id && !/^sec-/.test(el.id) && !el.classList.contains("m-has-ind") && kids.length >= 2 && kids.length <= 12 && el.tagName === "DIV") kids.forEach(function (k) { expandList(k, out, 1); });
     else out.push(el);
   }
   function blocksOf(root) {
@@ -119,21 +104,26 @@
     return kids;
   }
   function entering(el) { return el.getAnimations().some(function (a) { return a.id === "m-enter" && a.playState !== "finished"; }); }
+  function rowsIn(el, startDelay, max) {
+    var j = 0;
+    el.querySelectorAll("tbody > tr").forEach(function (tr) {
+      if (j >= max || !tr.getClientRects().length) return;
+      anim(tr, [{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }],
+        { duration: 300, delay: startDelay + j * 28, easing: EASE_OUT, fill: "backwards" }, "m-enter");
+      j++;
+    });
+    return j;
+  }
   function enter(blocks) {
     if (off()) return;
     var list = [], i = 0, rowsLeft = 14;
-    blocks.forEach(function (b) { if (b) expand(b, list); });
+    blocks.forEach(function (b) { if (b) expandList(b, list); });
     list.forEach(function (el) {
       if (!el || el.tagName === "STYLE" || el.tagName === "SCRIPT" || el.classList.contains("m-ind") || !visible(el) || entering(el)) return;
       var delay = Math.min(i++, 7) * 40;
-      anim(el, [{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }],
-        { duration: 300, delay: delay, easing: EASE_OUT, fill: "backwards" }, "m-enter");
-      el.querySelectorAll("tbody > tr").forEach(function (tr) {
-        if (rowsLeft <= 0 || !tr.getClientRects().length) return;
-        var j = 14 - rowsLeft--;
-        anim(tr, [{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }],
-          { duration: 280, delay: delay + 60 + j * 30, easing: EASE_OUT, fill: "backwards" }, "m-enter");
-      });
+      anim(el, [{ opacity: 0, transform: "translateY(12px)" }, { opacity: 1, transform: "none" }],
+        { duration: 340, delay: delay, easing: EASE_OUT, fill: "backwards" }, "m-enter");
+      if (rowsLeft > 0) rowsLeft -= rowsIn(el, delay + 60, rowsLeft);
       // balkjes (voortgang, verdeling) groeien mee vanaf links
       el.querySelectorAll(".ct > .cf, .rvibar > i, .rvdbar > i").forEach(function (bar) {
         if (getComputedStyle(bar).display === "inline") return;
@@ -143,100 +133,117 @@
     });
   }
 
-  /* ---------- 2. optellende getallen ---------- */
-  var NUM_SEL = '.now .big, .pc > .v, [class*="card"] > .v, [class*="card"] > .big, .kncard .knval, .dcard .dc-val';
-  var last = new Map(), lastGroup = new Map(), shownKeys = new Set(), running = new Map(), raf = 0;
-  function numEls(root) {
-    var out = [].slice.call(root.querySelectorAll(NUM_SEL));
-    if (root.matches && root.matches(NUM_SEL)) out.push(root);
-    var up = root.parentElement && root.parentElement.closest ? root.parentElement.closest(NUM_SEL) : null;
-    if (up) out.push(up);
-    return out;
+  /* ---------- 2. uitklappen en dichtklappen ---------- */
+  // Hoogte (met padding/marge) van 0 naar echt, inhoud glijdt er kort na elkaar in. Tijd groeit iets mee met de hoogte.
+  function boxOf(el) {
+    var cs = getComputedStyle(el);
+    return { h: el.offsetHeight, pt: cs.paddingTop, pb: cs.paddingBottom, mt: cs.marginTop, mb: cs.marginBottom };
   }
-  function labelOf(el) {
-    var card = el.parentElement, kids = card ? card.children : [];
-    for (var i = 0; i < kids.length; i++) {
-      var c = kids[i];
-      if (c === el || c.contains(el)) continue;
-      var t = (c.textContent || "").replace(/\?/g, "").replace(/\s+/g, " ").trim();
-      if (t) return t.slice(0, 40);
-    }
-    return "";
+  function durFor(h) { return Math.round(Math.min(420, 240 + h * 0.18)); }
+  function clipDuring(el, a) {
+    var prev = el.style.overflow;
+    el.style.overflow = "hidden";
+    if (a) a.addEventListener("finish", function () { el.style.overflow = prev; });
+    if (a) a.addEventListener("cancel", function () { el.style.overflow = prev; });
   }
-  function numNode(el) {
-    var w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), n;
-    while ((n = w.nextNode())) if (/\d/.test(n.nodeValue)) return n;
-    return null;
-  }
-  var TOK = /[-−]?\d[\d.]*(?:,\d+)?/;
-  function parse(el) {
-    var toks = (el.textContent || "").match(/[-−]?\d[\d.]*(?:,\d+)?/g) || [];
-    if (toks.length !== 1) return null;                 // datums, tijden (2u 54m), "x / y": niet tellen
-    var node = numNode(el); if (!node) return null;
-    var m = node.nodeValue.match(TOK); if (!m) return null;
-    var tok = m[0], neg = /^[-−]/.test(tok), body = tok.replace(/^[-−]/, "");
-    var parts = body.split(","), ip = parts[0], dp = parts[1] || "";
-    if (/\./.test(ip) && !/^\d{1,3}(\.\d{3})+$/.test(ip)) return null;
-    var v = parseFloat(ip.replace(/\./g, "") + (dp ? "." + dp : ""));
-    if (!isFinite(v)) return null;
-    return { node: node, pre: node.nodeValue.slice(0, m.index), post: node.nodeValue.slice(m.index + tok.length),
-      v: neg ? -v : v, dec: dp.length, group: ip.indexOf(".") >= 0, minus: tok.charAt(0) === "−" ? "−" : "-" };
-  }
-  function fmt(p, v) {
-    var a = Math.abs(v), lim = 0.5 * Math.pow(10, -p.dec);
-    var s = a.toLocaleString("nl-NL", { minimumFractionDigits: p.dec, maximumFractionDigits: p.dec, useGrouping: p.group });
-    return (v < 0 && a >= lim ? p.minus : "") + s;
-  }
-  function write(p, v) { if (p.node.isConnected) p.node.nodeValue = p.pre + fmt(p, v) + p.post; }
-  function count(root, sec, enterMode, instant) {
-    if (!root || !sec) return;
-    var occ = new Map();
-    numEls(root).forEach(function (el) {
-      var k = sec.id + "|" + labelOf(el), n = occ.get(k) || 0;
-      occ.set(k, n + 1);
-      if (n) k += "#" + n;
-      var p = parse(el); if (!p) return;
-      var to = p.v, run = running.get(k), vis = visible(el);
-      if (run && run.to === to && !instant) { run.p = p; write(p, run.value); return; } // loopt al: verder op het nieuwe element
-      var from;
-      if (run) from = run.value;
-      else if (enterMode && !shownKeys.has(k)) from = 0;
-      else if (last.has(k)) from = last.get(k);
-      else from = to;
-      last.set(k, to);
-      if (vis) shownKeys.add(k);
-      if (lastGroup.get(k)) p.group = true;
-      lastGroup.set(k, p.group);
-      if (instant || off() || !vis || from === to) { running.delete(k); return; } // tekst staat al goed
-      var small = Math.abs(to - from) <= Math.max(2 * Math.pow(10, -p.dec), Math.abs(to) * 0.02);
-      write(p, from);
-      running.set(k, { p: p, from: from, to: to, value: from, t0: now(), dur: small ? 300 : 800 });
+  function contentIn(el, delay) {
+    var kids = [].slice.call(el.querySelectorAll("tbody > tr")).slice(0, 12);
+    if (!kids.length) kids = [].slice.call(el.children).slice(0, 8);
+    kids.forEach(function (k, j) {
+      if (!k.getClientRects().length) return;
+      anim(k, [{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }],
+        { duration: 280, delay: delay + j * 28, easing: EASE_OUT, fill: "backwards" }, "m-enter");
     });
-    if (running.size && !raf) raf = requestAnimationFrame(step);
   }
-  function step(t) {
-    raf = 0;
-    running.forEach(function (r, k) {
-      var x = Math.min(1, (t - r.t0) / r.dur);
-      r.value = r.from + (r.to - r.from) * easeOut(x);
-      write(r.p, x >= 1 ? r.to : r.value);
-      if (x >= 1) running.delete(k);
-    });
-    if (running.size) raf = requestAnimationFrame(step);
+  function expand(el) {
+    if (off() || !visible(el)) return null;
+    var b = boxOf(el);
+    if (b.h < 8) return null;
+    var d = durFor(b.h);
+    var a = anim(el, [
+      { height: "0px", paddingTop: "0px", paddingBottom: "0px", marginTop: "0px", marginBottom: "0px", opacity: 0 },
+      { height: b.h + "px", paddingTop: b.pt, paddingBottom: b.pb, marginTop: b.mt, marginBottom: b.mb, opacity: 1 }
+    ], { duration: d, easing: EASE_OUT }, "m-expand");
+    clipDuring(el, a);
+    contentIn(el, 60);
+    return a;
+  }
+  function collapse(el, done) {
+    if (off() || !visible(el)) { if (done) done(); return null; }
+    var b = boxOf(el);
+    var a = anim(el, [
+      { height: b.h + "px", paddingTop: b.pt, paddingBottom: b.pb, marginTop: b.mt, marginBottom: b.mb, opacity: 1 },
+      { height: "0px", paddingTop: "0px", paddingBottom: "0px", marginTop: "0px", marginBottom: "0px", opacity: 0 }
+    ], { duration: Math.round(durFor(b.h) * 0.8), easing: EASE_OUT, fill: "forwards" }, "m-collapse");
+    clipDuring(el, a);
+    if (!a) { if (done) done(); return null; }
+    a.addEventListener("finish", function () { if (done) done(); a.cancel(); });
+    return a;
   }
 
-  /* ---------- 5. bolletjes die ploppen ---------- */
+  // <details>: klik op de samenvatting klapt soepel open of dicht
+  document.addEventListener("click", function (e) {
+    var s = e.target && e.target.closest ? e.target.closest("summary") : null;
+    if (!s || off() || e.defaultPrevented) return;
+    var d = s.parentElement;
+    if (!d || d.tagName !== "DETAILS" || !secOf(d) || d.__mBusy) return;
+    e.preventDefault();
+    var from = d.offsetHeight, to;
+    d.__mBusy = true;
+    if (!d.open) {
+      d.open = true;
+      to = d.offsetHeight;
+      var a = anim(d, [{ height: from + "px" }, { height: to + "px" }], { duration: durFor(to - from), easing: EASE_OUT }, "m-expand");
+      clipDuring(d, a);
+      [].forEach.call(d.children, function (c) { if (c !== s) contentIn(c, 40); });
+      if (a) a.addEventListener("finish", function () { d.__mBusy = false; }); else d.__mBusy = false;
+    } else {
+      d.open = false; to = d.offsetHeight; d.open = true;   // dichte hoogte meten
+      var c = anim(d, [{ height: from + "px" }, { height: to + "px" }], { duration: Math.round(durFor(from - to) * 0.8), easing: EASE_OUT }, "m-collapse");
+      clipDuring(d, c);
+      if (c) c.addEventListener("finish", function () { d.open = false; d.__mBusy = false; }); else { d.open = false; d.__mBusy = false; }
+    }
+  }, true);
+
+  // Panelen die verschijnen (display: none → zichtbaar) en vensters (modal) die openen
+  function isModal(el) { return el.classList && (el.classList.contains("modal") || el.classList.contains("omodal")); }
+  function modalIn(m) {
+    if (off()) return;
+    anim(m, [{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: EASE_OUT }, "m-modal");
+    var p = m.querySelector(".panel, .opanel, [class*='panel']") || m.firstElementChild;
+    if (p) anim(p, [{ opacity: 0, transform: "translateY(10px) scale(.97)" }, { opacity: 1, transform: "none" }], { duration: 260, easing: EASE_OUT }, "m-modal");
+  }
+  var shownState = new WeakMap();
+  new MutationObserver(function (muts) {
+    if (off()) return;
+    var seen = new Set();
+    muts.forEach(function (m) {
+      var t = m.target;
+      if (!t || t.nodeType !== 1 || seen.has(t)) return;
+      if (isModal(t)) {
+        var vis = getComputedStyle(t).display !== "none";
+        if (vis && !shownState.get(t)) { seen.add(t); modalIn(t); }
+        shownState.set(t, vis);
+        return;
+      }
+      if (m.attributeName !== "style" || !/display:\s*none/.test(m.oldValue || "") || (t.style && t.style.display === "none")) return;
+      if (/^sec-/.test(t.id || "") || t.id === "app" || t.tagName === "BUTTON" || t.tagName === "A" || !secOf(t) || typing()) return;
+      if (!visible(t) || t.offsetHeight < 40) return;
+      seen.add(t);
+      expand(t);
+    });
+  }).observe(document.documentElement, { subtree: true, attributes: true, attributeOldValue: true, attributeFilter: ["style", "class"] });
+
+  /* ---------- 3. bolletjes die ploppen ---------- */
   var POP_SEL = ".vzchip b, .m-pop", lastPop = new Map();
   function pops(root, sec, quiet) {
     if (!sec) return;
-    var els = [].slice.call(root.querySelectorAll(POP_SEL));
-    els.forEach(function (el, i) {
+    [].forEach.call(root.querySelectorAll(POP_SEL), function (el, i) {
       var host = el.closest("[data-k]"), k = sec.id + "|pop|" + (host ? host.getAttribute("data-k") : i);
       var v = (el.textContent || "").trim(), was = lastPop.get(k);
       lastPop.set(k, v);
       if (quiet || off() || was === undefined || was === v || !visible(el)) return;
-      anim(el, [{ transform: "scale(.85)", opacity: 0.4 }, { transform: "scale(1.12)", opacity: 1, offset: 0.55 }, { transform: "none", opacity: 1 }],
-        { duration: 320, easing: EASE_OUT }, "m-pop");
+      pop(el);
     });
   }
   function pop(el) {
@@ -328,7 +335,7 @@
     if (a) a.onfinish = function () { g.remove(); }; else g.remove();
   }
 
-  /* ---------- 3. tabbladen: één pil die via clip-path naar het actieve tabblad schuift ---------- */
+  /* ---------- 5. tabbladen: één pil die via clip-path naar het actieve tabblad schuift ---------- */
   var SEG_SEL = '[class*="seg"], [class*="preset"], #tabs', lastClip = new Map();
   function segActive(c) {
     if (c.id === "secnav") return c.querySelector(".navgroup.hasactive > .navtop") || null;
@@ -447,7 +454,7 @@
     root.__mHTML = html;
     if (!snap.vis) return snap;
     var t = now();
-    if (off() || typing()) snap.mode = "still";
+    if (off() || typing() || quietDepth) snap.mode = "still";
     else if ((enterUntil.get(sec.id) || 0) > t || wasLoading(root)) snap.mode = "enter";
     else snap.mode = "flip";
     if (snap.mode === "flip" && !snap.same) {
@@ -460,11 +467,10 @@
   }
   function after(root, s) {
     if (!root.isConnected) return;
-    if (!s.vis || s.mode === "still") { count(root, s.sec, false, true); pops(root, s.sec, true); pills(root, false); return; }
+    if (!s.vis || s.mode === "still") { pops(root, s.sec, true); pills(root, false); return; }
     if (s.same && s.anims && s.anims.length) restoreAnims(root, s.anims);
     else if (s.mode === "enter") enter(blocksOf(root));
     else if (s.mode === "flip" && s.rows) flip(root, s.rows);
-    count(root, s.sec, s.mode === "enter", false);
     pops(root, s.sec, s.mode === "enter");
     pills(root, false);
   }
@@ -489,6 +495,8 @@
       },
     });
   }
+  // Opnieuw tekenen zonder eigen beweging (de aanroeper animeert zelf, bijv. uitklappen)
+  function quiet(fn) { quietDepth++; try { fn(); } finally { quietDepth--; } }
 
   /* ---------- tabblad geopend / gewisseld (aangeroepen vanuit activate) ---------- */
   var firstShow = true;
@@ -513,11 +521,10 @@
     enterUntil.set(el.id, now() + 1500);
     navPill(!first);
     queueMicrotask(function () {
-      if (off()) { count(el, el, false, true); pills(el, false); return; }
+      if (off()) { pills(el, false); return; }
       var blocks = blocksOf(el);
       if (first) blocks = [document.querySelector(".hd"), document.getElementById("secnav")].concat(blocks);
       enter(blocks);
-      count(el, el, true, false);
       pops(el, el, true);
       pills(el, false);
     });
@@ -529,6 +536,6 @@
   function reduce(on) { forceOff = !!on; document.documentElement.classList.toggle("m-reduce", forceOff); }
   if (REDUCE.addEventListener) REDUCE.addEventListener("change", function () { document.documentElement.classList.toggle("m-reduce", off()); });
 
-  window.Motion = { shown: shown, enter: enter, blocksOf: blocksOf, count: count, flip: flip, pop: pop, pills: pills, reduce: reduce, off: off,
-    measure: measureRows };
+  window.Motion = { shown: shown, enter: enter, blocksOf: blocksOf, expand: expand, collapse: collapse, quiet: quiet,
+    flip: flip, pop: pop, pills: pills, reduce: reduce, off: off, measure: measureRows };
 })();
