@@ -50,7 +50,8 @@
     + "#sec-verzend .nm{font-size:12.5px;color:var(--mute);margin-top:2px;max-width:520px}"
     + "#sec-verzend .z{color:rgba(60,60,67,.3)}"
     + "#sec-verzend td.tot{font-weight:800;font-size:16px;color:var(--ink)}"
-    + "#sec-verzend tr.vzdet td{background:rgba(255,255,255,.35);padding:4px 14px 12px}"
+    + "#sec-verzend tr.vzdet td{background:rgba(255,255,255,.35);padding:0}"
+    + "#sec-verzend .vzdetin{padding:4px 14px 12px}"
     + "#sec-verzend .vzol{width:100%;border-collapse:collapse;font-size:13px}"
     + "#sec-verzend .vzol td{border-bottom:1px dashed rgba(60,60,67,.12);padding:6px 8px;text-align:left}"
     + "#sec-verzend .vzol td.r{text-align:right;font-weight:700}"
@@ -88,7 +89,7 @@
       var th = e.target.closest && e.target.closest("th[data-k]");
       if (th) { var k = th.getAttribute("data-k"); if (st.sort === k) st.dir = -st.dir; else { st.sort = k; st.dir = k === "sku" ? 1 : -1; } render(); return; }
       var tr = e.target.closest && e.target.closest("tr.vzrow");
-      if (tr) { var key = tr.getAttribute("data-sku"); st.open = st.open === key ? null : key; render(); }
+      if (tr) toggleRow(tr.getAttribute("data-sku"));
     });
     el("vzchips").addEventListener("click", function (e) {
       var b = e.target.closest && e.target.closest(".vzchip"); if (!b) return;
@@ -97,6 +98,22 @@
       try { localStorage.setItem("vz_off", JSON.stringify(st.off)); } catch (x) {}
       render();
     });
+  }
+
+  // Regel aanklikken: orders klappen soepel open of dicht (via motion.js als die er is)
+  function toggleRow(key) {
+    var M = window.Motion, box = el("vztbl");
+    var openDet = box && box.querySelector("tr.vzdet .vzdetin");
+    if (st.open === key) {
+      st.open = null;
+      if (M && M.collapse && openDet) M.collapse(openDet, function () { M.quiet(render); });
+      else render();
+      return;
+    }
+    st.open = key;
+    if (M && M.quiet) M.quiet(render); else render();
+    var det = box && box.querySelector("tr.vzdet .vzdetin");
+    if (M && M.expand && det) M.expand(det);
   }
 
   function load(fresh) {
@@ -206,9 +223,9 @@
       if (open) {
         var ol = r.o.slice().sort(function (a, b) { return a[3] < b[3] ? -1 : a[3] > b[3] ? 1 : 0; });
         var lbl = {}; D.statuses.forEach(function (s) { lbl[s.key] = s.label; });
-        tr += '<tr class="vzdet"><td colspan="' + cols.length + '"><table class="vzol">' + ol.map(function (l) {
+        tr += '<tr class="vzdet"><td colspan="' + cols.length + '"><div class="vzdetin"><table class="vzol">' + ol.map(function (l) {
           return "<tr><td>" + esc(l[0]) + "</td><td>#" + esc(l[1]) + '</td><td><span class="vzst ' + esc(l[2]) + '">' + esc(lbl[l[2]] || l[2]) + "</span></td><td>" + esc(dmy(l[3])) + '</td><td class="r">' + n0(l[6]) + " st.</td></tr>";
-        }).join("") + "</table></td></tr>";
+        }).join("") + "</table></div></td></tr>";
       }
       return tr;
     }).join("");
