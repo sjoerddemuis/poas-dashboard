@@ -79,12 +79,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .navtop{background:rgba(255,255,255,.5)!important;-webkit-backdrop-filter:var(--g-blur);backdrop-filter:var(--g-blur);border:var(--g-border)!important;border-radius:12px!important;
   box-shadow:0 2px 10px rgba(31,38,35,.05),inset 0 1px 0 rgba(255,255,255,.9);font-weight:600!important;transition:background .2s,box-shadow .2s}
 .navtop:hover{background:rgba(255,255,255,.7)!important}
-.navgroup.hasactive .navtop{background:linear-gradient(180deg,rgba(1,181,45,.18),rgba(1,181,45,.10))!important;border-color:rgba(1,181,45,.32)!important;color:#05802a!important;
-  box-shadow:0 4px 14px rgba(1,181,45,.10),inset 0 1px 0 rgba(255,255,255,.75)}
+.navgroup.hasactive .navtop{background:var(--act-bg)!important;border-color:rgba(255,255,255,.28)!important;color:#fff!important;
+  box-shadow:var(--act-shadow);text-shadow:0 1px 1px rgba(0,40,10,.18)}
 .navmenu{background:rgba(255,255,255,.78)!important;-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);
   border:var(--g-border)!important;border-radius:14px!important;box-shadow:0 16px 48px rgba(31,38,35,.16),inset 0 1px 0 rgba(255,255,255,.9)!important}
 .navmenu .snav:hover{background:rgba(118,118,128,.12)!important}
-.navmenu .snav.on{background:rgba(1,181,45,.14)!important;border-color:rgba(1,181,45,.30)!important;color:#05802a!important}
+.navmenu .snav.on{background:var(--act-bg)!important;border-color:rgba(255,255,255,.28)!important;color:#fff!important;box-shadow:var(--act-shadow)!important;text-shadow:0 1px 1px rgba(0,40,10,.18)}
 
 /* ---------- knoppen, tabs, invoer ---------- */
 .btn,.tab{background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.75)!important;box-shadow:0 1px 3px rgba(31,38,35,.06)}
@@ -106,3 +106,20 @@ th{letter-spacing:.2px!important}
 
 /* minder beweging als gebruiker dat wil */
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ---------- actieve knoppen: glazig groen in de logo-kleur (#2ABA56), witte tekst ----------
+ * Menu, wisselknoppen, periodeknoppen en statusknoppen hebben zo één stijl. Waar motion.js een
+ * schuivende pil plaatst (.m-has-ind), krijgt de pil dit verloop en blijft de knop zelf doorzichtig. */
+:root{
+  --act-bg:linear-gradient(180deg,rgba(54,200,100,.9) 0%,rgba(30,164,72,.9) 100%);
+  --act-shadow:inset 0 1px 0 rgba(255,255,255,.38),0 4px 14px rgba(30,140,70,.22);
+}
+[id^="sec-"] [class*="seg"]:not(.m-has-ind) > button.on,
+[id^="sec-"] [class*="preset"]:not(.m-has-ind) > button.on,
+#tabs:not(.m-has-ind) > .tab.on,
+#sec-verzend .vzchip.on{
+  background:var(--act-bg)!important;background-color:transparent!important;color:#fff!important;
+  border-color:rgba(255,255,255,.28)!important;box-shadow:var(--act-shadow)!important;text-shadow:0 1px 1px rgba(0,40,10,.18)}
+[id^="sec-"] .m-has-ind > button.on,#tabs.m-has-ind > .tab.on{color:#fff!important;text-shadow:0 1px 1px rgba(0,40,10,.18)}
+#sec-verzend .vzchip.on b{color:rgba(255,255,255,.78)!important}
+.m-ind{box-shadow:inset 0 1px 0 rgba(255,255,255,.38)}
