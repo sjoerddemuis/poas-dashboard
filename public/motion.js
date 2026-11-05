@@ -508,7 +508,10 @@
       pops(el, el, true);
       pills(el, false);
     });
+    // nog geen layout (bijv. vlak na laden of in een smal/verborgen venster): pil na de eerste frame alsnog plaatsen
+    requestAnimationFrame(function () { navPill(false); pills(el, false); });
   }
+  window.addEventListener("load", function () { navPill(false); });
 
   function reduce(on) { forceOff = !!on; document.documentElement.classList.toggle("m-reduce", forceOff); }
   if (REDUCE.addEventListener) REDUCE.addEventListener("change", function () { document.documentElement.classList.toggle("m-reduce", off()); });
