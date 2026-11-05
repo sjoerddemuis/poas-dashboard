@@ -492,9 +492,22 @@
 
   /* ---------- tabblad geopend / gewisseld (aangeroepen vanuit activate) ---------- */
   var firstShow = true;
+  var pendingSec = null, waitMO = null;
   function shown(sec) {
     var el = document.getElementById("sec-" + sec);
     if (!el) return;
+    if (!visible(el)) {                       // app nog verborgen (bijv. vóór het inloggen): zodra hij zichtbaar wordt alsnog
+      pendingSec = sec;
+      if (!waitMO && document.body) {
+        waitMO = new MutationObserver(function () {
+          var p = pendingSec && document.getElementById("sec-" + pendingSec);
+          if (p && visible(p)) { var s = pendingSec; pendingSec = null; waitMO.disconnect(); waitMO = null; shown(s); }
+        });
+        waitMO.observe(document.body, { subtree: true, attributes: true, attributeFilter: ["style", "class", "hidden"] });
+      }
+      return;
+    }
+    pendingSec = null;
     var first = firstShow;
     firstShow = false;
     enterUntil.set(el.id, now() + 1500);
