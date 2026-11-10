@@ -1,7 +1,7 @@
 // Beveiligde live-data endpoint. Alleen voor ingelogde gebruikers.
 // Haalt Metorik-cijfers per shop op (server-side, token blijft geheim) en cachet 30 min.
 const { getSession, readBody } = require("./_lib/util");
-const { allData, SHOPS } = require("./_lib/metorik");
+const { allData, SHOPS, netAndAdsBy } = require("./_lib/metorik");
 const { getKey, setKey, kv } = require("./_lib/store");
 
 let cache = null, cacheAt = 0;
@@ -388,6 +388,20 @@ function computeFromEntries(st) {
   const companies = comps.map((c) => ({ name: cleanName(c), us: /ongediertewinkel/i.test(c), avg: avgByComp[c] }));
   return { source: "manual", periods, companies };
 }
+// Eigen shop: echte orders per dag uit Metorik i.p.v. ordernummer-sprongen. Ordernummers
+// lopen ook op door o.a. concept-checkouts (sinds begin nov. 2026 ~2 nummers per echte order),
+// dus voor onszelf gebruiken we de exacte telling. Concurrenten blijven via hun ordernummer.
+async function ownDailyOrders(sheetData) {
+  const e = (sheetData && sheetData.entries) || []; if (e.length < 2) return null;
+  const name = (sheetData.competitors || []).find((c) => /ongediertewinkel/i.test(c)); if (!name) return null;
+  const shop = SHOPS.find((s) => s[0] === "NL"); const tok = shop && process.env[shop[1]]; if (!tok) return null;
+  const start = e[0].date, end = addD(e[e.length - 1].date, -1);
+  if (end < start) return null;
+  const by = await netAndAdsBy(tok, start, end, "day");
+  const daily = {};
+  Object.keys(by || {}).forEach((d) => { if (by[d] && typeof by[d].orders === "number") daily[d] = by[d].orders; });
+  return Object.keys(daily).length ? { [name]: daily } : null;
+}
 async function marketView(req, res) {
   const now = Date.now();
   if (mCache.market && now - mCache.market.at < MTTL && !(req.query && req.query.fresh)) return res.json(mCache.market.data);
@@ -400,6 +414,7 @@ async function marketView(req, res) {
     out.competitors = sheetData.competitors;
     out.entries = sheetData.entries;
     out.hasData = sheetData.entries.length >= 2;
+    try { out.ownDaily = await ownDailyOrders(sheetData); } catch (e) { out.ownErr = e.message || String(e); }
     if (sheetData.entries.length < 2) out.note = "Nog maar één meting in de sheet — voeg een tweede datumrij toe om orders/dag en marktaandeel te zien.";
   } else {
     const st = await loadMeasurements();                     // terugval: handmatige metingen in KV
