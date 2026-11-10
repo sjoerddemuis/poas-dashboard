@@ -3268,14 +3268,14 @@ window.__kernLoad=function(){
     const sorted=entries.slice().sort((a,b)=>a.date<b.date?-1:1);
     const cov0=sorted[0].date, cov1=sorted[sorted.length-1].date;
     const lo=(from&&from>cov0)?from:cov0, hi=(to&&to<cov1)?to:cov1;
-    const buckets={};
+    const buckets={}; const OWN=(MK&&MK.ownDaily)||{};
     for(let i=1;i<sorted.length;i++){
       const a=sorted[i-1].date, b=sorted[i].date, nd=daysBet(a,b); if(nd<=0)continue;
       const rate={};
       comps.forEach(c=>{ const v0=+(sorted[i-1].vals&&sorted[i-1].vals[c]); const v1=+(sorted[i].vals&&sorted[i].vals[c]); rate[c]=(isFinite(v0)&&isFinite(v1))?(v1-v0)/nd:null; });
       let d=a;
       for(let k=0;k<nd;k++){
-        if(d>=lo&&d<=hi){ const key=gran==="month"?d.slice(0,7):(gran==="day"?d:mondayOf(d)); const bk=buckets[key]||(buckets[key]={r:{}}); comps.forEach(c=>{ if(rate[c]!=null&&isFinite(rate[c])){ (bk.r[c]=bk.r[c]||[]).push(rate[c]); } }); }
+        if(d>=lo&&d<=hi){ const key=gran==="month"?d.slice(0,7):(gran==="day"?d:mondayOf(d)); const bk=buckets[key]||(buckets[key]={r:{}}); comps.forEach(c=>{ const od=OWN[c]; const v=(od&&od[d]!=null)?od[d]:rate[c]; if(v!=null&&isFinite(v)){ (bk.r[c]=bk.r[c]||[]).push(v); } }); }
         d=addDayStr(d,1);
       }
     }
@@ -3375,7 +3375,7 @@ window.__kernLoad=function(){
         +((mkFrom||mkTo)?'<button class="mktfclear">✕ tijdvak wissen</button>':'')
         +'</div>';
     }
-    const chartBlock = P ? ('<div class="knchartwrap"><div class="kncharthd">Marktaandeel via verkoopgroei &nbsp; '+head+''+qtip(''+sub+esc(src)+' · ongediertewinkel.nl uitgelicht (dik groen)')+'</div>'
+    const chartBlock = P ? ('<div class="knchartwrap"><div class="kncharthd">Marktaandeel via verkoopgroei &nbsp; '+head+''+qtip(''+sub+esc(src)+' · ongediertewinkel.nl uitgelicht (dik groen). Onze eigen lijn telt echte orders uit Metorik; concurrenten via de stijging van hun ordernummer.')+'</div>'
       +ctrls
       +'<div class="knchartbox"><canvas id="mkchart"></canvas></div></div>'
       +'<div class="mtbl"><div class="mtscroll"><table><thead>'+th+'</thead><tbody>'+totRow+body+'</tbody></table></div>'
