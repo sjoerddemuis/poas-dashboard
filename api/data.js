@@ -393,23 +393,12 @@ function computeFromEntries(st) {
 // Voor onszelf tellen we precies hetzelfde, maar zonder ordernummers die nooit een order werden
 // (sinds begin nov. 2026 slaat de shop veel nummers over). Per dag gecachet in KV; afgelopen
 // dagen worden steeds ververst, oudere dagen liggen vast.
-const OWN_KEY = "market:ownall:NL";
+const OWN_KEY = "market:ownall:NL:v2";
 const MET_TOTALS = "https://app.metorik.com/api/v1/store/orders/totals";
-function amsStartUTC(d) {
-  const t = Date.parse(d + "T00:00:00Z");
-  let off = 1;
-  try {
-    const p = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Amsterdam", timeZoneName: "shortOffset" }).formatToParts(new Date(t)).find((x) => x.type === "timeZoneName");
-    const m = p && String(p.value).match(/GMT([+-]\d+)/);
-    if (m) off = +m[1];
-  } catch (e) {}
-  return new Date(t - off * 3600e3);
-}
-function isoS(dt) { return dt.toISOString().slice(0, 19); }
+// Metorik leest datumfilters in de winkel-tijdzone (Europe/Amsterdam), dus gewoon de kalenderdag.
 async function dayCountAll(tok, d) {
-  const a = amsStartUTC(d), b = new Date(amsStartUTC(addD(d, 1)).getTime() - 1000);
   const u = new URL(MET_TOTALS);
-  u.searchParams.set("filters", JSON.stringify([{ field: "order_created_at", operator: "between", value: [isoS(a), isoS(b)] }]));
+  u.searchParams.set("filters", JSON.stringify([{ field: "order_created_at", operator: "between", value: [d + "T00:00:00", d + "T23:59:59"] }]));
   for (let i = 0; i < 5; i++) {
     const r = await fetch(u, { headers: { Authorization: "Bearer " + tok, Accept: "application/json" } });
     if (r.status === 429) { await new Promise((s) => setTimeout(s, 700 * (i + 1))); continue; }
