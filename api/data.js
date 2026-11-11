@@ -388,18 +388,58 @@ function computeFromEntries(st) {
   const companies = comps.map((c) => ({ name: cleanName(c), us: /ongediertewinkel/i.test(c), avg: avgByComp[c] }));
   return { source: "manual", periods, companies };
 }
-// Eigen shop: echte orders per dag uit Metorik i.p.v. ordernummer-sprongen. Ordernummers
-// lopen ook op door o.a. concept-checkouts (sinds begin nov. 2026 ~2 nummers per echte order),
-// dus voor onszelf gebruiken we de exacte telling. Concurrenten blijven via hun ordernummer.
+// Eigen shop: ALLE orders per dag (elke status, dus ook geannuleerd/onbetaald/mislukt) uit Metorik.
+// Concurrenten meten we via de stijging van hun ordernummer = al hun orders, ook geannuleerde.
+// Voor onszelf tellen we precies hetzelfde, maar zonder ordernummers die nooit een order werden
+// (sinds begin nov. 2026 slaat de shop veel nummers over). Per dag gecachet in KV; afgelopen
+// dagen worden steeds ververst, oudere dagen liggen vast.
+const OWN_KEY = "market:ownall:NL";
+const MET_TOTALS = "https://app.metorik.com/api/v1/store/orders/totals";
+function amsStartUTC(d) {
+  const t = Date.parse(d + "T00:00:00Z");
+  let off = 1;
+  try {
+    const p = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Amsterdam", timeZoneName: "shortOffset" }).formatToParts(new Date(t)).find((x) => x.type === "timeZoneName");
+    const m = p && String(p.value).match(/GMT([+-]\d+)/);
+    if (m) off = +m[1];
+  } catch (e) {}
+  return new Date(t - off * 3600e3);
+}
+function isoS(dt) { return dt.toISOString().slice(0, 19); }
+async function dayCountAll(tok, d) {
+  const a = amsStartUTC(d), b = new Date(amsStartUTC(addD(d, 1)).getTime() - 1000);
+  const u = new URL(MET_TOTALS);
+  u.searchParams.set("filters", JSON.stringify([{ field: "order_created_at", operator: "between", value: [isoS(a), isoS(b)] }]));
+  for (let i = 0; i < 5; i++) {
+    const r = await fetch(u, { headers: { Authorization: "Bearer " + tok, Accept: "application/json" } });
+    if (r.status === 429) { await new Promise((s) => setTimeout(s, 700 * (i + 1))); continue; }
+    if (!r.ok) throw new Error("Metorik totals " + r.status);
+    const j = await r.json();
+    const c = j && j.data && j.data.count;
+    return typeof c === "number" ? c : null;
+  }
+  return null;
+}
 async function ownDailyOrders(sheetData) {
   const e = (sheetData && sheetData.entries) || []; if (e.length < 2) return null;
   const name = (sheetData.competitors || []).find((c) => /ongediertewinkel/i.test(c)); if (!name) return null;
   const shop = SHOPS.find((s) => s[0] === "NL"); const tok = shop && process.env[shop[1]]; if (!tok) return null;
   const start = e[0].date, end = addD(e[e.length - 1].date, -1);
   if (end < start) return null;
-  const by = await netAndAdsBy(tok, start, end, "day");
+  let days = {};
+  try { const s = await getKey(OWN_KEY); if (s && s.days && typeof s.days === "object") days = s.days; } catch (err) {}
+  const recent = addD(ymd(new Date()), -3);
+  const need = [];
+  for (let d = start; d <= end; d = addD(d, 1)) if (days[d] == null || d >= recent) need.push(d);
+  const t0 = Date.now(); let changed = false;
+  for (let i = 0; i < need.length && Date.now() - t0 < 25000; i += 6) {
+    const batch = need.slice(i, i + 6);
+    const res = await Promise.all(batch.map((d) => dayCountAll(tok, d).catch(() => null)));
+    batch.forEach((d, k) => { if (res[k] != null) { days[d] = res[k]; changed = true; } });
+  }
+  if (changed) { try { await setKey(OWN_KEY, { days, updated: new Date().toISOString() }); } catch (err) {} }
   const daily = {};
-  Object.keys(by || {}).forEach((d) => { if (by[d] && typeof by[d].orders === "number") daily[d] = by[d].orders; });
+  for (let d = start; d <= end; d = addD(d, 1)) if (days[d] != null) daily[d] = days[d];
   return Object.keys(daily).length ? { [name]: daily } : null;
 }
 async function marketView(req, res) {
