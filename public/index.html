@@ -3260,6 +3260,15 @@ window.__kernLoad=function(){
   const admin=()=>!!(window.isAdmin&&window.isAdmin());
   const MND=["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
   function fmt(v,share){ if(v==null||!isFinite(v))return "—"; return share?(Math.round(v*10)/10).toLocaleString("nl-NL")+"%":(Math.round(v*10)/10).toLocaleString("nl-NL"); }
+  function brkNote(){
+    const bs=(VIEW&&VIEW.breaks)||[], lo=VIEW&&VIEW.lo, hi=VIEW&&VIEW.hi;
+    const sh=bs.filter(b=>(!lo||b.to>lo)&&(!hi||b.from<hi)); if(!sh.length) return "";
+    const dm=s=>{ const p=s.split("-"); return (+p[2])+" "+MND[+p[1]-1]; };
+    return '<div class="mkbrk" style="margin:4px 2px 10px;padding:8px 12px;border-radius:10px;background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.35);font-size:12px;line-height:1.5">'
+      + sh.map(b=>{ const nd=daysBet(b.from,b.to); const jump=b.raw<0?'terug naar een lager nummer':'+'+Math.round(b.raw*nd).toLocaleString("nl-NL")+' in '+nd+' dagen';
+          return '<b>'+esc(b.name)+'</b>: ordernummer sprong tussen '+dm(b.from)+' en '+dm(b.to)+' ('+jump+'), vermoedelijk een nieuwe nummering. Die periode is geschat op hun gemiddelde van de metingen eromheen'+(b.est!=null?' (~'+Math.round(b.est)+'/dag)':'')+'; vanaf de volgende meting telt de nieuwe reeks gewoon mee.'; }).join('<br>')
+      + '</div>';
+  }
   function addDayStr(ds,n){ const d=new Date(ds+"T00:00:00"); d.setDate(d.getDate()+n); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
   function daysBet(a,b){ return Math.round((new Date(b+"T00:00:00")-new Date(a+"T00:00:00"))/86400000); }
   function mondayOf(ds){ const d=new Date(ds+"T00:00:00"); const day=(d.getDay()+6)%7; d.setDate(d.getDate()-day); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
@@ -3269,10 +3278,30 @@ window.__kernLoad=function(){
     const cov0=sorted[0].date, cov1=sorted[sorted.length-1].date;
     const lo=(from&&from>cov0)?from:cov0, hi=(to&&to<cov1)?to:cov1;
     const buckets={}; const OWN=(MK&&MK.ownDaily)||{};
+    // Ordernummer-breuken (concurrent krijgt nieuwe nummering/platform): een interval met een
+    // negatieve of extreem hoge stijging (>4x hun mediaan) tellen we niet, maar schatten we op
+    // het gemiddelde van de metingen eromheen. De volgende meting telt de nieuwe reeks gewoon mee.
+    const RATES=[], BREAKS=[];
+    for(let i=1;i<sorted.length;i++){ const nd=daysBet(sorted[i-1].date,sorted[i].date); const r={}; if(nd>0) comps.forEach(c=>{ const v0=+(sorted[i-1].vals&&sorted[i-1].vals[c]); const v1=+(sorted[i].vals&&sorted[i].vals[c]); r[c]=(isFinite(v0)&&isFinite(v1))?(v1-v0)/nd:null; }); RATES[i]=r; }
+    comps.forEach(c=>{
+      if(OWN[c]) return;
+      const pos=[]; for(let i=1;i<sorted.length;i++){ const v=RATES[i][c]; if(v!=null&&v>0) pos.push(v); }
+      if(pos.length<3) return;
+      const med=pos.slice().sort((x,y)=>x-y)[Math.floor(pos.length/2)];
+      const bad=i=>{ const v=RATES[i][c]; return v!=null&&(v<0||v>med*4); };
+      const flagged=[]; for(let i=1;i<sorted.length;i++) if(bad(i)) flagged.push(i);
+      flagged.forEach(i=>{
+        const near=[]; for(let j=i-1;j>=1&&near.length<3;j--){ const v=RATES[j][c]; if(v!=null&&!flagged.includes(j)) near.push(v); }
+        for(let j=i+1;j<sorted.length&&near.length<3;j++){ const v=RATES[j][c]; if(v!=null&&!flagged.includes(j)) near.push(v); }
+        const est=near.length?near.reduce((s,x)=>s+x,0)/near.length:null;
+        BREAKS.push({ name:c, from:sorted[i-1].date, to:sorted[i].date, raw:RATES[i][c], est });
+        RATES[i][c]=est;
+      });
+    });
     for(let i=1;i<sorted.length;i++){
       const a=sorted[i-1].date, b=sorted[i].date, nd=daysBet(a,b); if(nd<=0)continue;
       const rate={};
-      comps.forEach(c=>{ const v0=+(sorted[i-1].vals&&sorted[i-1].vals[c]); const v1=+(sorted[i].vals&&sorted[i].vals[c]); rate[c]=(isFinite(v0)&&isFinite(v1))?(v1-v0)/nd:null; });
+      comps.forEach(c=>{ const rv=(RATES[i]||{})[c]; rate[c]=(rv==null||!isFinite(rv))?null:rv; });
       let d=a;
       for(let k=0;k<nd;k++){
         if(d>=lo&&d<=hi){ const key=gran==="month"?d.slice(0,7):(gran==="day"?d:mondayOf(d)); const bk=buckets[key]||(buckets[key]={r:{}}); comps.forEach(c=>{ const od=OWN[c]; const v=(od&&od[d]!=null)?od[d]:rate[c]; if(v!=null&&isFinite(v)){ (bk.r[c]=bk.r[c]||[]).push(v); } }); }
@@ -3282,7 +3311,7 @@ window.__kernLoad=function(){
     const keys=Object.keys(buckets).sort();
     const periods=keys.map(k=>bucketLabel(k,gran));
     const companies=comps.map(c=>({ name:c, us:/ongediertewinkel/i.test(c), avg:keys.map(k=>{ const arr=buckets[k].r[c]; return (arr&&arr.length)?Math.round((arr.reduce((s,x)=>s+x,0)/arr.length)*10)/10:null; }) }));
-    return { periods, companies, cov0, cov1, bucketed:true };
+    return { periods, companies, cov0, cov1, bucketed:true, breaks:BREAKS, lo, hi };
   }
   function buildView(){
     const entries=MK.entries||[];
@@ -3377,6 +3406,7 @@ window.__kernLoad=function(){
     }
     const chartBlock = P ? ('<div class="knchartwrap"><div class="kncharthd">Marktaandeel via verkoopgroei &nbsp; '+head+''+qtip(''+sub+esc(src)+' · ongediertewinkel.nl uitgelicht (dik groen). Onze eigen lijn telt alle orders uit Metorik (ook geannuleerde en onbetaalde), zonder ordernummers die nooit een order werden; concurrenten via de stijging van hun ordernummer.')+'</div>'
       +ctrls
+      +brkNote()
       +'<div class="knchartbox"><canvas id="mkchart"></canvas></div></div>'
       +'<div class="mtbl"><div class="mtscroll"><table><thead>'+th+'</thead><tbody>'+totRow+body+'</tbody></table></div>'
       +(MK.note?'<div class="mnote">'+esc(MK.note)+'</div>':'')+'</div>')
